@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM-Kit · Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/* PM-сетап: cool paper, ink navigation, hairline panels with "+" registration marks */
+:root{
+  --font-heading:"Barlow Condensed",system-ui,sans-serif; --font-body:"Barlow",system-ui,sans-serif;
+  --font-mono:ui-monospace,Menlo,Consolas,monospace;
+  --ink:#17324d; --ink-2:#1d4467; --text:#23303f; --text-2:#3f4a5c; --muted:#6b7689; --muted-2:#7b879a; --muted-3:#9aa6b6;
+  --page:#eef2f8; --frame:#b8c3d4; --rule:#dfe6ef; --rule-2:#e6ebf2; --rule-3:#eef2f7; --band:#e4ebf4; --band-2:#eff3f8;
+  --label-bg:#f2f5f9; --soft:#f7f9fc; --mark:#3d86c6; --honey:#8a6410; --teal:#10635f; --danger:#a8432f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--page)}
+body{font-family:var(--font-body);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--mark);outline-offset:-2px}
+::selection{background:#c5dff7}
+a{color:#2c5f8f;text-underline-offset:2px}
+[hidden]{display:none!important}
+
+.nav{position:sticky;top:0;z-index:20;display:flex;align-items:stretch;height:40px;padding:0 28px;background:var(--ink);border-bottom:1px solid #0f2740;overflow-x:auto}
+.nav .brand{display:flex;align-items:center;padding-right:18px;margin-right:8px;border-right:1px solid #2f4b6b;font-family:var(--font-heading);font-size:13px;font-weight:600;letter-spacing:.22em;color:#fff;white-space:nowrap}
+.nav button.tab{display:flex;align-items:center;padding:0 12px;border:0;background:none;font-family:var(--font-heading);font-size:12.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8fa6c2;white-space:nowrap;border-bottom:2px solid transparent;cursor:pointer}
+.nav button.tab:hover{color:#dce6f2}
+.nav button.tab[aria-current=page]{color:#fff;border-bottom-color:#7fd4d2}
+.nav .sp{flex:1}
+.nav select{align-self:center;height:26px;background:#1d3d5c;color:#dce6f2;border:1px solid #2f4b6b;border-radius:2px;padding:0 6px;margin-right:10px;font-size:12px}
+.nav .who{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;color:#8fa6c2;white-space:nowrap}
+.nav .who button{border:1px solid #2f4b6b;background:none;color:#dce6f2;border-radius:2px;height:24px;padding:0 8px;font-family:var(--font-heading);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.nav .who button:hover{background:#1d3d5c}
+
+.sheet{padding:30px 28px 60px;display:flex;flex-direction:column;gap:16px;min-width:min-content}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.kicker{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-2)}
+h1{margin:6px 0 0;font-family:var(--font-heading);font-size:40px;line-height:.9;font-weight:600;letter-spacing:.01em;text-transform:uppercase;color:var(--ink)}
+.caption{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);text-align:right;line-height:1.5}
+
+.panel{position:relative;background:#fff;border:1px solid var(--frame)}
+.panel::before,.panel::after,.panel>.mk::before,.panel>.mk::after{content:"+";position:absolute;font-family:var(--font-mono);font-size:11px;line-height:1;color:var(--mark);pointer-events:none}
+.panel::before{left:-4px;top:-6px}.panel::after{right:-4px;top:-6px}
+.panel>.mk::before{left:-4px;bottom:-5px}.panel>.mk::after{right:-4px;bottom:-5px}
+.bar{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;background:var(--band);border-bottom:1px solid var(--frame)}
+.bar .t{font-family:var(--font-heading);font-size:14px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.bar .n{font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+.bar .sp{flex:1}
+.btn{height:24px;padding:0 10px;border:1px solid var(--frame);background:#fff;border-radius:2px;font-family:var(--font-heading);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--soft);border-color:#93a3ba}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.pri:hover{background:var(--ink-2)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{border-color:transparent;background:none}
+
+.scroll{overflow:auto;max-height:calc(100vh - 230px)}
+table.grid{border-collapse:separate;border-spacing:0;width:100%}
+.grid th{position:sticky;top:0;z-index:2;height:28px;padding:0 9px;background:var(--label-bg);border-bottom:1px solid var(--frame);border-right:1px solid var(--rule);text-align:left;font-family:var(--font-mono);font-size:10px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.grid td{height:30px;padding:0;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule-3);white-space:nowrap;vertical-align:middle}
+.grid tr:hover td{background:var(--soft)}
+.grid tr.d0 td{background:var(--band-2);font-weight:600;color:var(--ink)}
+.grid tr.d0:hover td{background:#e9eff6}
+.grid td.title{min-width:300px}
+.tcell{display:flex;align-items:center;gap:6px;height:100%;padding-right:6px}
+.caret{width:16px;height:20px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:10px;padding:0;flex:none}
+.caret.leaf{visibility:hidden}
+.lvl{flex:none;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);border:1px solid var(--rule);border-radius:2px;padding:1px 4px;background:#fff}
+.rowact{display:flex;gap:2px;visibility:hidden}
+tr:hover .rowact{visibility:visible}
+.rowact button{border:0;background:none;color:var(--mark);cursor:pointer;font-family:var(--font-mono);font-size:11px;padding:2px 4px;border-radius:2px}
+.rowact button:hover{background:#dcebf8}
+.cell{width:100%;height:29px;border:0;background:transparent;padding:0 9px;font-size:12.5px;color:var(--text-2)}
+input.cell.num{text-align:right;font-family:var(--font-mono);font-weight:600;color:var(--ink-2)}
+.cell:focus{outline:2px solid var(--mark);outline-offset:-2px;background:#fff}
+.cell.ttl{font-weight:inherit;color:inherit;padding-left:2px}
+.ro{padding:0 9px;font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink-2);text-align:right;display:block}
+.ro.sum{color:var(--muted)}
+select.cell{appearance:none;cursor:pointer}
+.linkcell{display:flex;align-items:center;gap:6px;padding:0 9px}
+.linkcell button{border:0;background:none;color:var(--muted-3);cursor:pointer;font-size:11px;padding:0}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;padding:2px 6px;border-radius:2px;background:var(--band);color:var(--ink-2)}
+.tag.warn{background:#f6ecd4;color:var(--honey)} .tag.ok{background:#dcefee;color:var(--teal)} .tag.off{background:var(--rule-3);color:var(--muted-3)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.stats{display:flex;border-top:1px solid var(--frame);background:var(--label-bg)}
+.stats div{padding:7px 14px;border-right:1px solid var(--rule);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stats b{font-size:13px;color:var(--ink);letter-spacing:0;margin-left:6px}
+
+.form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;background:var(--soft);border-bottom:1px solid var(--rule)}
+.form input,.form select{height:26px;border:1px solid var(--frame);border-radius:2px;background:#fff;padding:0 7px;font-size:12.5px}
+.form label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;padding:3px 9px}
+.chip{border:1px solid var(--rule);background:#fff;border-radius:2px;padding:1px 6px;font-size:11.5px;color:var(--muted);cursor:pointer}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login .panel{width:340px;padding:26px 24px 22px;display:flex;flex-direction:column;gap:12px}
+.login h1{font-size:34px}
+.login input{height:32px;border:1px solid var(--frame);border-radius:2px;padding:0 9px;width:100%}
+.login label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.login .btn{height:32px}
+.err{color:var(--danger);font-size:12px;min-height:16px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(560px,92vw);background:var(--ink);color:#fff;padding:9px 14px;border-radius:2px;font-size:12.5px;z-index:50;box-shadow:0 12px 32px rgba(23,50,77,.25)}
+.toast.bad{background:var(--danger)}
+.note{font-size:11.5px;color:var(--muted);line-height:1.5;max-width:900px}
+.note b{color:var(--text-2)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const SUPABASE_URL = "https://tdoqodyvsgaeovtfpdqk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_M4SQKwJ3wq-dsTFxTm9OKw_-jTTmQnI";   // publishable key: safe in the browser, data is guarded by row-level security
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const S = { user:null, projects:[], project:null, tbl:null, view:null, levels:[], fields:[], members:[], pipelines:[], stages:[], deps:[], tree:[], batches:[], tab:"tracker", collapsed:new Set(), adding:null, busy:false };
+
+let toastTimer;
+function toast(msg, bad){ document.querySelectorAll(".toast").forEach(e => e.remove()); const d = document.createElement("div"); d.className = "toast" + (bad ? " bad" : ""); d.textContent = msg; document.body.appendChild(d); clearTimeout(toastTimer); toastTimer = setTimeout(() => d.remove(), bad ? 6000 : 2600); }
+function fail(error){ console.error(error); toast(error?.message || String(error), true); }
+async function q(promise){ const { data, error } = await promise; if (error) throw error; return data; }
+const fmtH = v => v == null ? "" : (+(+v).toFixed(2)) + " h";
+
+/* ---------------- auth ---------------- */
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  S.user = session?.user || null;
+  sb.auth.onAuthStateChange((_e, s) => { const was = S.user?.id; S.user = s?.user || null; if (was !== S.user?.id) start(); });
+  start();
+}
+async function start(){ if (!S.user) return renderLogin(); try { await loadProjects(); } catch (e) { fail(e); } render(); }
+
+function renderLogin(msg){
+  $app.innerHTML = `<div class="login"><form class="panel" id="lf"><span class="mk"></span>
+    <div><div class="kicker">PM-Kit · prototype</div><h1>Sign in</h1></div>
+    <label>Email<input id="le" type="email" autocomplete="username" required></label>
+    <label>Password<input id="lp" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="lerr">${esc(msg || "")}</div>
+    <button class="btn pri" type="submit">Sign in</button></form></div>`;
+  document.getElementById("lf").addEventListener("submit", async e => {
+    e.preventDefault(); const b = e.target.querySelector("button"); b.disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email: document.getElementById("le").value.trim(), password: document.getElementById("lp").value });
+    b.disabled = false; if (error) document.getElementById("lerr").textContent = error.message;
+  });
+}
+
+/* ---------------- data ---------------- */
+async function loadProjects(){
+  S.projects = await q(sb.from("project").select("id,org_id,name,code").is("archived_at", null).order("created_at"));
+  if (!S.project || !S.projects.find(p => p.id === S.project.id)) S.project = S.projects[0] || null;
+  if (S.project) await loadProject();
+}
+async function loadProject(){
+  const p = S.project;
+  S.tbl = (await q(sb.from("tbl").select("*").eq("project_id", p.id).eq("template_key", "tracker").is("deleted_at", null)))[0];
+  S.view = (await q(sb.from("view").select("*").eq("table_id", S.tbl.id).eq("kind", "grid").is("deleted_at", null).order("position")))[0];
+  const [levels, fields, vf, members, pipelines] = await Promise.all([
+    q(sb.from("tree_level").select("*").eq("table_id", S.tbl.id).order("position")),
+    q(sb.from("field").select("*").eq("table_id", S.tbl.id).is("deleted_at", null).order("position")),
+    q(sb.from("view_field").select("*").eq("view_id", S.view.id).order("position")),
+    q(sb.from("project_member").select("id,display_name,access_role").eq("project_id", p.id).is("removed_at", null).order("display_name")),
+    q(sb.from("pipeline").select("*").eq("project_id", p.id).is("archived_at", null).order("position").order("name")),
+  ]);
+  const mode = Object.fromEntries(vf.map(v => [v.field_id, v]));
+  S.levels = levels; S.members = members; S.pipelines = pipelines;
+  S.fields = fields.filter(f => (mode[f.id]?.mode || "edit") !== "hidden").map(f => ({ ...f, mode: mode[f.id]?.mode || "edit" }));
+  const ids = pipelines.map(x => x.id);
+  S.stages = ids.length ? await q(sb.from("pipeline_stage").select("*").in("pipeline_id", ids).order("position")) : [];
+  const sids = S.stages.map(s => s.id);
+  S.deps = sids.length ? await q(sb.from("pipeline_stage_dep").select("*").in("stage_id", sids)) : [];
+  await loadTree();
+}
+async function loadTree(){ S.tree = await q(sb.rpc("get_tree", { p_table: S.tbl.id })); }
+async function loadHistory(){
+  S.batches = await q(sb.from("change_batch").select("id,kind,summary,created_at,reverted_by,actor_id,change_log(count)").eq("project_id", S.project.id).order("created_at", { ascending:false }).limit(60));
+}
+const fieldByRole = r => S.fields.find(f => f.role === r);
+const enabledLevels = () => S.levels.filter(l => l.enabled);
+function childLevel(levelName){ const cur = S.levels.find(l => l.name === levelName); return cur ? enabledLevels().find(l => l.position > cur.position) : null; }
+async function run(fn, okMsg){ if (S.busy) return; S.busy = true; try { await fn(); if (okMsg) toast(okMsg); } catch (e) { fail(e); } finally { S.busy = false; } render(); }
+
+/* ---------------- shell ---------------- */
+function render(){
+  if (!S.user) return renderLogin();
+  const tabs = [["tracker","Tracker"],["pipelines","Pipelines"],["structure","Data structure"],["history","History"]];
+  let h = `<nav class="nav"><div class="brand">PM-KIT</div>
+    ${tabs.map(([k,n]) => `<button class="tab" data-tab="${k}" ${S.tab === k ? 'aria-current="page"' : ""}>${n}</button>`).join("")}
+    <div class="sp"></div>
+    ${S.projects.length ? `<select id="proj">${S.projects.map(p => `<option value="${p.id}" ${p.id === S.project?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : ""}
+    <div class="who">${esc(S.user.email)} <button data-act="pwd">Password</button><button data-act="out">Sign out</button></div></nav>`;
+  if (!S.project) h += `<div class="sheet"><div class="panel"><span class="mk"></span><div class="empty">No projects are visible to this account yet.</div></div></div>`;
+  else h += ({ tracker: viewTracker, pipelines: viewPipelines, structure: viewStructure, history: viewHistory })[S.tab]();
+  const keep = document.querySelector(".scroll")?.scrollTop;
+  $app.innerHTML = h;
+  if (keep) { const sc = document.querySelector(".scroll"); if (sc) sc.scrollTop = keep; }
+}
+function head(kicker, title, cap1, cap2){
+  return `<header class="head"><div><div class="kicker">${esc(kicker)}</div><h1>${esc(title)}</h1></div><div class="caption">${esc(cap1)}<br>${esc(cap2)}</div></header>`;
+}
+
+/* ---------------- tracker ---------------- */
+function visibleRows(){
+  const hiddenUnder = []; const out = [];
+  for (const r of S.tree) {
+    while (hiddenUnder.length && hiddenUnder[hiddenUnder.length - 1] >= r.depth) hiddenUnder.pop();
+    if (hiddenUnder.length) continue;
+    out.push(r);
+    if (S.collapsed.has(r.id)) hiddenUnder.push(r.depth);
+  }
+  return out;
+}
+function cellHtml(r, f){
+  const v = r.data?.[f.id]; const ro = f.mode === "read"; const dis = ro ? "disabled" : "";
+  const a = `data-rec="${r.id}" data-field="${f.id}"`;
+  if (f.role === "estimate" && !r.is_leaf) return `<span class="ro sum" title="Sum of the rows below">${fmtH(r.estimate_h)}</span>`;
+  switch (f.type) {
+    case "number": case "money": case "duration":
+      return `<input class="cell num" type="number" step="0.5" min="0" ${a} value="${v ?? ""}" ${dis}>`;
+    case "checkbox": return `<input type="checkbox" style="margin:0 9px" ${a} ${v ? "checked" : ""} ${dis}>`;
+    case "date": return `<input class="cell" type="date" ${a} value="${esc(v ?? "")}" ${dis}>`;
+    case "select": { const opts = f.config?.options || [];
+      return `<select class="cell" ${a} ${dis}><option value=""></option>${opts.map(o => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`; }
+    case "person":
+      return `<select class="cell" ${a} ${dis}><option value=""></option>${S.members.map(m => `<option value="${m.id}" ${m.id === v ? "selected" : ""}>${esc(m.display_name)}</option>`).join("")}</select>`;
+    case "link":
+      return `<span class="linkcell">${v?.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.caption || v.url)}</a>` : `<span style="color:var(--muted-3)">—</span>`}${ro ? "" : `<button data-act="link" ${a} title="Edit link">✎</button>`}</span>`;
+    case "thumbnail": case "attachment": return `<span style="padding:0 9px;color:var(--muted-3)">—</span>`;
+    default: return `<input class="cell" type="text" ${a} value="${esc(v ?? "")}" ${dis}>`;
+  }
+}
+function viewTracker(){
+  const title = fieldByRole("title"); const cols = S.fields.filter(f => f !== title);
+  const top = enabledLevels()[0]; const rows = visibleRows();
+  const kids = new Set(S.tree.map(r => r.parent_id).filter(Boolean));
+  const leafCount = S.tree.filter(r => r.is_leaf).length;
+  const total = S.tree.filter(r => r.depth === 0).reduce((a, r) => a + (+r.estimate_h || 0), 0);
+  let body = "";
+  for (const r of rows) {
+    const cl = childLevel(r.level); const hasKids = kids.has(r.id);
+    body += `<tr class="d${Math.min(r.depth, 3)}" data-id="${r.id}"><td class="title"><div class="tcell" style="padding-left:${6 + r.depth * 18}px">
+      <button class="caret ${hasKids ? "" : "leaf"}" data-act="toggle" data-id="${r.id}">${S.collapsed.has(r.id) ? "▸" : "▾"}</button>
+      <span class="lvl">${esc(r.level || "")}</span>
+      <input class="cell ttl" type="text" data-rec="${r.id}" data-field="${title.id}" value="${esc(r.title ?? "")}">
+      <span class="rowact">${cl ? `<button data-act="addchild" data-id="${r.id}" title="Add ${esc(cl.name)}">+ ${esc(cl.name)}</button>` : ""}</span></div></td>
+      ${cols.map(f => `<td>${cellHtml(r, f)}</td>`).join("")}</tr>`;
+    if (S.adding && S.adding.parent === r.id) body += addRowHtml(r.depth + 1, cols.length + 1);
+  }
+  if (S.adding && S.adding.parent === null) body += addRowHtml(0, cols.length + 1);
+  return `<div class="sheet">${head(`${S.project.code || "Project"} · live database`, "Tracker", S.project.name, `${S.tree.length} rows · ${enabledLevels().map(l => l.name).join(" › ")}`)}
+  <div class="panel"><span class="mk"></span>
+    <div class="bar"><span class="t">Asset tracker</span><span class="n">every edit is saved to the database and logged</span><span class="sp"></span>
+      <button class="btn" data-act="collapse">Collapse</button><button class="btn" data-act="expand">Expand</button>
+      <button class="btn" data-act="addfield">+ Field</button>
+      ${top ? `<button class="btn pri" data-act="addroot">+ ${esc(top.name)}</button>` : ""}</div>
+    ${S.addingField ? fieldFormHtml() : ""}
+    <div class="scroll"><table class="grid"><thead><tr><th>${esc(title.name)}</th>${cols.map(f => `<th>${esc(f.name)}${f.type === "duration" ? ", h" : ""}</th>`).join("")}</tr></thead>
+    <tbody>${body || `<tr><td colspan="${cols.length + 1}"><div class="empty">Nothing here yet. Start with “+ ${esc(top?.name || "row")}”.</div></td></tr>`}</tbody></table></div>
+    <div class="stats"><div>Rows<b>${S.tree.length}</b></div><div>Work items<b>${leafCount}</b></div><div>Total estimate<b>${fmtH(total)}</b></div><div>Fields<b>${S.fields.length}</b></div></div>
+  </div>
+  <div class="note"><b>How it works.</b> Rows with children show the sum of what is below them. A cell is saved when you leave it; the database checks the value type and rejects a wrong one. Hover a row to add a child one level down. Levels are switched on and off in <b>Data structure</b>.</div></div>`;
+}
+function addRowHtml(depth, span){
+  const a = S.adding;
+  return `<tr><td colspan="${span}"><form class="form" id="addrow" style="padding-left:${10 + depth * 18}px">
+    <label>New ${esc(a.level.name)}</label><input id="ar-name" placeholder="Name" required style="width:260px" autocomplete="off">
+    ${a.level.position === 3 && S.pipelines.length ? `<label>Pipeline</label><select id="ar-pl"><option value="">None</option>${S.pipelines.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>` : ""}
+    <button class="btn pri" type="submit">Add</button><button class="btn ghost" type="button" data-act="canceladd">Cancel</button></form></td></tr>`;
+}
+function fieldFormHtml(){
+  return `<form class="form" id="addfield"><label>New field</label><input id="af-name" placeholder="Name" required autocomplete="off">
+    <label>Type</label><select id="af-type">${[["text","Text"],["number","Number"],["duration","Duration, h"],["date","Date"],["checkbox","Checkbox"],["select","Dropdown"],["link","Link"],["person","Person"]].map(([v,n]) => `<option value="${v}">${n}</option>`).join("")}</select>
+    <input id="af-opts" placeholder="Dropdown options, comma separated" style="width:280px">
+    <button class="btn pri" type="submit">Add field</button><button class="btn ghost" type="button" data-act="cancelfield">Cancel</button></form>`;
+}
+async function saveCell(el){
+  const rec = el.dataset.rec, fid = el.dataset.field; const f = S.fields.find(x => x.id === fid); const row = S.tree.find(x => x.id === rec);
+  let val;
+  if (el.type === "checkbox") val = el.checked;
+  else if (el.type === "number") val = el.value === "" ? null : Number(el.value);
+  else val = el.value === "" ? null : el.value;
+  const old = row?.data?.[fid] ?? null;
+  if ((old ?? null) === (val ?? null)) return;
+  if (f.role === "title" && !val) { el.value = old ?? ""; return toast("Name cannot be empty", true); }
+  try { await q(sb.rpc("set_cell", { p_record: rec, p_field: fid, p_value: val })); await loadTree(); }
+  catch (e) { fail(e); await loadTree().catch(() => {}); }
+  const active = document.activeElement; const next = active?.dataset?.rec ? [active.dataset.rec, active.dataset.field] : null;
+  render();
+  if (next) document.querySelector(`[data-rec="${next[0]}"][data-field="${next[1]}"]`)?.focus();
+}
+
+/* ---------------- pipelines ---------------- */
+function viewPipelines(){
+  const gaps = [["","None"],["client_review","Client review"],["internal_review","Internal review"],["pending","Pending"]];
+  let h = `<div class="sheet">${head("Reusable stage templates", "Pipelines", S.project.name, `${S.pipelines.length} pipelines`)}`;
+  for (const p of S.pipelines) {
+    const st = S.stages.filter(s => s.pipeline_id === p.id);
+    h += `<div class="panel"><span class="mk"></span><div class="bar"><span class="t">${esc(p.name)}</span><span class="n">${st.length} stages · ${st.reduce((a, s) => a + (+s.default_hours || 0), 0)} h</span><span class="sp"></span></div>
+    <table class="grid"><thead><tr><th style="width:36px">#</th><th>Stage</th><th style="width:110px">Default, h</th><th style="width:170px">After the stage</th><th>Can start after</th></tr></thead><tbody>
+    ${st.map((s, i) => `<tr><td><span class="ro" style="text-align:center">${i + 1}</span></td>
+      <td><input class="cell" data-ps="${s.id}" data-k="name" value="${esc(s.name)}"></td>
+      <td><input class="cell num" type="number" min="0" step="0.5" data-ps="${s.id}" data-k="default_hours" value="${s.default_hours ?? ""}"></td>
+      <td><select class="cell" data-ps="${s.id}" data-k="gap_type">${gaps.map(([v,n]) => `<option value="${v}" ${(s.gap_type || "") === v ? "selected" : ""}>${n}</option>`).join("")}</select></td>
+      <td><div class="chips">${st.filter(o => o.id !== s.id).map(o => `<button class="chip ${S.deps.some(d => d.stage_id === s.id && d.depends_on_id === o.id) ? "on" : ""}" data-act="dep" data-s="${s.id}" data-o="${o.id}">${esc(o.name)}</button>`).join("") || `<span style="color:var(--muted-3)">—</span>`}</div></td></tr>`).join("")}
+    </tbody></table>
+    <form class="form" data-form="stage" data-pl="${p.id}"><label>New stage</label><input name="name" placeholder="Name" required autocomplete="off"><input name="hours" type="number" min="0" step="0.5" placeholder="Hours" style="width:90px"><button class="btn" type="submit">+ Stage</button><span class="n" style="color:var(--muted);font-size:11.5px">a new stage starts after the previous one; change it with the chips</span></form></div>`;
+  }
+  h += `<div class="panel"><span class="mk"></span><form class="form" data-form="pipeline" style="border:0"><label>New pipeline</label><input name="name" placeholder="Name, e.g. Characters" required autocomplete="off" style="width:260px"><button class="btn pri" type="submit">+ Pipeline</button></form></div>
+  <div class="note"><b>How it works.</b> A stage with no chips selected can start at any time. Textures after Bakes and LODs after Low poly means the two can run in parallel. Changing a pipeline affects only assets created afterwards; existing assets keep their stages. A circular dependency is rejected by the database.</div></div>`;
+  return h;
+}
+
+/* ---------------- structure ---------------- */
+function viewStructure(){
+  const used = new Set(S.tree.map(r => r.level));
+  return `<div class="sheet">${head("Tree levels of the tracker", "Data structure", S.project.name, enabledLevels().map(l => l.name).join(" › "))}
+  <div class="panel" style="max-width:760px"><span class="mk"></span><div class="bar"><span class="t">Levels</span><span class="n">top to bottom</span></div>
+  <table class="grid"><thead><tr><th style="width:36px">#</th><th>Name</th><th style="width:120px">Rows</th><th style="width:150px">State</th><th style="width:120px"></th></tr></thead><tbody>
+  ${S.levels.map((l, i) => { const n = S.tree.filter(r => r.level === l.name).length;
+    return `<tr><td><span class="ro" style="text-align:center">${i + 1}</span></td><td><input class="cell" data-lvl="${l.id}" value="${esc(l.name)}"></td>
+    <td><span class="ro">${n}</span></td><td style="padding:0 9px">${l.enabled ? `<span class="tag ok">visible</span>` : `<span class="tag off">hidden</span>`}</td>
+    <td style="padding:0 9px"><button class="btn" data-act="lvl" data-id="${l.id}" data-on="${l.enabled ? 0 : 1}" ${l.enabled && n ? "disabled title='Has rows'" : ""}>${l.enabled ? "Hide" : "Show"}</button></td></tr>`; }).join("")}
+  </tbody></table></div>
+  <div class="note"><b>How it works.</b> All six levels always exist; a new project shows three. Switch on Epic or Milestone to group batches, or Part to split a stage between people. Hidden levels sit only at the edges, so switching one on never rebuilds the tree. A level that already has rows cannot be hidden.</div></div>`;
+}
+
+/* ---------------- history ---------------- */
+function viewHistory(){
+  const kinds = { edit:"Edit", schema:"Field", pipeline:"Pipeline", revert:"Revert", split:"Split", import:"Import", auto_shift:"Auto shift", draft_apply:"Plan" };
+  return `<div class="sheet">${head("Append-only change log", "History", S.project.name, `last ${S.batches.length} changes`)}
+  <div class="panel"><span class="mk"></span><div class="bar"><span class="t">Changes</span><span class="n">newest first</span><span class="sp"></span><button class="btn" data-act="reloadhistory">Refresh</button></div>
+  <div class="scroll"><table class="grid"><thead><tr><th style="width:150px">When</th><th style="width:100px">Kind</th><th>What</th><th style="width:80px">Entries</th><th style="width:130px"></th></tr></thead><tbody>
+  ${S.batches.map(b => `<tr><td style="padding:0 9px;font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${new Date(b.created_at).toLocaleString("uk-UA", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" })}</td>
+    <td style="padding:0 9px"><span class="tag ${b.kind === "revert" ? "warn" : ""}">${kinds[b.kind] || b.kind}</span></td>
+    <td style="padding:0 9px">${esc(b.summary || "")}</td><td><span class="ro">${b.change_log?.[0]?.count ?? ""}</span></td>
+    <td style="padding:0 9px">${b.reverted_by ? `<span class="tag off">reverted</span>` : b.kind === "revert" ? "" : `<button class="btn" data-act="revert" data-id="${b.id}">Revert</button>`}</td></tr>`).join("") || `<tr><td colspan="5"><div class="empty">No changes yet.</div></td></tr>`}
+  </tbody></table></div></div>
+  <div class="note"><b>How it works.</b> Every edit, new row, new field and applied pipeline is one entry. Revert undoes the whole entry and is itself recorded; nothing is ever erased from the log.</div></div>`;
+}
+
+/* ---------------- events ---------------- */
+$app.addEventListener("click", async e => {
+  const b = e.target.closest("[data-tab],[data-act]"); if (!b) return;
+  if (b.dataset.tab) { S.tab = b.dataset.tab; S.adding = null; S.addingField = false; if (S.tab === "history") return run(loadHistory); return render(); }
+  const act = b.dataset.act, id = b.dataset.id;
+  if (act === "out") return sb.auth.signOut();
+  if (act === "pwd") { const p = window.prompt("New password (at least 8 characters):"); if (!p) return; if (p.length < 8) return toast("Too short", true);
+    const { error } = await sb.auth.updateUser({ password: p }); return error ? fail(error) : toast("Password changed"); }
+  if (act === "toggle") { S.collapsed.has(id) ? S.collapsed.delete(id) : S.collapsed.add(id); return render(); }
+  if (act === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
+  if (act === "expand") { S.collapsed.clear(); return render(); }
+  if (act === "addroot") { S.adding = { parent:null, level: enabledLevels()[0] }; render(); return document.getElementById("ar-name")?.focus(); }
+  if (act === "addchild") { const r = S.tree.find(x => x.id === id); S.collapsed.delete(id); S.adding = { parent:id, level: childLevel(r.level) }; render(); return document.getElementById("ar-name")?.focus(); }
+  if (act === "canceladd") { S.adding = null; return render(); }
+  if (act === "addfield") { S.addingField = true; render(); return document.getElementById("af-name")?.focus(); }
+  if (act === "cancelfield") { S.addingField = false; return render(); }
+  if (act === "link") { const row = S.tree.find(x => x.id === b.dataset.rec); const cur = row?.data?.[b.dataset.field] || {};
+    const url = window.prompt("Link URL (leave empty to clear):", cur.url || ""); if (url === null) return;
+    let val = null; if (url.trim()) { const cap = window.prompt("Caption shown in the table:", cur.caption || ""); if (cap === null) return; val = { url: url.trim(), caption: cap.trim() || url.trim() }; }
+    return run(async () => { await q(sb.rpc("set_cell", { p_record: b.dataset.rec, p_field: b.dataset.field, p_value: val })); await loadTree(); }); }
+  if (act === "dep") return run(async () => {
+    const on = b.classList.contains("on");
+    if (on) await q(sb.from("pipeline_stage_dep").delete().eq("stage_id", b.dataset.s).eq("depends_on_id", b.dataset.o));
+    else await q(sb.from("pipeline_stage_dep").insert({ org_id: S.project.org_id, stage_id: b.dataset.s, depends_on_id: b.dataset.o }));
+    await loadProject(); });
+  if (act === "lvl") return run(async () => { await q(sb.from("tree_level").update({ enabled: b.dataset.on === "1" }).eq("id", id)); await loadProject(); }, b.dataset.on === "1" ? "Level is visible now" : "Level hidden");
+  if (act === "reloadhistory") return run(loadHistory);
+  if (act === "revert") return run(async () => { await q(sb.rpc("revert_batch", { p_batch: id })); await loadProject(); await loadHistory(); }, "Reverted");
+});
+$app.addEventListener("change", e => {
+  const el = e.target;
+  if (el.id === "proj") { S.project = S.projects.find(p => p.id === el.value); S.collapsed.clear(); return run(async () => { await loadProject(); if (S.tab === "history") await loadHistory(); }); }
+  if (el.dataset.rec) return saveCell(el);
+  if (el.dataset.ps) return run(async () => { const k = el.dataset.k; let v = el.value;
+    if (k === "default_hours") v = v === "" ? null : Number(v); if (k === "gap_type") v = v || null; if (k === "name" && !v) throw new Error("Stage name cannot be empty");
+    await q(sb.from("pipeline_stage").update({ [k]: v }).eq("id", el.dataset.ps)); await loadProject(); });
+  if (el.dataset.lvl) return run(async () => { if (!el.value.trim()) throw new Error("Level name cannot be empty"); await q(sb.from("tree_level").update({ name: el.value.trim() }).eq("id", el.dataset.lvl)); await loadProject(); }, "Level renamed");
+});
+$app.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset?.rec && e.target.tagName === "INPUT") e.target.blur(); if (e.key === "Escape" && S.adding) { S.adding = null; render(); } });
+$app.addEventListener("submit", e => {
+  const f = e.target; if (f.id === "lf") return; e.preventDefault();
+  if (f.id === "addrow") { const a = S.adding; const name = document.getElementById("ar-name").value.trim(); const pl = document.getElementById("ar-pl")?.value || null; if (!name) return;
+    return run(async () => {
+      const id = await q(sb.rpc("add_record", { p_table: S.tbl.id, p_parent: a.parent, p_level: a.level.id, p_title: name, p_data: {}, p_pipeline: pl }));
+      if (pl) await q(sb.rpc("apply_pipeline", { p_asset: id }));
+      S.adding = null; await loadTree(); }, pl ? "Added with pipeline stages" : "Added"); }
+  if (f.id === "addfield") { const name = document.getElementById("af-name").value.trim(); const type = document.getElementById("af-type").value;
+    const opts = document.getElementById("af-opts").value.split(",").map(s => s.trim()).filter(Boolean);
+    if (type === "select" && !opts.length) return toast("A dropdown needs at least one option", true);
+    return run(async () => { await q(sb.rpc("add_field", { p_table: S.tbl.id, p_name: name, p_type: type, p_config: type === "select" ? { options: opts } : {} })); S.addingField = false; await loadProject(); }, "Field added"); }
+  if (f.dataset.form === "pipeline") { const name = f.elements.name.value.trim();
+    return run(async () => { await q(sb.from("pipeline").insert({ org_id: S.project.org_id, project_id: S.project.id, name })); await loadProject(); }, "Pipeline created"); }
+  if (f.dataset.form === "stage") { const pl = f.dataset.pl; const st = S.stages.filter(s => s.pipeline_id === pl); const name = f.elements.name.value.trim(); const hours = f.elements.hours.value;
+    return run(async () => {
+      const pos = st.length ? Math.max(...st.map(s => s.position)) + 1 : 1;
+      const row = (await q(sb.from("pipeline_stage").insert({ org_id: S.project.org_id, pipeline_id: pl, name, position: pos, default_hours: hours === "" ? null : Number(hours) }).select()))[0];
+      if (st.length) await q(sb.from("pipeline_stage_dep").insert({ org_id: S.project.org_id, stage_id: row.id, depends_on_id: st[st.length - 1].id }));
+      await loadProject(); }, "Stage added"); }
+});
+boot();
+</script>
+</body>
+</html>
