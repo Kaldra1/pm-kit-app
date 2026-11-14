@@ -36,6 +36,16 @@ a{color:#2c5f8f;text-underline-offset:2px}
 .hbtn{border:1px solid #2f4b6b;background:none;color:#dce6f2;border-radius:2px;height:24px;padding:0 8px;font-family:var(--font-heading);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 .hbtn:hover{background:#1d3d5c}
 
+/* menu row */
+.mrow{flex:none;display:flex;align-items:center;gap:2px;height:26px;padding:0 8px;background:#fff;border-bottom:1px solid var(--rule-3)}
+.mrow button{height:22px;padding:0 9px;border:0;background:none;border-radius:3px;font-size:12.5px;color:var(--text-2);cursor:pointer}
+.mrow button:hover,.mrow button.open{background:var(--band-2);color:var(--ink)}
+.menu button .hint{margin-left:auto;padding-left:18px;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3)}
+.tbtn.ico{padding:0 7px;font-size:14px;letter-spacing:0}
+.split{display:inline-flex}.split .tbtn:first-child{border-radius:3px 0 0 3px;padding-right:6px}.split .tbtn:last-child{border-radius:0 3px 3px 0;padding:0 5px}
+.grid tr.del td{text-decoration:line-through;color:var(--muted-3)!important;background:#fbf1ef!important}
+.grid tr.del .chip{opacity:.4}
+.grid tr.mv td:first-child{box-shadow:inset 3px 0 0 #e0a800}
 /* toolbar + cell bar */
 .tb{flex:none;display:flex;align-items:center;gap:4px;height:38px;padding:0 10px;background:#fff;border-bottom:1px solid var(--rule)}
 .tbtn{height:26px;padding:0 9px;border:1px solid transparent;background:none;border-radius:3px;font-family:var(--font-heading);font-size:12.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);cursor:pointer;white-space:nowrap}
@@ -191,7 +201,6 @@ table.plain{border-collapse:collapse;width:100%}
 .gwrap{position:relative}
 .gnow{position:absolute;top:0;bottom:0;border-left:2px solid #e0a800;z-index:2;pointer-events:none}
 .tag.bad{background:#f6d5cf;color:var(--danger)} .tag.ok{background:#dcefee;color:var(--teal)}
-.tbtn.mode{border-color:var(--rule)} .tbtn.mode.on{background:#fff6dc;border-color:#e9cf8a;color:#6d4f06}
 .kick{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .stepsel{height:26px;border:1px solid var(--rule);border-radius:3px;background:#fff;padding:0 4px}
 .grid td.dr{background:#fff8e6!important;box-shadow:inset 0 -2px 0 #e0a800}
@@ -222,7 +231,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&l
 const S = { user:null, projects:[], project:null, tbl:null, view:null, levels:[], fields:[], members:[], pipelines:[], stages:[], deps:[],
   tree:[], row:{}, batches:[], recdeps:[], gaps:[], sheet:"tracker", collapsed:new Set(), sel:null, editing:false, search:"", saving:0, drag:null, fStatus:new Set(), fPerson:new Set(),
   base:[], segs:{}, segAll:{}, segEff:{}, gapOf:{}, depsOf:{}, mode:"plan", step:4, draft:{ ops:[], undo:[], redo:[] } };
-try { S.mode = localStorage.getItem("pmkit.mode") || "plan"; S.step = +localStorage.getItem("pmkit.step") || 4; } catch (_) {}
+try { S.step = +localStorage.getItem("pmkit.step") || 4; } catch (_) {}
 
 /* ---------------- small helpers ---------------- */
 let toastTimer;
@@ -315,7 +324,7 @@ async function loadPlanData(){
 const draftKey = () => "pmkit.draft." + S.project?.id;
 function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(S.draft.ops)); } catch (_) {} }
 function loadDraft(){ if (S.draft.project !== S.project.id) { S.draft = { ops:[], undo:[], redo:[], project:S.project.id }; try { S.draft.ops = JSON.parse(localStorage.getItem(draftKey()) || "[]"); } catch (_) {} }
-  const ids = new Set(S.base.map(r => r.id)), fids = new Set(S.fields.map(f => f.id)); S.draft.ops = S.draft.ops.filter(o => ids.has(o.record) && (o.t !== "cell" || fids.has(o.field))); }
+  const ids = new Set(S.base.map(r => r.id)), fids = new Set(S.fields.map(f => f.id)); S.draft.ops = S.draft.ops.filter(o => ids.has(o.record) && (o.t !== "cell" || fids.has(o.field)) && (o.t !== "move" || ((!o.parent || ids.has(o.parent)) && (!o.before || ids.has(o.before))))); }
 function draftPush(){ S.draft.undo.push(JSON.stringify(S.draft.ops)); if (S.draft.undo.length > 200) S.draft.undo.shift(); S.draft.redo = []; }
 function draftCell(rec, f, val){ draftPush(); const base = S.base.find(r => r.id === rec)?.data?.[f.id] ?? null;
   S.draft.ops = S.draft.ops.filter(o => !(o.t === "cell" && o.record === rec && o.field === f.id));
@@ -325,19 +334,26 @@ function draftCell(rec, f, val){ draftPush(); const base = S.base.find(r => r.id
 function rebuild(){
   const est = byRole("estimate"), sp = byRole("time_spent"), ti = byRole("title"), al = byRole("approved_lead"), ac = byRole("approved_client");
   const byRec = {}; for (const o of S.draft.ops) if (o.t === "cell") (byRec[o.record] ||= []).push(o);
-  S.tree = S.base.map(r => ({ ...r, data: { ...r.data }, _dr: null })); S.row = Object.fromEntries(S.tree.map(r => [r.id, r]));
+  // structure: sibling order from the database, then the draft's moves and deletions
+  const kids = {}, par = {}, baseOf = {}; for (const r of S.base) { (kids[r.parent_id || ""] ||= []).push(r.id); par[r.id] = r.parent_id || null; baseOf[r.id] = r; }
+  const moved = new Set(), dead = new Set();
+  for (const o of S.draft.ops) { if (o.t === "del") dead.add(o.record);
+    if (o.t === "move" && baseOf[o.record]) { const from = kids[par[o.record] || ""]; from.splice(from.indexOf(o.record), 1); const to = kids[o.parent || ""] ||= []; const i = o.before ? to.indexOf(o.before) : -1; if (i < 0) to.push(o.record); else to.splice(i, 0, o.record); par[o.record] = o.parent || null; moved.add(o.record); } }
+  S.tree = []; const walk = (pid, depth, gone) => { for (const id of kids[pid || ""] || []) { const b = baseOf[id]; const r = { ...b, data: { ...b.data }, parent_id: pid || null, depth, is_leaf: !(kids[id] || []).length, _dr: null, _del: gone || dead.has(id), _mv: moved.has(id) }; S.tree.push(r); walk(id, depth + 1, r._del); } }; walk(null, 0, false);
+  S.row = Object.fromEntries(S.tree.map(r => [r.id, r]));
   for (const r of S.tree) for (const o of byRec[r.id] || []) { if (o.value == null) delete r.data[o.field]; else r.data[o.field] = o.value; (r._dr ||= new Set()).add(o.field);
     if (est && o.field === est.id) { let x = r; while (x) { for (const a of [al, ac]) if (a && x.data[a.id] === true && !(byRec[x.id] || []).some(c => c.field === a.id)) { x.data[a.id] = false; (x._dr ||= new Set()).add(a.id); } x = S.row[x.parent_id]; } } }
-  for (const r of S.tree) { if (ti && r.data[ti.id] != null) r.title = r.data[ti.id]; r.estimate_h = r.is_leaf && est && r.data[est.id] != null ? +r.data[est.id] : null; r.spent_h = r.is_leaf && sp && r.data[sp.id] != null ? +r.data[sp.id] : null; r.est_tracked = 0; r.n_leaf = 0; r.n_done = 0; }
-  for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i], p = S.row[r.parent_id]; if (!p) continue;
+  for (const r of S.tree) { if (ti && r.data[ti.id] != null) r.title = r.data[ti.id]; r.estimate_h = r.is_leaf && !r._del && est && r.data[est.id] != null ? +r.data[est.id] : null; r.spent_h = r.is_leaf && !r._del && sp && r.data[sp.id] != null ? +r.data[sp.id] : null; r.est_tracked = 0; r.n_leaf = 0; r.n_done = 0; }
+  for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i], p = S.row[r.parent_id]; if (!p || r._del) continue;
     if (r.estimate_h != null) p.estimate_h = (p.estimate_h || 0) + r.estimate_h; if (r.spent_h != null) p.spent_h = (p.spent_h || 0) + r.spent_h; }
   // estimate of only those work items that already have time logged: the fair base for "% over"
-  for (const r of S.tree) if (r.is_leaf) { const d = isDone(r); let x = r, first = true; while (x) { if (r.spent_h != null) x.est_tracked += r.estimate_h || 0; if (!first) { x.n_leaf++; if (d) x.n_done++; } first = false; x = S.row[x.parent_id]; } }
+  for (const r of S.tree) if (r.is_leaf && !r._del) { const d = isDone(r); let x = r, first = true; while (x) { if (r.spent_h != null) x.est_tracked += r.estimate_h || 0; if (!first) { x.n_leaf++; if (d) x.n_done++; } first = false; x = S.row[x.parent_id]; } }
   S.segEff = { ...S.segs };
   for (const o of S.draft.ops) { if (o.t === "seg") S.segEff[o.record] = { record:o.record, start:o.start, end:o.end, hours:o.hours, assignee:o.assignee, version:o.version }; else if (o.t === "unplan") delete S.segEff[o.record]; }
+  for (const r of S.tree) if (r._del) delete S.segEff[r.id];
 }
 async function loadHistory(){
-  S.batches = await q(sb.from("change_batch").select("id,kind,summary,created_at,reverted_by,change_log(count)").eq("project_id", S.project.id).order("created_at", { ascending:false }).limit(80));
+  S.batches = await q(sb.from("change_batch").select("id,kind,summary,created_at,reverted_by,actor_id,change_log(count)").eq("project_id", S.project.id).order("created_at", { ascending:false }).limit(80));
 }
 
 /* ---------------- shell ---------------- */
@@ -349,8 +365,9 @@ function render(){
     : ({ tracker: sheetTracker, gantt: sheetGantt, workload: sheetWorkload, pipelines: sheetPipelines, history: sheetHistory })[S.sheet]();
   $app.innerHTML = `<header class="hdr"><div class="brand">PM-KIT</div>
     ${S.projects.length ? `<select id="proj" title="Project">${S.projects.map(p => `<option value="${p.id}" ${p.id === S.project?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : ""}
-    <span class="saved ${S.saving ? "busy" : S.draft.ops.length ? "draft" : ""}">${S.saving ? "Saving…" : S.draft.ops.length ? `Draft · ${S.draft.ops.length} not applied` : "All changes saved"}</span><span class="sp"></span>
+    <span class="saved ${S.saving ? "busy" : S.draft.ops.length ? "draft" : ""}">${S.saving ? "Saving…" : S.draft.ops.length ? `Draft · ${S.draft.ops.length} change${S.draft.ops.length > 1 ? "s" : ""} not applied` : "All changes saved"}</span><span class="sp"></span>
     <span class="who">${esc(S.user.email)}</span><button class="hbtn" data-act="pwd">Password</button><button class="hbtn" data-act="out">Sign out</button></header>
+    <div class="mrow">${["Edit","Insert","View","Plan","Project"].map(m => `<button data-menu="${m.toLowerCase()}">${m}</button>`).join("")}</div>
     ${body}
     <nav class="tabs">${SHEETS.map(([k, n]) => `<button class="tab" data-sheet="${k}" ${S.sheet === k ? 'aria-current="page"' : ""}>${n}</button>`).join("")}<span class="soon">General info · your own tables — later</span></nav>`;
   const m2 = document.querySelector(".main");
@@ -409,24 +426,20 @@ function sheetTracker(){
   const selRow = S.sel && S.row[S.sel.r]; const selF = S.sel && cols.find(f => f.id === S.sel.f);
   let body = "";
   for (const r of rows) { const dim = st && meta(st, r.data?.[st.id]).dim;
-    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${filtering() && matches(r) ? "hit" : ""}" data-id="${r.id}">
+    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${filtering() && matches(r) ? "hit" : ""}" data-id="${r.id}">
       <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="Drag to move">⋮⋮</span>
         <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="lvl">${esc(r.level || "")}</span><span class="ttl">${esc(r.title ?? "")}</span></div></td>
       ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
   const leaves = S.tree.filter(r => r.is_leaf).length; const roots = S.tree.filter(r => r.depth === 0);
   const est = roots.reduce((a, r) => a + (+r.estimate_h || 0), 0), spent = roots.reduce((a, r) => a + (+r.spent_h || 0), 0), estT = roots.reduce((a, r) => a + (+r.est_tracked || 0), 0);
   const selVal = selRow && selF ? cellText(selRow, selF) : ""; const direct = selRow && selF && !selF.virtual && !isRollup(selRow, selF) && ["text","number","money","duration","date"].includes(selF.type);
-  return `<div class="tb">
-      ${draftBar()}
-      ${top ? `<button class="tbtn" data-act="addroot">+ ${esc(top.name)}</button>` : ""}<button class="tbtn" data-act="addrow" ${selRow ? "" : "disabled"} title="Add a row below the selected one">+ Row</button>
-      <button class="tbtn" data-act="addchild" ${selRow && childLevel(selRow) ? "" : "disabled"}>+ ${esc(selRow && childLevel(selRow)?.name || "Child")}</button>
-      <button class="tbtn" data-act="addfield">+ Field</button><span class="tsep"></span>
-      <button class="tbtn" data-act="collapse">Collapse</button><button class="tbtn" data-act="expand">Expand</button><span class="tsep"></span>
+  return `<div class="tb">${draftBar()}
+      <span class="split"><button class="tbtn" data-act="addrow" title="Add a row of the same level below the selected one">＋ ${esc(selRow ? levelOf(selRow)?.name || "Row" : top?.name || "Row")}</button><button class="tbtn" data-act="addmenu" title="More ways to add a row">▾</button></span>
+      <button class="tbtn" data-act="addfield">＋ Field</button><span class="tsep"></span>
       <input class="search" id="search" placeholder="Search the table" value="${esc(S.search)}" autocomplete="off">
-      <button class="tbtn fbtn ${S.fStatus.size ? "on" : ""}" data-act="fstatus">Status${S.fStatus.size ? " · " + S.fStatus.size : ""} ▾</button><button class="tbtn fbtn ${S.fPerson.size ? "on" : ""}" data-act="fperson">Person${S.fPerson.size ? " · " + S.fPerson.size : ""} ▾</button>
+      <button class="tbtn fbtn ${S.fStatus.size || S.fPerson.size ? "on" : ""}" data-act="filter">Filter${S.fStatus.size + S.fPerson.size ? " · " + (S.fStatus.size + S.fPerson.size) : ""} ▾</button>
       ${filtering() ? `<button class="tbtn" data-act="fclear">✕ Clear</button>` : ""}
-      ${S.hiddenFields?.length ? `<button class="tbtn fbtn on" data-act="hidden">Hidden columns · ${S.hiddenFields.length} ▾</button>` : ""}
-      <span class="sp"></span><button class="tbtn" data-act="settings">⚙ Workflow &amp; structure</button></div>
+      ${S.hiddenFields?.length ? `<button class="tbtn fbtn on" data-act="hidden">Hidden columns · ${S.hiddenFields.length} ▾</button>` : ""}<span class="sp"></span></div>
     <div class="cb"><div class="ref">${selRow && selF ? esc(selRow.title) + " · " + esc(selF.name) : "Select a cell"}</div>
       <input id="cellbar" value="${esc(selVal)}" ${direct ? "" : "readonly"} autocomplete="off" placeholder="${selRow ? "" : "Arrows move, Enter edits, right-click for more"}">
       <span class="hint">${selRow && selF ? (selF.virtual ? "computed" : isRollup(selRow, selF) ? "sum of rows below" : "") : ""}</span></div>
@@ -443,23 +456,24 @@ function moveSel(dr, dc){ const rows = visibleRows(), cols = columns(); if (!row
   ri = Math.max(0, Math.min(rows.length - 1, ri + dr)); ci = Math.max(0, Math.min(cols.length - 1, ci + dc)); select(rows[ri].id, cols[ci].id); }
 async function setCell(rec, f, val, confirmed){ const old = S.row[rec]?.data?.[f.id] ?? null;
   if (JSON.stringify(old) === JSON.stringify(val ?? null)) return render();
+  if (S.row[rec]?._del) { toast("This row is marked for deletion — restore it first (right-click)", true); return render(); }
   if (f.role === "title" && !val) { toast("Name cannot be empty", true); return render(); }
   if (f.role === "estimate" && !confirmed && S.segEff[rec]) return estimateWarning(rec, f, val);
   let had = false;
   if (f.role === "estimate") { const a = byRole("approved_lead"), c = byRole("approved_client"); let x = S.row[rec];
     while (x) { if ((a && x.data?.[a.id] === true) || (c && x.data?.[c.id] === true)) had = true; x = S.row[x.parent_id]; } }
-  if (S.mode === "plan") { draftCell(rec, f, val); if (had) toast("Estimate changed — approvals will be reset and need to be given again"); return render(); }
-  await act(() => q(sb.rpc("set_cell", { p_record: rec, p_field: f.id, p_value: val })), { ok: had ? "Estimate changed — approvals were reset and need to be given again" : null }); }
+  draftCell(rec, f, val); if (had) toast("Estimate changed — approvals will be reset and need to be given again"); render(); }
 /* a stage that already has dates: say so before the estimate changes */
 function estimateWarning(rec, f, val){ closeModal(); const r = S.row[rec], s = S.segEff[rec]; const v = document.createElement("div"); v.className = "veil";
   v.innerHTML = `<div class="modal" style="width:620px"><div class="mhead"><span class="t">This stage is on the plan</span></div><div class="mbody">
     <p style="margin:0 0 8px"><b>${esc(r.title)}</b> is planned ${fmtWh(s.start)} → ${fmtWh(s.end, true)} as ${num(s.hours)} h. You are changing the estimate to <b>${val == null ? "empty" : num(val) + " h"}</b>.</p>
-    <p class="note" style="margin:0">The dates will not move by themselves. The Gantt will mark this bar as a conflict until you fit it or run Autoplan.${S.mode === "plan" ? " You are in planning mode, so nothing is saved until you press Apply." : ""}</p></div>
+    <p class="note" style="margin:0">The dates will not move by themselves. The Gantt will mark this bar as a conflict until you fit it or run Autoplan. Nothing is saved until you press Apply.</p></div>
     <div class="mfoot"><button class="tbtn" data-x="cancel">Cancel</button><button class="tbtn" data-x="keep">Change, fix the plan later</button><button class="tbtn pri" data-x="gantt">Change and open Gantt</button></div></div>`;
   document.body.appendChild(v); v.querySelector("[data-x=gantt]").focus();
   v.addEventListener("click", async e => { const x = e.target.dataset?.x; if (e.target === v || x === "cancel") { closeModal(); return render(); } if (!x) return; closeModal(); await setCell(rec, f, val, true); if (x === "gantt") { S.sheet = "gantt"; render(); } });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") { closeModal(); render(); } }); }
 function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); const td = document.querySelector("td.sel"); if (!r || !f || !td) return;
+  if (r._del) return toast("This row is marked for deletion — right-click to restore it");
   if (f.kind === "done") return toast("Computed: finished work items inside this row");
   if (f.virtual) return toast("Computed: time spent against the estimate of work that already has time logged");
   if (isRollup(r, f)) return toast("This is a sum of the rows below — edit those");
@@ -485,7 +499,7 @@ function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = colu
 function placeMenu(el, x, y){ document.body.appendChild(el); const w = el.offsetWidth, h = el.offsetHeight;
   el.style.left = Math.max(4, Math.min(x, innerWidth - w - 6)) + "px"; el.style.top = Math.max(4, Math.min(y, innerHeight - h - 6)) + "px"; }
 function openMenu(x, y, items){ closeMenu(); const el = document.createElement("div"); el.className = "menu";
-  el.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.head ? `<div class="mh">${esc(it.head)}</div>` : `<button data-i="${i}" class="${it.danger ? "danger" : ""}" ${it.disabled ? "disabled" : ""}>${it.html || esc(it.label)}</button>`).join("");
+  el.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.head ? `<div class="mh">${esc(it.head)}</div>` : `<button data-i="${i}" class="${it.danger ? "danger" : ""}" ${it.disabled ? "disabled" : ""}>${it.html || esc(it.label)}${it.hint ? `<span class="hint">${esc(it.hint)}</span>` : ""}</button>`).join("");
   el.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (!b) return; closeMenu(); items[+b.dataset.i].run(); });
   placeMenu(el, x, y); return el; }
 function openOptions(td, r, f, opts){ const b = td.getBoundingClientRect(); const cur = r.data?.[f.id];
@@ -521,15 +535,28 @@ function addRow(parentId, level, beforeId){ if (!level) return;
     if (beforeId) await q(sb.rpc("move_record", { p_record: id, p_parent: parentId, p_before: beforeId }));
     if (parentId) S.collapsed.delete(parentId); S.sel = { r: id, f: S.fields[0].id }; }), pipe); }
 function nextSibling(r){ const sibs = S.tree.filter(x => x.parent_id === r.parent_id); return sibs[sibs.indexOf(r) + 1] || null; }
-function deleteRow(r){ const n = S.tree.filter(x => { let p = x; while (p) { if (p.id === r.id) return true; p = S.row[p.parent_id]; } return false; }).length;
-  act(async () => { await q(sb.rpc("delete_record", { p_record: r.id })); if (S.sel?.r === r.id) S.sel = null; }, { ok: `Deleted ${n} row${n > 1 ? "s" : ""} — Undo brings ${n > 1 ? "them" : "it"} back` }); }
+function under(id){ return S.tree.filter(x => isUnder(x, id)).map(x => x.id); }
+function deleteRow(r){ if (r._del) return; const ids = new Set(under(r.id)); draftPush();
+  S.draft.ops = S.draft.ops.filter(o => !ids.has(o.record)); S.draft.ops.push({ t:"del", record:r.id }); saveDraft(); rebuild(); render();
+  toast(`${ids.size} row${ids.size > 1 ? "s" : ""} marked for deletion — Apply to delete, Ctrl+Z to keep`); }
+function restoreRow(r){ let x = r; while (x) { if (S.draft.ops.some(o => o.t === "del" && o.record === x.id)) break; x = S.row[x.parent_id]; } if (!x) return;
+  draftPush(); S.draft.ops = S.draft.ops.filter(o => !(o.t === "del" && o.record === x.id)); saveDraft(); rebuild(); render(); }
+function moveRow(src, parent, before){ draftPush(); S.draft.ops.push({ t:"move", record:src.id, parent: parent || null, before: before || null }); saveDraft(); rebuild(); render(); }
+function confirmBox(title, text, okLabel, fn){ closeModal(); const v = document.createElement("div"); v.className = "veil";
+  v.innerHTML = `<div class="modal" style="width:480px"><div class="mhead"><span class="t">${esc(title)}</span></div><div class="mbody"><p style="margin:0">${esc(text)}</p><p class="note">This is saved at once, without the draft.</p></div>
+    <div class="mfoot"><button class="tbtn" data-x="cancel">Cancel</button><button class="tbtn pri" data-x="ok">${esc(okLabel)}</button></div></div>`;
+  document.body.appendChild(v); v.querySelector("[data-x=ok]").focus();
+  v.addEventListener("click", e => { const x = e.target.dataset?.x; if (e.target === v || x === "cancel") return closeModal(); if (x === "ok") { closeModal(); fn(); } });
+  v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
 function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.tree.some(k => k.parent_id === r.id);
   const items = [{ head: (r.level || "") + " · " + (r.title || "") }];
+  if (r._del) { items.push({ label:"Restore row", run: () => restoreRow(r) }); return openMenu(x, y, items); }
+  if (kids) items.push({ label: S.collapsed.has(r.id) ? "Expand" : "Collapse", run: () => { S.collapsed.has(r.id) ? S.collapsed.delete(r.id) : S.collapsed.add(r.id); render(); } }, "-");
   if (lv) items.push({ label:`Insert ${lv.name} above`, run: () => addRow(r.parent_id, lv, r.id) }, { label:`Insert ${lv.name} below`, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) });
   if (cl) items.push({ label:`Add ${cl.name} inside`, run: () => addRow(r.id, cl, null) });
   if (lv?.position === 3 && !kids && S.pipelines.length) { items.push("-", { head:"Apply pipeline" });
-    for (const p of S.pipelines) items.push({ label: p.name, run: () => act(async () => { await q(sb.from("record").update({ pipeline_id: p.id }).eq("id", r.id)); await q(sb.rpc("apply_pipeline", { p_asset: r.id })); }, { ok:"Stages added" }) }); }
-  items.push("-", { label:"Delete row" + (kids ? " with everything inside" : ""), danger:true, run: () => deleteRow(r) });
+    for (const p of S.pipelines) items.push({ label: p.name, run: () => confirmBox("Apply pipeline", `Add the stages of “${p.name}” to ${r.title}?`, "Add stages", () => act(async () => { await q(sb.from("record").update({ pipeline_id: p.id }).eq("id", r.id)); await q(sb.rpc("apply_pipeline", { p_asset: r.id })); }, { ok:"Stages added" })) }); }
+  items.push("-", { label:"Delete row" + (kids ? " with everything inside" : ""), hint:"to the draft", danger:true, run: () => deleteRow(r) });
   openMenu(x, y, items); }
 function colMenu(f, x, y){ const i = S.fields.indexOf(f); const items = [{ head: f.name + " · " + f.type }];
   items.push({ label:"Rename…", run: () => askName("Rename field", n => act(() => q(sb.rpc("rename_field", { p_field: f.id, p_name: n })), { schema:true }), "", f.name, "Rename") });
@@ -538,7 +565,7 @@ function colMenu(f, x, y){ const i = S.fields.indexOf(f); const items = [{ head:
     { label:"Move right", disabled: i >= S.fields.length - 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i + 2]?.id || null })), { schema:true }) });
   if (f.role !== "title") items.push({ label:"Hide column", run: () => act(() => q(sb.from("view_field").update({ mode:"hidden" }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true, ok:"Column hidden — bring it back with “Hidden columns” in the toolbar" }) });
   if (f.width) items.push({ label:"Reset width", run: () => act(() => q(sb.from("view_field").update({ width:null }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true }) });
-  items.push("-", { label: f.is_system ? "Template field — cannot be deleted" : "Delete field", danger:!f.is_system, disabled:f.is_system, run: () => act(() => q(sb.rpc("delete_field", { p_field: f.id })), { schema:true, ok:"Field deleted — Undo brings it back" }) });
+  items.push("-", { label: f.is_system ? "Template field — cannot be deleted" : "Delete field", danger:!f.is_system, disabled:f.is_system, run: () => confirmBox("Delete field", `Delete the field “${f.name}” with its values in every row? It can be brought back from History.`, "Delete field", () => act(() => q(sb.rpc("delete_field", { p_field: f.id })), { schema:true, ok:"Field deleted — History can bring it back" })) });
   openMenu(x, y, items); }
 function addField(){ closeModal(); const v = document.createElement("div"); v.className = "veil";
   v.innerHTML = `<form class="modal" style="width:440px"><div class="mhead"><span class="t">New field</span></div><div class="mbody" style="display:flex;flex-direction:column;gap:10px">
@@ -554,19 +581,29 @@ function addField(){ closeModal(); const v = document.createElement("div"); v.cl
     act(() => q(sb.rpc("add_field", { p_table: S.tbl.id, p_name: name, p_type: type, p_config: type === "select" ? { options: opts } : {} })), { schema:true, ok:"Field added" }); });
   v.addEventListener("click", e => { if (e.target === v || e.target.dataset.x === "cancel") closeModal(); });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
-async function undo(){
-  if (S.mode === "plan" && S.draft.undo.length) { S.draft.redo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.undo.pop()); saveDraft(); rebuild(); return render(); }
-  if (S.draft.ops.length) return toast("The draft has nothing more to undo. Apply or discard it to undo saved changes.");
-  try { const b = (await q(sb.from("change_batch").select("id,summary,kind").eq("project_id", S.project.id).neq("kind", "revert").is("reverted_by", null).order("created_at", { ascending:false }).limit(1)))[0];
-    if (!b) return toast("Nothing to undo"); await act(() => q(sb.rpc("revert_batch", { p_batch: b.id })), { schema:true, ok:"Undone: " + (b.summary || b.kind) });
-    if (S.sel && !S.row[S.sel.r]) { S.sel = null; render(); } } catch (e) { fail(e); } }
+function undo(){ if (!S.draft.undo.length) return toast(S.draft.ops.length ? "Nothing more to undo in the draft" : "Nothing to undo — saved changes are taken back from History");
+  S.draft.redo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.undo.pop()); saveDraft(); rebuild(); if (S.sel && !S.row[S.sel.r]) S.sel = null; render(); }
+/* taking back something already saved: the reverse change goes into the draft and waits for Apply */
+async function undoEntry(id){ try { const b = S.batches.find(x => x.id === id);
+    const lines = await q(sb.from("change_log").select("id,target_type,target_id,field_id,attr,old_value,new_value").eq("batch_id", id).order("id", { ascending:false }));
+    const ops = []; let structural = !lines.length; const segRec = Object.fromEntries(Object.values(S.segAll).map(g => [g.id, g.record_id]));
+    for (const l of lines) { if (l.target_type === "record" && l.field_id) { const base = S.base.find(r => r.id === l.target_id); if (!base || !S.fields.some(f => f.id === l.field_id)) { structural = true; break; }
+        const cur = base.data?.[l.field_id] ?? null, val = l.old_value ?? null; if (JSON.stringify(cur) !== JSON.stringify(val)) ops.push({ t:"cell", record:l.target_id, field:l.field_id, value:val, base:cur }); }
+      else if (l.target_type === "segment" && (l.attr === "plan" || l.attr === "planned")) { const rec = segRec[l.target_id]; if (!rec) { structural = true; break; }
+        if (l.attr === "planned" || !l.old_value?.start) ops.push({ t:"unplan", record:rec, version: segVersion(rec) });
+        else ops.push({ t:"seg", record:rec, start: whOfIso(l.old_value.start), end: whOfIso(l.old_value.end), hours:+l.old_value.hours, assignee:l.old_value.assignee || null, version: segVersion(rec) }); }
+      else { structural = true; break; } }
+    if (structural) return confirmBox("Undo a saved change", `Take back “${b?.summary || "this entry"}”? Rows, fields and options cannot go through the draft yet.`, "Undo it", () => act(async () => { await q(sb.rpc("revert_batch", { p_batch: id })); await loadHistory(); }, { schema:true, ok:"Undone" }));
+    if (!ops.length) return toast("Nothing to take back: the table already has those values");
+    draftPush(); for (const o of ops) S.draft.ops = S.draft.ops.filter(x => !(x.record === o.record && ((o.t === "cell" && x.t === "cell" && x.field === o.field) || (o.t !== "cell" && (x.t === "seg" || x.t === "unplan"))))); S.draft.ops.push(...ops);
+    S.draft.note = "Undo: " + (b?.summary || "saved change"); saveDraft(); rebuild(); S.sheet = ops.some(o => o.t === "cell") ? "tracker" : "gantt"; render(); toast(`${ops.length} reverse change${ops.length > 1 ? "s" : ""} put into the draft — check them and press Apply`); } catch (e) { fail(e); } }
 function redo(){ if (!S.draft.redo.length) return; S.draft.undo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.redo.pop()); saveDraft(); rebuild(); render(); }
 async function applyDraft(){ const ops = S.draft.ops; if (!ops.length) return; const n = ops.length; S.saving++; paintSaved();
-  try { await q(sb.rpc("apply_plan", { p_table: S.tbl.id, p_changes: planPayload(ops), p_summary: `Plan applied: ${n} change${n > 1 ? "s" : ""}` }));
-    S.draft.ops = []; S.draft.undo = []; S.draft.redo = []; saveDraft(); await loadProject(); toast(`Applied ${n} change${n > 1 ? "s" : ""} as one entry in History`); }
+  try { await q(sb.rpc("apply_plan", { p_table: S.tbl.id, p_changes: planPayload(ops), p_summary: S.draft.note ? `${S.draft.note} (${n} change${n > 1 ? "s" : ""})` : `Draft applied: ${n} change${n > 1 ? "s" : ""}` }));
+    S.draft.ops = []; S.draft.undo = []; S.draft.redo = []; S.draft.note = null; saveDraft(); await loadProject(); toast(`Applied ${n} change${n > 1 ? "s" : ""} as one entry in History`); }
   catch (e) { fail(e); try { await loadProject(); } catch (_) {} }
   finally { S.saving--; } render(); }
-function discardDraft(){ draftPush(); S.draft.ops = []; saveDraft(); rebuild(); render(); toast("Draft discarded — Undo brings it back"); }
+function discardDraft(){ if (!S.draft.ops.length) return; draftPush(); S.draft.ops = []; S.draft.note = null; saveDraft(); rebuild(); render(); toast("Draft discarded — Undo brings it back"); }
 /* settings: workflow, lists, levels */
 function openSettings(fieldId){ closeModal(); let tab = fieldId || byRole("status")?.id || "levels"; let draft = null;
   const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v);
@@ -643,10 +680,10 @@ function planConflicts(){ const out = {}; const add = (id, m) => (out[id] ||= []
 
 /* plan changes go to the draft in planning mode, or straight to the database in direct mode */
 function planPayload(ops){ return ops.map(o => o.t === "cell" ? { t:"cell", record:o.record, field:o.field, value:o.value, base:o.base }
-  : o.t === "seg" ? { t:"seg", record:o.record, start: isoOfWh(o.start), end: isoOfWh(o.end, true), hours:o.hours, assignee:o.assignee, version:o.version } : { t:"unplan", record:o.record, version:o.version }); }
+  : o.t === "seg" ? { t:"seg", record:o.record, start: isoOfWh(o.start), end: isoOfWh(o.end, true), hours:o.hours, assignee:o.assignee, version:o.version }
+  : o.t === "unplan" ? { t:"unplan", record:o.record, version:o.version } : o.t === "del" ? { t:"del", record:o.record } : { t:"move", record:o.record, parent:o.parent, before:o.before }); }
 function commitPlanOps(ops, summary){ if (!ops.length) return render();
-  if (S.mode === "plan") { draftPush(); const ids = new Set(ops.map(o => o.record)); S.draft.ops = S.draft.ops.filter(o => o.t === "cell" || !ids.has(o.record)).concat(ops); saveDraft(); rebuild(); render(); return toast(summary + " — in the draft, press Apply to save"); }
-  return act(() => q(sb.rpc("apply_plan", { p_table: S.tbl.id, p_changes: planPayload(ops), p_summary: summary })), { ok: summary }); }
+  draftPush(); const ids = new Set(ops.map(o => o.record)); S.draft.ops = S.draft.ops.filter(o => !((o.t === "seg" || o.t === "unplan") && ids.has(o.record))).concat(ops); saveDraft(); rebuild(); render(); toast(summary + " — in the draft, press Apply to save"); }
 const segVersion = id => S.segAll[id]?.version ?? null;
 function autoplan(all){ const now = todayWh(), step = S.step; const up = h => Math.ceil((h - 1e-9) / step) * step;
   const todo = S.tree.filter(r => r.is_leaf && !isDone(r) && +r.estimate_h > 0 && (all || !S.segEff[r.id])); if (!todo.length) return toast(all ? "No open work to plan" : "Everything open is already on the plan");
@@ -666,10 +703,29 @@ function barMenu(id, x, y){ const r = S.row[id], s = S.segEff[id]; if (!r || !s)
     "-", { label:"Remove from the plan", danger:true, run: () => commitPlanOps([{ t:"unplan", record:id, version: segVersion(id) }], "Removed from the plan: " + r.title) });
   openMenu(x, y, items); }
 
-function draftBar(){ const n = S.draft.ops.length, plan = S.mode === "plan";
-  return `<button class="tbtn mode ${plan ? "on" : ""}" data-act="mode" title="${plan ? "Changes collect in a draft and are saved together when you press Apply" : "Every change is saved the moment you make it"}">${plan ? "● Planning mode" : "○ Direct edit"}</button>
-    <button class="tbtn" data-act="undo" title="Undo (Ctrl+Z)">↶</button><button class="tbtn" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button>
-    ${n ? `<span class="tag warn">Draft · ${n} change${n > 1 ? "s" : ""}</span><button class="tbtn pri" data-act="apply">Apply</button><button class="tbtn" data-act="discard">Discard</button>` : ""}<span class="tsep"></span>`; }
+function draftBar(){ const n = S.draft.ops.length;
+  return `<button class="tbtn ico" data-act="undo" title="Undo (Ctrl+Z)" ${S.draft.undo.length ? "" : "disabled"}>↶</button><button class="tbtn ico" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button><span class="tsep"></span>
+    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
+const stepName = () => STEPS.find(x => x[0] === S.step)[1];
+function setStep(h){ S.step = h; try { localStorage.setItem("pmkit.step", h); } catch (_) {} render(); }
+function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && columns().find(c => c.id === S.sel.f); const lv = r && levelOf(r), cl = r && childLevel(r), top = enabledLevels()[0]; const onT = S.sheet === "tracker"; const go = sh => async () => { S.sheet = sh; try { if (sh === "history") await loadHistory(); } catch (e) { fail(e); } render(); };
+  const M = {
+    edit: [{ label:"Undo", hint:"Ctrl+Z", disabled:!S.draft.undo.length, run: undo }, { label:"Redo", hint:"Ctrl+Y", disabled:!S.draft.redo.length, run: redo }, "-",
+      { label:"Apply the draft", disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
+      { label:"Clear the cell", hint:"Delete", disabled: !onT || !r || !f || f.virtual || f.role === "title" || isRollup(r, f), run: () => setCell(r.id, f, f.type === "checkbox" ? false : null) },
+      { label:"Delete the row", disabled: !onT || !r || r._del, danger:true, run: () => deleteRow(r) }, "-", { label:"Saved changes: open History", run: go("history") }],
+    insert: [{ label: `${lv?.name || "Row"} below`, disabled: !onT || !r, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) }, { label: `${lv?.name || "Row"} above`, disabled: !onT || !r, run: () => addRow(r.parent_id, lv, r.id) },
+      { label: `${cl?.name || "Row"} inside`, disabled: !onT || !cl, run: () => addRow(r.id, cl, null) }, { label: `New ${top?.name || "row"} at the top level`, disabled: !onT || !top, run: () => addRow(null, top, null) }, "-", { label:"Field…", disabled:!onT, run: addField }],
+    view: [{ label:"Collapse all", run: () => { S.tree.filter(x => x.depth >= 1 && !x.is_leaf).forEach(x => S.collapsed.add(x.id)); render(); } }, { label:"Expand all", run: () => { S.collapsed.clear(); render(); } }, "-",
+      { label:"Clear search and filters", disabled: !filtering(), run: () => { S.fStatus.clear(); S.fPerson.clear(); S.search = ""; render(); } },
+      { label:"Show hidden columns", disabled: !S.hiddenFields?.length, run: () => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) }, "-",
+      ...SHEETS.map(([k, n]) => ({ label: "Sheet: " + n, hint: S.sheet === k ? "✓" : "", run: go(k) }))],
+    plan: [{ label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) }, "-",
+      { label:"Remove everything from the plan", danger:true, disabled: !Object.keys(S.segEff).length, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }, "-", { head:"Step on the Gantt" },
+      ...STEPS.map(([h, n]) => ({ label:n, hint: S.step === h ? "✓" : "", run: () => setStep(h) })), "-", { label:"Open the Gantt", run: go("gantt") }, { label:"Open the Workload", run: go("workload") }],
+    project: [{ label:"Status workflow…", run: () => openSettings(byRole("status")?.id) }, ...S.fields.filter(x => x.type === "select" && x.role !== "status").map(x => ({ label: x.name + " options…", run: () => openSettings(x.id) })), { label:"Tree levels…", run: () => openSettings("levels") }, "-",
+      { label:"Pipelines", run: go("pipelines") }, { label:"History", run: go("history") }] };
+  openMenu(x, y, M[name]); }
 
 /* ---------------- gantt: the stored plan ---------------- */
 function sheetGantt(){
@@ -689,8 +745,7 @@ function sheetGantt(){
   const open = S.tree.filter(r => r.is_leaf && !isDone(r) && +r.estimate_h > 0); const planned = open.filter(r => S.segEff[r.id]).length; const nConf = Object.keys(conf).length;
   const first = Object.entries(conf)[0];
   return `<div class="tb">${draftBar()}<button class="tbtn" data-act="autoplan">⚡ Autoplan ▾</button><span class="tsep"></span>
-      <span class="kick">Step</span><select id="step" class="stepsel">${STEPS.map(([h, n]) => `<option value="${h}" ${S.step === h ? "selected" : ""}>${n}</option>`).join("")}</select><span class="tsep"></span>
-      <button class="tbtn" data-act="collapse">Collapse</button><button class="tbtn" data-act="expand">Expand</button>
+      <span class="kick">Step</span><select id="step" class="stepsel">${STEPS.map(([h, n]) => `<option value="${h}" ${S.step === h ? "selected" : ""}>${n}</option>`).join("")}</select>
       <span class="sp"></span>${nConf ? `<span class="tag bad">⚠ ${nConf} conflict${nConf > 1 ? "s" : ""}</span>` : planned ? `<span class="tag ok">No conflicts</span>` : ""}</div>
     <div class="cb"><div class="ref">${nConf ? "First conflict" : "How it works"}</div><input readonly value="${nConf ? esc(S.row[first[0]]?.title + ": " + first[1][0] + ". Right-click the bar to fix it, or use Autoplan.") : "Drag a stage to move it alone; drag the bar of an asset or batch to move everything inside. Nothing moves by itself: when an estimate or a person changes, the bar is marked and you decide."}">
       <span class="hint">${planned}/${open.length} open stages planned</span></div>
@@ -717,7 +772,7 @@ function sheetWorkload(){
 /* ---------------- pipelines ---------------- */
 function sheetPipelines(){
   const gaps = [["","None"],["client_review","Client review"],["internal_review","Internal review"],["pending","Pending"]];
-  let h = `<div class="main"><div class="pad">`;
+  let h = `<div class="tb">${draftBar()}<span class="sp"></span><span class="tag">Pipelines are saved as you edit them</span></div><div class="main"><div class="pad">`;
   for (const p of S.pipelines) { const st = S.stages.filter(s => s.pipeline_id === p.id);
     h += `<div class="panel"><div class="bar"><span class="t">${esc(p.name)}</span><span class="n">${st.length} stages · ${st.reduce((a, s) => a + (+s.default_hours || 0), 0)} h</span></div>
     <table class="plain"><thead><tr><th style="width:36px">#</th><th>Stage</th><th style="width:110px">Default, h</th><th style="width:170px">After the stage</th><th>Can start after</th></tr></thead><tbody>
@@ -734,18 +789,19 @@ function sheetPipelines(){
 /* ---------------- history ---------------- */
 function sheetHistory(){
   const kinds = { edit:"Edit", schema:"Structure", pipeline:"Pipeline", revert:"Undo", split:"Split", import:"Import", auto_shift:"Auto shift", draft_apply:"Plan" };
-  return `<div class="tb"><button class="tbtn" data-act="reloadhistory">Refresh</button><span class="sp"></span><span class="tag">Every change is recorded · nothing is erased</span></div>
+  return `<div class="tb">${draftBar()}<button class="tbtn" data-act="reloadhistory">Refresh</button><span class="sp"></span><span class="tag">Every saved change is recorded · nothing is erased</span></div>
   <div class="main"><table class="plain"><thead><tr><th style="width:160px">When</th><th style="width:100px">Kind</th><th>What</th><th style="width:80px">Lines</th><th style="width:120px"></th></tr></thead><tbody>
   ${S.batches.map(b => `<tr><td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${new Date(b.created_at).toLocaleString("en-GB", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", second:"2-digit" })}</td>
     <td><span class="tag ${b.kind === "revert" ? "warn" : ""}">${kinds[b.kind] || b.kind}</span></td><td>${esc(b.summary || "")}</td><td>${b.change_log?.[0]?.count ?? ""}</td>
-    <td>${b.reverted_by ? `<span class="tag off">undone</span>` : b.kind === "revert" ? "" : `<button class="tbtn" data-act="revert" data-id="${b.id}">Undo this</button>`}</td></tr>`).join("") || `<tr><td colspan="5"><div class="empty">No changes yet.</div></td></tr>`}
+    <td>${b.reverted_by ? `<span class="tag off">undone</span>` : b.kind === "revert" ? "" : !b.actor_id ? `<span class="tag off" title="Created during setup">setup</span>` : `<button class="tbtn" data-act="revert" data-id="${b.id}" title="Puts the reverse change into the draft">Take back…</button>`}</td></tr>`).join("") || `<tr><td colspan="5"><div class="empty">No changes yet.</div></td></tr>`}
   </tbody></table></div>`;
 }
 
 /* ---------------- events ---------------- */
 document.addEventListener("mousedown", e => { if (!e.target.closest(".menu")) closeMenu(); });
 $app.addEventListener("click", async e => {
-  const t = e.target; const b = t.closest("[data-sheet],[data-act]");
+  const t = e.target; const mb = t.closest("[data-menu]"); if (mb) { const bx = mb.getBoundingClientRect(); return mainMenu(mb.dataset.menu, bx.left, bx.bottom + 1); }
+  const b = t.closest("[data-sheet],[data-act]");
   if (b?.dataset.sheet) { S.sheet = b.dataset.sheet; S.editing = false; closeMenu();
     try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadTree(); } catch (err) { fail(err); } return render(); }
   if (b) { const a = b.dataset.act, id = b.dataset.id;
@@ -758,8 +814,6 @@ $app.addEventListener("click", async e => {
     if (a === "redo") return redo();
     if (a === "apply") return applyDraft();
     if (a === "discard") return discardDraft();
-    if (a === "mode") { if (S.mode === "plan" && S.draft.ops.length) return toast("Apply or discard the draft first", true); S.mode = S.mode === "plan" ? "direct" : "plan"; try { localStorage.setItem("pmkit.mode", S.mode); } catch (_) {}
-      toast(S.mode === "plan" ? "Planning mode: changes wait in a draft until you press Apply" : "Direct edit: every change is saved at once"); return render(); }
     if (a === "autoplan") { const box = b.getBoundingClientRect(); return openMenu(box.left, box.bottom + 2, [{ head:"Step: " + STEPS.find(x => x[0] === S.step)[1] }, { label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) },
       "-", { label:"Remove everything from the plan", danger:true, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }]); }
     if (a === "hidden") { const box = b.getBoundingClientRect(); const show = ids => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", ids)), { schema:true });
@@ -770,7 +824,12 @@ $app.addEventListener("click", async e => {
       const open = () => openMenu(box.left, box.bottom + 2, [...opts.map(o => ({ html: `<span class="box ${set.has(o.v) ? "on" : ""}"></span> ` + o.html, run: () => { set.has(o.v) ? set.delete(o.v) : set.add(o.v); render(); open(); } })), "-", { label:"Show all", run: () => { set.clear(); render(); } }]);
       return open(); }
     if (a === "addroot") return addRow(null, enabledLevels()[0], null);
-    if (a === "addrow") { const r = S.row[S.sel?.r]; return r && addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null); }
+    if (a === "addrow") { const r = S.row[S.sel?.r]; return r ? addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null) : addRow(null, enabledLevels()[0], null); }
+    if (a === "addmenu") { const bx = b.getBoundingClientRect(); return mainMenu("insert", bx.left, bx.bottom + 2); }
+    if (a === "filter") { const st = byRole("status"); const bx = b.getBoundingClientRect(); const tick = (set, v) => `<span class="box ${set.has(v) ? "on" : ""}"></span> `;
+      const open = () => openMenu(bx.left, bx.bottom + 2, [{ head:"Status" }, ...(st?.config?.options || []).map(o => ({ html: tick(S.fStatus, o) + `<span class="chip" style="--c:${esc(meta(st, o).color || "#5980a6")}">${esc(o)}</span>`, run: () => { S.fStatus.has(o) ? S.fStatus.delete(o) : S.fStatus.add(o); render(); open(); } })),
+        "-", { head:"Person" }, ...S.members.map(m => ({ html: tick(S.fPerson, m.id) + esc(m.display_name), run: () => { S.fPerson.has(m.id) ? S.fPerson.delete(m.id) : S.fPerson.add(m.id); render(); open(); } })), "-", { label:"Show everything", run: () => { S.fStatus.clear(); S.fPerson.clear(); render(); } }]);
+      return open(); }
     if (a === "addchild") { const r = S.row[S.sel?.r]; return r && addRow(r.id, childLevel(r), null); }
     if (a === "addfield") return addField();
     if (a === "settings") return openSettings();
@@ -778,7 +837,7 @@ $app.addEventListener("click", async e => {
     if (a === "dep") return act(async () => { if (b.classList.contains("on")) await q(sb.from("pipeline_stage_dep").delete().eq("stage_id", b.dataset.s).eq("depends_on_id", b.dataset.o));
       else await q(sb.from("pipeline_stage_dep").insert({ org_id: S.project.org_id, stage_id: b.dataset.s, depends_on_id: b.dataset.o })); }, { schema:true });
     if (a === "reloadhistory") { try { await loadHistory(); } catch (err) { fail(err); } return render(); }
-    if (a === "revert") return act(async () => { await q(sb.rpc("revert_batch", { p_batch: id })); await loadHistory(); }, { schema:true, ok:"Undone" });
+    if (a === "revert") return undoEntry(id);
   }
   if (S.sheet !== "tracker") return;
   const td = t.closest("td[data-f]"); const tr = t.closest("tr[data-id]");
@@ -808,6 +867,7 @@ $app.addEventListener("keydown", e => {
   if (k === " ") { const f = columns().find(x => x.id === S.sel.f); if (f?.type === "checkbox") { e.preventDefault(); return startEdit(); } }
   if (k === "Delete" || k === "Backspace") { const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); e.preventDefault();
     if (!r || !f || f.virtual || isRollup(r, f) || f.role === "title") return; return setCell(r.id, f, f.type === "checkbox" ? false : null); }
+  if (k === "Escape") return closeMenu();
   if (k.length === 1) { const f = columns().find(x => x.id === S.sel.f); if (f && !f.virtual && ["text","number","money","duration"].includes(f.type)) { e.preventDefault(); return startEdit(k); } }
 });
 $app.addEventListener("input", e => { if (e.target.id === "search") { S.search = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById("search"); s.focus(); s.setSelectionRange(pos, pos); } });
@@ -858,7 +918,7 @@ $app.addEventListener("dragover", e => { const t = dropTarget(e); clearDrop(); i
 $app.addEventListener("dragend", () => { S.drag = null; clearDrop(); });
 $app.addEventListener("drop", e => { const t = dropTarget(e); const d = S.drag; S.drag = null; clearDrop(); if (!t) return; e.preventDefault();
   if (d.kind === "row") { const parent = t.where === "In" ? t.dst.id : t.dst.parent_id; const before = t.where === "T" ? t.dst.id : t.where === "B" ? (nextSibling(t.dst)?.id || null) : null;
-    if (before === t.src.id) return; return act(() => q(sb.rpc("move_record", { p_record: t.src.id, p_parent: parent, p_before: before }))); }
+    if (before === t.src.id) return; return moveRow(t.src, parent, before); }
   const i = S.fields.indexOf(t.f); const before = t.where === "L" ? t.f.id : (S.fields[i + 1]?.id || null); if (before === d.id) return;
   act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: d.id, p_before: before })), { schema:true }); });
 boot();
