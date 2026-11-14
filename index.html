@@ -71,8 +71,33 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .thc{display:flex;align-items:flex-start;gap:4px}
 .thn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .grid th.wrap .thn{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:break-word}
-.grid th .hm{flex:none;border:0;background:none;color:var(--muted-3);cursor:pointer;padding:0;line-height:inherit;font-size:inherit;visibility:hidden}
-.grid th:hover .hm{visibility:visible}
+.grid th .hm{flex:none;border:0;background:none;color:var(--muted-3);cursor:pointer;padding:0 2px;line-height:inherit;font-size:inherit;border-radius:2px}
+.grid th:hover .hm,.grid th .hm:hover{color:var(--ink);background:var(--band)}
+.grid th .hmk{flex:none;font-size:.82em;color:var(--mark)}
+.grid th.flt{background:#e3eefa}
+.grid td.dtc{white-space:nowrap;font-family:var(--font-mono);font-size:.92em}
+.chk{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);white-space:nowrap;cursor:pointer}
+.fnote{font-size:12px;color:var(--muted);white-space:nowrap;margin-left:6px} .fnote b{color:var(--ink)}
+.lnk{border:0;background:none;padding:0;color:var(--mark);cursor:pointer;font-size:12px;text-decoration:underline}
+.fpop{min-width:230px;max-width:340px}
+.fpop .fph{display:flex;gap:4px;padding:2px 6px 6px}.fpop .fph button{width:auto;flex:1;text-align:center;border:1px solid var(--rule);border-radius:3px;padding:3px 6px}
+.fpop .fpl{max-height:320px;overflow:auto;border-top:1px solid var(--rule-2);padding:4px 0}
+.fpop label{display:flex;align-items:center;gap:8px;padding:4px 10px;font-size:12.5px;cursor:pointer}.fpop label:hover{background:var(--band)}
+.fpop .fv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fpop .n{font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3)}
+.modal.wide{width:min(980px,94vw)}
+.sec{display:flex;align-items:center;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--frame)}.sec:first-child{margin-top:0}
+.shd{margin-left:auto;display:grid;grid-template-columns:86px 86px 132px 250px;gap:8px;text-align:left}
+.lvls{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.lvls .arr{color:var(--muted-3)}
+.lvl{display:flex;align-items:center;gap:5px;border:1px solid var(--rule);border-radius:3px;padding:3px 7px;background:var(--label-bg);opacity:.75}.lvl.on{background:#fff;opacity:1;border-color:var(--frame)}
+.lvl .ln{width:92px;height:24px;font:inherit;font-size:13px;color:var(--ink);border:1px solid transparent;background:none;padding:0 4px;border-radius:2px}.lvl .ln:hover{border-color:var(--rule)}.lvl .ln:focus{outline:2px solid var(--mark);background:#fff}
+.lvl .n{font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3);min-width:14px;text-align:right}
+.srow{display:grid;grid-template-columns:76px minmax(120px,1fr) 86px 86px 132px 170px 30px 30px;gap:8px;align-items:center;min-height:34px;border-bottom:1px solid var(--rule-2)}
+.srow.del{opacity:.55}.srow.del .sn{text-decoration:line-through}.srow.del{grid-template-columns:76px minmax(120px,1fr) 86px 86px 132px 170px 68px}
+.srow .slv{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-3);overflow:hidden;text-overflow:ellipsis}
+.srow .sn,.srow .sdl{font:inherit;font-size:13px;color:var(--ink);height:26px;border:1px solid transparent;background:none;padding:0 6px;border-radius:3px;min-width:0;width:100%}.srow .sn{font-weight:600}
+.srow .sn:hover,.srow .sdl:hover{border-color:var(--rule)}.srow .sn:focus,.srow .sdl:focus{outline:2px solid var(--mark);background:#fff}
+.srow .sd{font-family:var(--font-mono);font-size:11.5px;color:var(--text-2)}.srow .sd.late{color:#b5483a;font-weight:600}.srow .sh{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sadd{padding:6px 0 8px}
 .grid th.dropL{box-shadow:inset 3px 0 0 var(--mark)} .grid th.dropR{box-shadow:inset -3px 0 0 var(--mark)}
 .grid th.virt{color:var(--muted-3)}
 .grid th{position:sticky}
@@ -241,7 +266,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const S = { user:null, projects:[], project:null, tbl:null, view:null, levels:[], fields:[], members:[], pipelines:[], stages:[], deps:[],
-  tree:[], row:{}, batches:[], recdeps:[], gaps:[], sheet:"tracker", collapsed:new Set(), sel:null, editing:false, search:"", saving:0, drag:null, fStatus:new Set(), fPerson:new Set(),
+  tree:[], row:{}, batches:[], recdeps:[], gaps:[], sheet:"tracker", collapsed:new Set(), sel:null, editing:false, search:"", saving:0, drag:null, flt:{}, sort:null, hideDone:false, vhide:new Set(), allFields:[], removedFields:[],
   base:[], segs:{}, segAll:{}, segEff:{}, gapOf:{}, depsOf:{}, mode:"plan", step:4, draft:{ ops:[], undo:[], redo:[] } };
 try { S.step = +localStorage.getItem("pmkit.step") || 4; } catch (_) {}
 /* reading comfort: table font, text size and zoom are the viewer's own choice, kept in this browser */
@@ -263,7 +288,7 @@ function toast(msg, bad){ document.querySelectorAll(".toast").forEach(e => e.rem
 function fail(e){ console.error(e); toast(e?.message || String(e), true); }
 async function q(p){ const { data, error } = await p; if (error) throw error; return data; }
 const num = v => v == null || v === "" ? "" : String(+(+v).toFixed(2));
-const byRole = r => S.fields.find(f => f.role === r);
+const byRole = r => (S.allFields.length ? S.allFields : S.fields).find(f => f.role === r);
 const enabledLevels = () => S.levels.filter(l => l.enabled);
 const levelOf = r => S.levels.find(l => l.name === r.level);
 function childLevel(r){ const cur = levelOf(r); return cur ? enabledLevels().find(l => l.position > cur.position) : null; }
@@ -321,9 +346,13 @@ async function loadProject(){
   ]);
   const vfm = Object.fromEntries(vf.map(v => [v.field_id, v]));
   S.levels = levels; S.members = members; S.pipelines = pipelines;
-  S.hiddenFields = fields.filter(f => vfm[f.id]?.mode === "hidden");
-  S.fields = fields.filter(f => (vfm[f.id]?.mode || "edit") !== "hidden").map(f => ({ ...f, mode: vfm[f.id]?.mode || "edit", vpos: vfm[f.id]?.position ?? 999, width: vfm[f.id]?.width || null }))
+  const removed = new Set(S.view.config?.removed || []);
+  S.allFields = fields.map(f => ({ ...f, mode: vfm[f.id]?.mode || "edit", vpos: vfm[f.id]?.position ?? 999, width: vfm[f.id]?.width || null }))
     .sort((a, b) => (a.role === "title" ? -1 : b.role === "title" ? 1 : a.vpos - b.vpos));
+  S.removedFields = S.allFields.filter(f => removed.has(f.id));
+  S.hiddenFields = S.allFields.filter(f => f.mode === "hidden" && !removed.has(f.id));
+  S.fields = S.allFields.filter(f => f.mode !== "hidden" && !removed.has(f.id));
+  loadTV();
   const ids = pipelines.map(x => x.id);
   S.stages = ids.length ? await q(sb.from("pipeline_stage").select("*").in("pipeline_id", ids).order("position")) : [];
   const sids = S.stages.map(s => s.id);
@@ -375,7 +404,21 @@ function rebuild(){
   S.segEff = { ...S.segs };
   for (const o of S.draft.ops) { if (o.t === "seg") S.segEff[o.record] = { record:o.record, start:o.start, end:o.end, hours:o.hours, assignee:o.assignee, version:o.version }; else if (o.t === "unplan") delete S.segEff[o.record]; }
   for (const r of S.tree) if (r._del) delete S.segEff[r.id];
+  S.segDraft = new Set(S.draft.ops.filter(o => o.t === "seg" || o.t === "unplan").map(o => o.record));
+  for (const r of S.tree) { const g = r.is_leaf && !r._del ? S.segEff[r.id] : null; r.start_wh = g ? g.start : null; r.end_wh = g ? g.end : null; }
+  for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i], p = S.row[r.parent_id]; if (!p || r._del || r.start_wh == null) continue;
+    p.start_wh = p.start_wh == null ? r.start_wh : Math.min(p.start_wh, r.start_wh); p.end_wh = p.end_wh == null ? r.end_wh : Math.max(p.end_wh, r.end_wh); }
 }
+/* the viewer's own filter, sort and hidden computed columns: kept in this browser per sheet */
+const tvKey = () => "pmkit.tv." + S.view?.id;
+function saveTV(){ try { localStorage.setItem(tvKey(), JSON.stringify({ sort:S.sort, hideDone:S.hideDone, vhide:[...S.vhide], flt:Object.fromEntries(Object.entries(S.flt).filter(e => e[1].size).map(([k, v]) => [k, [...v]])) })); } catch (_) {} }
+function loadTV(){ S.sort = null; S.hideDone = false; S.vhide = new Set(); S.flt = {};
+  try { const o = JSON.parse(localStorage.getItem(tvKey()) || "{}"); S.sort = o.sort || null; S.hideDone = !!o.hideDone; S.vhide = new Set(o.vhide || []);
+    for (const [k, v] of Object.entries(o.flt || {})) if (S.allFields.some(f => f.id === k)) S.flt[k] = new Set(v); } catch (_) {}
+  if (S.sort && !colList(S.fields).some(c => c.id === S.sort.f)) S.sort = null; }
+const deadlineField = () => S.allFields.find(f => f.config?.pmkit === "deadline" && !S.removedFields.includes(f));
+const endDay = r => r.end_wh == null ? null : isoOfWh(r.end_wh, true).slice(0, 10);
+function isLate(r){ const d = deadlineField(); const v = d && r.data?.[d.id]; return !!(v && r.end_wh != null && endDay(r) > v); }
 async function loadHistory(){
   S.batches = await q(sb.from("change_batch").select("id,kind,summary,created_at,reverted_by,actor_id,change_log(count)").eq("project_id", S.project.id).order("created_at", { ascending:false }).limit(80));
 }
@@ -400,33 +443,62 @@ function render(){
 }
 
 /* ---------------- tracker ---------------- */
-const filtering = () => !!(S.search.trim() || S.fStatus.size || S.fPerson.size);
-function matches(r){ const st = byRole("status");
-  if (S.fStatus.size && !(st && S.fStatus.has(r.data?.[st.id]))) return false;
-  if (S.fPerson.size && !["assignee","support","lead"].some(ro => { const f = byRole(ro); return f && S.fPerson.has(r.data?.[f.id]); })) return false;
+const fltOn = () => Object.values(S.flt).some(v => v.size);
+const filtering = () => !!(S.search.trim() || S.hideDone || fltOn());
+const marking = () => !!(S.search.trim() || fltOn());
+/* the value a row is filtered by in a column; rows that only sum up their children count as empty */
+function fkey(r, f){ const v = r.data?.[f.id]; if (f.type === "checkbox") return v === true ? "Yes" : "No"; if (isRollup(r, f) || v == null || v === "") return "";
+  if (f.type === "link") return v.caption || v.url || ""; return String(v); }
+const flabel = (f, k) => k === "" ? "(empty)" : f.type === "person" ? (memberName(k) || "(removed person)") : f.type === "duration" || f.type === "number" || f.type === "money" ? num(k) : k;
+function fvalues(f){ const m = new Map(); for (const r of S.tree) { if (r._del) continue; const k = fkey(r, f); if (k === "" && !r.is_leaf) continue; m.set(k, (m.get(k) || 0) + 1); }
+  for (const k of S.flt[f.id] || []) if (!m.has(k)) m.set(k, 0);
+  let keys = [...m.keys()].filter(k => k !== ""); const opts = f.config?.options || [];
+  if (f.type === "select") keys.sort((x, y) => opts.indexOf(x) - opts.indexOf(y)); else keys.sort((x, y) => flabel(f, x).localeCompare(flabel(f, y), undefined, { numeric:true }));
+  if (m.has("")) keys.push(""); return keys.map(k => ({ k, n: m.get(k) })); }
+const filterable = f => !f.virtual && f.role !== "title" && ["select","person","checkbox","text","number","money","duration","date"].includes(f.type);
+function matches(r){
+  if (S.hideDone && (r.is_leaf ? isDone(r) : r.n_leaf > 0 && r.n_done === r.n_leaf)) return false;
+  for (const [id, set] of Object.entries(S.flt)) { if (!set.size) continue; const f = S.fields.find(x => x.id === id); if (f && set.has(fkey(r, f))) return false; }
   const s = S.search.trim().toLowerCase(); if (!s) return true;
   return S.fields.some(f => { const v = r.data?.[f.id]; if (v == null) return false;
     const t = f.type === "person" ? memberName(v) : typeof v === "object" ? (v.caption || v.url || "") : String(v); return t.toLowerCase().includes(s); }); }
-function visibleRows(){
+/* sorting never takes a row out of its parent: siblings are ordered inside every group */
+function sval(r, f){ if (f.kind === "start") return r.start_wh; if (f.kind === "end") return r.end_wh; if (f.kind === "over") return overtrack(r); if (f.kind === "done") return r.n_leaf ? r.n_done / r.n_leaf : null;
+  if (f.role === "estimate") return r.estimate_h; if (f.role === "time_spent") return r.spent_h; if (f.role === "title") return r.title == null ? null : String(r.title).toLowerCase();
+  const v = r.data?.[f.id]; if (v == null || v === "") return null;
+  if (f.type === "select") { const i = (f.config?.options || []).indexOf(v); return i < 0 ? 999 : i; } if (f.type === "person") return memberName(v).toLowerCase();
+  if (f.type === "checkbox") return v ? 1 : 0; if (f.type === "link") return (v.caption || v.url || "").toLowerCase(); return typeof v === "number" ? v : String(v).toLowerCase(); }
+function sortedTree(){ const f = S.sort && columns().find(c => c.id === S.sort.f); if (!f) return S.tree; const kids = {}; for (const r of S.tree) (kids[r.parent_id || ""] ||= []).push(r);
+  const cmp = (a, b) => { const x = sval(a, f), y = sval(b, f); if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+    return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric:true })) * S.sort.dir; };
+  const out = []; const walk = pid => { for (const r of (kids[pid] || []).slice().sort(cmp)) { out.push(r); walk(r.id); } }; walk(""); return out; }
+function visibleRows(){ const T = sortedTree();
   if (filtering()) { const keep = new Set();
-    for (const r of S.tree) if (matches(r)) { let x = r; while (x) { keep.add(x.id); x = S.row[x.parent_id]; } }
-    return S.tree.filter(r => keep.has(r.id)); }
+    for (const r of T) if (matches(r)) { let x = r; while (x) { keep.add(x.id); x = S.row[x.parent_id]; } }
+    return T.filter(r => keep.has(r.id)); }
   const hidden = []; const out = [];
-  for (const r of S.tree) { while (hidden.length && hidden[hidden.length - 1] >= r.depth) hidden.pop(); if (hidden.length) continue; out.push(r); if (S.collapsed.has(r.id)) hidden.push(r.depth); }
+  for (const r of T) { while (hidden.length && hidden[hidden.length - 1] >= r.depth) hidden.pop(); if (hidden.length) continue; out.push(r); if (S.collapsed.has(r.id)) hidden.push(r.depth); }
   return out;
 }
 /* columns = real fields plus one computed column after Time Spent */
-function columns(){ const out = []; for (const f of S.fields) { out.push(f);
-    if (f.role === "status") out.push({ id:"__done", name:"Done", virtual:true, kind:"done" });
-    if (f.role === "time_spent" && byRole("estimate")) out.push({ id:"__over", name:"% Over", virtual:true, kind:"over" }); } return out; }
+function colList(src){ const out = []; for (const f of src) { out.push(f);
+    if (f.role === "status") out.push({ id:"__done", name:"Done", virtual:true, kind:"done", anchor:f.id });
+    if (f.role === "time_spent" && byRole("estimate")) out.push({ id:"__over", name:"% Over", virtual:true, kind:"over", anchor:f.id }); }
+  const dates = [{ id:"__start", name:"Start date", virtual:true, kind:"start" }, { id:"__end", name:"End date", virtual:true, kind:"end" }];   // dates sit next to the hours; at the end when those columns are away
+  let at = out.findIndex(c => c.id === "__over"); if (at < 0) at = out.findIndex(c => c.role === "time_spent"); if (at < 0) at = out.findIndex(c => c.role === "estimate");
+  out.splice(at < 0 ? out.length : at + 1, 0, ...dates); return out; }
+function columns(){ return colList(S.fields).filter(c => !S.vhide.has(c.id)); }
 function overtrack(r){ const e = +r.est_tracked, s = +r.spent_h; if (!e || r.spent_h == null) return null; return s / e - 1; }
 function isRollup(r, f){ return (f.role === "estimate" || f.role === "time_spent") && !r.is_leaf; }
 function cellText(r, f){ const v = r.data?.[f.id];
   if (f.kind === "done") return r.n_leaf ? r.n_done + " of " + r.n_leaf + " work items finished" : "";
+  if (f.kind === "start") return r.start_wh == null ? "" : fmtDay(r.start_wh); if (f.kind === "end") return r.end_wh == null ? "" : fmtDay(r.end_wh, true);
   if (f.virtual) { const o = overtrack(r); return o == null ? "" : (o > 0 ? "+" : "") + Math.round(o * 100) + "%"; }
   if (f.role === "estimate" && !r.is_leaf) return num(r.estimate_h); if (f.role === "time_spent" && !r.is_leaf) return num(r.spent_h);
   if (v == null) return ""; if (f.type === "person") return memberName(v); if (f.type === "link") return v.url || ""; if (f.type === "checkbox") return v ? "Yes" : "No"; return String(v); }
 function cellHtml(r, f){ const v = r.data?.[f.id];
+  if (f.kind === "start") return r.start_wh == null ? "" : fmtDay(r.start_wh);
+  if (f.kind === "end") return r.end_wh == null ? "" : isLate(r) ? `<span class="over" title="Later than the deadline">${fmtDay(r.end_wh, true)}</span>` : fmtDay(r.end_wh, true);
   if (f.kind === "done") return r.n_leaf ? `<span class="prog"><i><b style="width:${Math.round(r.n_done / r.n_leaf * 100)}%"></b></i>${r.n_done}/${r.n_leaf}</span>` : "";
   if (f.virtual) { const o = overtrack(r); return o == null ? "" : `<span class="${o > 0.005 ? "over" : o < -0.005 ? "under" : ""}">${(o > 0 ? "+" : "") + Math.round(o * 100)}%</span>`; }
   if (isRollup(r, f)) return num(f.role === "estimate" ? r.estimate_h : r.spent_h);
@@ -439,7 +511,8 @@ function cellHtml(r, f){ const v = r.data?.[f.id];
     default: return esc(v ?? ""); } }
 function cellClass(r, f){ const c = [];
   if (f.kind === "over" || ["number","money","duration"].includes(f.type)) c.push("num"); if (f.type === "checkbox") c.push("ctr");
-  if (isRollup(r, f) || f.virtual) c.push("sum");
+  if (f.kind === "start" || f.kind === "end") { c.push("dtc"); if (S.segDraft?.has(r.id)) c.push("dr"); }
+  if (isRollup(r, f) || (f.virtual && !(f.kind === "start" && r.is_leaf))) c.push("sum");
   if (["estimate","approved_lead","approved_client"].includes(f.role)) { const a = byRole("approved_lead"), b = byRole("approved_client"); if (a && b && r.data?.[a.id] === true && r.data?.[b.id] === true) c.push("ok2"); }
   if (r._dr?.has(f.id)) c.push("dr");
   if (S.sel && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
@@ -450,8 +523,8 @@ function sheetTracker(){
   const selRow = S.sel && S.row[S.sel.r]; const selF = S.sel && cols.find(f => f.id === S.sel.f);
   let body = "";
   for (const r of rows) { const dim = st && meta(st, r.data?.[st.id]).dim;
-    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${filtering() && matches(r) ? "hit" : ""}" data-id="${r.id}">
-      <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="Drag to move">⋮⋮</span>
+    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
+      <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="${S.sort ? "Clear the sort to move rows by hand" : "Drag to move"}">⋮⋮</span>
         <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title ?? "")}</span></div></td>
       ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
   const leaves = S.tree.filter(r => r.is_leaf).length; const roots = S.tree.filter(r => r.depth === 0);
@@ -459,15 +532,17 @@ function sheetTracker(){
   const selVal = selRow && selF ? cellText(selRow, selF) : ""; const direct = selRow && selF && !selF.virtual && !isRollup(selRow, selF) && ["text","number","money","duration","date"].includes(selF.type);
   return `<div class="tb">${draftBar()}
       <span class="split"><button class="tbtn" data-act="addrow" title="Add a row of the same level below the selected one">＋ ${esc(selRow ? levelOf(selRow)?.name || "Row" : top?.name || "Row")}</button><button class="tbtn" data-act="addmenu" title="More ways to add a row">▾</button></span>
-      <button class="tbtn" data-act="addfield" title="Add your own column of any type">＋ Column</button><span class="tsep"></span>
+      <button class="tbtn" data-act="structure" title="Levels of the project, its milestones and batches">◆ Structure</button><span class="tsep"></span>
       <input class="search" id="search" placeholder="Search the table" value="${esc(S.search)}" autocomplete="off">
-      <button class="tbtn fbtn ${S.fStatus.size || S.fPerson.size ? "on" : ""}" data-act="filter">Filter${S.fStatus.size + S.fPerson.size ? " · " + (S.fStatus.size + S.fPerson.size) : ""} ▾</button>
-      ${filtering() ? `<button class="tbtn" data-act="fclear">✕ Clear</button>` : ""}
-      ${S.hiddenFields?.length ? `<button class="tbtn fbtn on" data-act="hidden">Hidden columns · ${S.hiddenFields.length} ▾</button>` : ""}<span class="sp"></span></div>
+      <label class="chk" title="Hide work that is finished, and groups where everything is finished"><input type="checkbox" id="hidedone" ${S.hideDone ? "checked" : ""}> Hide finished</label>
+      ${fltOn() ? `<span class="fnote">Filter: ${Object.keys(S.flt).filter(k => S.flt[k].size).map(k => esc(S.fields.find(f => f.id === k)?.name || "")).filter(Boolean).join(", ")}</span>` : ""}
+      ${S.sort ? `<span class="fnote">Sorted by ${esc(cols.find(c => c.id === S.sort.f)?.name || "")} ${S.sort.dir > 0 ? "↑" : "↓"} <button class="lnk" data-act="sclear" title="Back to the order of the project">clear</button></span>` : ""}
+      ${filtering() ? `<span class="fnote"><b>${rows.length} of ${S.tree.length}</b> rows</span><button class="tbtn" data-act="fclear">✕ Clear filters</button>` : ""}
+      <span class="sp"></span>${(() => { const all = colList(S.allFields.filter(f => !S.removedFields.includes(f))); const n = cols.length; return `<button class="tbtn fbtn ${n < all.length ? "on" : ""}" data-act="cols" title="Show, hide and add columns">Columns <b>${n < all.length ? n + " of " + all.length : "all"}</b> ▾</button>`; })()}</div>
     <div class="cb"><div class="ref">${selRow && selF ? esc(selRow.title) + " · " + esc(selF.name) : "Select a cell"}</div>
       <input id="cellbar" value="${esc(selVal)}" ${direct ? "" : "readonly"} autocomplete="off" placeholder="${selRow ? "" : "Arrows move, Enter edits, right-click for more"}">
       <span class="hint">${selRow && selF ? (selF.virtual ? "computed" : isRollup(selRow, selF) ? "sum of rows below" : "") : ""}</span></div>
-    <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", h" : ""}</span>${f.virtual ? "" : `<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1">▾</button>`}</div>${f.virtual ? "" : `<span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
+    <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""} ${S.flt[f.id]?.size ? "flt" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", h" : ""}</span>${S.sort?.f === f.id ? `<span class="hmk">${S.sort.dir > 0 ? "↑" : "↓"}</span>` : ""}${S.flt[f.id]?.size ? `<span class="hmk" title="Filtered">▼</span>` : ""}<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1" title="Sort, filter, move, hide">⋮</button></div>${f.virtual ? "" : `<span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
       <tbody>${body || `<tr><td colspan="${cols.length}"><div class="empty">${filtering() ? "Nothing matches the search or filters." : `Nothing here yet. Start with “+ ${esc(top?.name || "Row")}”.`}</div></td></tr>`}</tbody></table></div>
     <div class="stat"><div>Rows<b>${filtering() ? rows.length + " of " + S.tree.length : S.tree.length}</b></div><div>Work items<b>${leaves}</b></div><div>Estimate<b>${num(est)} h</b></div><div>Spent<b>${num(spent)} h</b></div>
       <div title="Time spent against the estimate of the work items that already have time logged">Over on started work<b>${estT && spent ? (spent / estT - 1 > 0 ? "+" : "") + Math.round((spent / estT - 1) * 100) + "%" : "—"}</b></div><div style="border:0">${enabledLevels().map(l => esc(l.name)).join(" › ")}</div>${viewBar()}</div>`;
@@ -499,6 +574,8 @@ function estimateWarning(rec, f, val){ closeModal(); const r = S.row[rec], s = S
 function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); const td = document.querySelector("td.sel"); if (!r || !f || !td) return;
   if (r._del) return toast("This row is marked for deletion — right-click to restore it");
   if (f.kind === "done") return toast("Computed: finished work items inside this row");
+  if (f.kind === "start") return r.is_leaf ? editStart(td, r) : toast("Collected from the rows inside — change their start, or drag the bar on the Gantt");
+  if (f.kind === "end") return toast(r.is_leaf ? "The end follows from the start and the estimate" : "Collected from the rows inside");
   if (f.virtual) return toast("Computed: time spent against the estimate of work that already has time logged");
   if (isRollup(r, f)) return toast("This is a sum of the rows below — edit those");
   if (f.mode === "read") return toast("This field is read-only on this sheet");
@@ -543,6 +620,20 @@ function openLink(td, r, f){ closeMenu(); const b = td.getBoundingClientRect(); 
   fm.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") { closeMenu(); document.querySelector(".main")?.focus(); } }); }
 
 /* rows: add, delete, move */
+/* Start date of a work item: typing a day moves it in the plan (to the draft); the end follows from the estimate */
+function editStart(td, r){ S.editing = true; td.classList.add("editing"); td.innerHTML = `<input class="edit" type="date" value="${r.start_wh != null ? isoOfWh(r.start_wh).slice(0, 10) : ""}">`;
+  const inp = td.firstChild; inp.focus(); let done = false;
+  const commit = dr => { if (done) return; done = true; S.editing = false; setStart(r, inp.value); if (dr) moveSel(dr, 0); };
+  inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); commit(1); } else if (e.key === "Escape") { done = true; S.editing = false; render(); } });
+  inp.addEventListener("blur", () => commit(0)); }
+function setStart(r, day){ const g = S.segEff[r.id];
+  if (!day) return g ? commitPlanOps([{ t:"unplan", record:r.id, version: segVersion(r.id) }], "Removed from the plan: " + r.title) : render();
+  const ms = Date.parse(day + "T00:00:00Z"); if (Number.isNaN(ms) || ms < EPOCH) { toast("This date is outside the calendar", true); return render(); }
+  const start = whOfDate(ms);
+  if (g) { if (Math.floor(g.start / HPD + 1e-9) === Math.floor(start / HPD + 1e-9)) return render();
+    return commitPlanOps([{ t:"seg", record:r.id, start, end: start + (g.end - g.start), hours:g.hours, assignee:g.assignee, version: segVersion(r.id) }], "Start moved: " + r.title); }
+  const hours = +r.estimate_h || 0; if (!hours) { toast("Give this row an estimate first — the plan needs a length", true); return render(); }
+  commitPlanOps([{ t:"seg", record:r.id, start, end: start + hours, hours, assignee: asgOf(r), version: segVersion(r.id) }], "Planned: " + r.title); }
 function askName(label, then, extra = "", preset = "", okLabel = "Add"){ closeModal(); const v = document.createElement("div"); v.className = "veil";
   v.innerHTML = `<form class="modal" style="width:420px"><div class="mhead"><span class="t">${esc(label)}</span></div><div class="mbody" style="display:flex;flex-direction:column;gap:10px">
     <input name="name" placeholder="Name" required autocomplete="off" value="${esc(preset)}" style="height:32px;border:1px solid var(--frame);border-radius:3px;padding:0 9px">${extra}</div>
@@ -558,6 +649,14 @@ function addRow(parentId, level, beforeId){ if (!level) return;
     if (d.pl) await q(sb.rpc("apply_pipeline", { p_asset: id }));
     if (beforeId) await q(sb.rpc("move_record", { p_record: id, p_parent: parentId, p_before: beforeId }));
     if (parentId) S.collapsed.delete(parentId); S.sel = { r: id, f: S.fields[0].id }; }), pipe); }
+function insertSpot(L){ const r = S.row[S.sel?.r]; const lv = enabledLevels(); const up = lv[lv.indexOf(L) - 1];
+  if (!r) return lv[0]?.id === L.id ? { parent:null, before:null, hint:"at the end" } : { why:"select a row first" };
+  const lr = levelOf(r); if (!lr) return { why:"select a row first" };
+  if (L.position > lr.position) return childLevel(r)?.id === L.id ? { parent:r.id, before:null, hint:"in " + (r.title || "") } : { why:"select " + (up ? /^[aeiou]/i.test(up.name) ? "an " + up.name : "a " + up.name : "a row") };
+  let c = r, prev = null; while (c && levelOf(c) && levelOf(c).position > L.position) { prev = c; c = S.row[c.parent_id]; }
+  if (c && levelOf(c)?.position === L.position) return { parent: c.parent_id || null, before: nextSibling(c)?.id || null, hint:"after " + (c.title || "") };
+  return { parent: c ? c.id : null, before: prev ? nextSibling(prev)?.id || null : null, hint: c ? "in " + (c.title || "") : "at the top level" }; }
+function cloneRow(r){ act(async () => { const id = await q(sb.rpc("clone_record", { p_record: r.id })); S.sel = { r:id, f:S.fields[0].id }; }, { ok:`“${r.title}” cloned with everything inside — estimates and realizers kept, fact and statuses empty` }); }
 function nextSibling(r){ const sibs = S.tree.filter(x => x.parent_id === r.parent_id); return sibs[sibs.indexOf(r) + 1] || null; }
 function under(id){ return S.tree.filter(x => isUnder(x, id)).map(x => x.id); }
 function deleteRow(r){ if (r._del) return; const ids = new Set(under(r.id)); draftPush();
@@ -576,23 +675,55 @@ function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.t
   const items = [{ head: (r.level || "") + " · " + (r.title || "") }];
   if (r._del) { items.push({ label:"Restore row", run: () => restoreRow(r) }); return openMenu(x, y, items); }
   if (kids) items.push({ label: S.collapsed.has(r.id) ? "Expand" : "Collapse", run: () => { S.collapsed.has(r.id) ? S.collapsed.delete(r.id) : S.collapsed.add(r.id); render(); } }, "-");
-  if (lv) items.push({ label:`Insert ${lv.name} above`, run: () => addRow(r.parent_id, lv, r.id) }, { label:`Insert ${lv.name} below`, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) });
-  if (cl) items.push({ label:`Add ${cl.name} inside`, run: () => addRow(r.id, cl, null) });
+  if (lv) items.push({ label:"Insert above", hint: lv.name, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Insert below", hint: lv.name, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) });
+  if (cl) items.push({ label:`Add ${cl.name}`, hint:"in " + (r.title || ""), run: () => addRow(r.id, cl, null) });
+  if (lv) items.push("-", { label: kids ? "Clone with everything inside" : "Clone", hint:"saved at once", run: () => cloneRow(r) });
   if (lv?.position === 3 && !kids && S.pipelines.length) { items.push("-", { head:"Apply pipeline" });
     for (const p of S.pipelines) items.push({ label: p.name, run: () => confirmBox("Apply pipeline", `Add the stages of “${p.name}” to ${r.title}?`, "Add stages", () => act(async () => { await q(sb.from("record").update({ pipeline_id: p.id }).eq("id", r.id)); await q(sb.rpc("apply_pipeline", { p_asset: r.id })); }, { ok:"Stages added" })) }); }
   items.push("-", { label:"Delete row" + (kids ? " with everything inside" : ""), hint:"to the draft", danger:true, run: () => deleteRow(r) });
   openMenu(x, y, items); }
-function colMenu(f, x, y){ const i = S.fields.indexOf(f); const items = [{ head: f.name + " · " + f.type }];
-  items.push({ label:"Rename…", run: () => askName("Rename column", n => act(() => q(sb.rpc("rename_field", { p_field: f.id, p_name: n })), { schema:true }), "", f.name, "Rename") });
-  if (f.type === "select") items.push({ label: f.role === "status" ? "Edit workflow…" : "Edit options…", run: () => openSettings(f.id) });
-  if (f.role !== "title") items.push("-", { label:"Move left", disabled: i <= 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i - 1].id })), { schema:true }) },
-    { label:"Move right", disabled: i >= S.fields.length - 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i + 2]?.id || null })), { schema:true }) });
-  items.push({ label:"Insert column to the right…", run: () => addField(f.id) });
-  if (f.role !== "title") items.push({ label:"Hide column", run: () => act(() => q(sb.from("view_field").update({ mode:"hidden" }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true, ok:"Column hidden — bring it back with “Hidden columns” in the toolbar" }) });
+const setView = cfg => q(sb.from("view").update({ config: { ...(S.view.config || {}), ...cfg } }).eq("id", S.view.id));
+function colMenu(f, x, y){ const real = !f.virtual; const i = S.fields.indexOf(f); const items = [{ head: f.name + (real ? " · " + f.type : " · computed") }];
+  const isNum = f.virtual || ["number","money","duration","date","checkbox"].includes(f.type); const names = f.type === "select" ? ["Sort first → last option", "Sort last → first option"] : isNum ? ["Sort low → high", "Sort high → low"] : ["Sort A → Z", "Sort Z → A"];
+  const srt = d => ({ label: names[d > 0 ? 0 : 1], hint: S.sort?.f === f.id && S.sort.dir === d ? "✓" : "", run: () => { S.sort = { f:f.id, dir:d }; saveTV(); render(); } });
+  items.push(srt(1), srt(-1)); if (S.sort) items.push({ label:"Clear sort", run: () => { S.sort = null; saveTV(); render(); } });
+  if (filterable(f)) items.push({ label:"Filter…", hint: S.flt[f.id]?.size ? "on" : "", run: () => openFilter(f, x, y) });
+  if (real) { items.push("-", { label:"Rename…", run: () => askName("Rename column", n => act(() => q(sb.rpc("rename_field", { p_field: f.id, p_name: n })), { schema:true }), "", f.name, "Rename") });
+    if (f.type === "select") items.push({ label: f.role === "status" ? "Edit workflow…" : "Edit options…", run: () => openSettings(f.id) });
+    items.push("-");
+    if (f.role !== "title") items.push({ label:"Move left", disabled: i <= 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i - 1].id })), { schema:true }) },
+      { label:"Move right", disabled: i >= S.fields.length - 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i + 2]?.id || null })), { schema:true }) });
+    items.push({ label:"Insert column left…", disabled: f.role === "title", run: () => addField(f.id) }, { label:"Insert column right…", run: () => addField(S.fields[i + 1]?.id || null) }); }
+  items.push("-");
+  if (f.role !== "title") items.push({ label:"Hide column", hint:"Columns brings it back", run: () => real ? act(() => q(sb.from("view_field").update({ mode:"hidden" }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true }) : (S.vhide.add(f.id), saveTV(), render()) });
   if (f.width) items.push({ label:"Reset width", run: () => act(() => q(sb.from("view_field").update({ width:null }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true }) });
-  items.push("-", { label: f.is_system ? "Built-in column — cannot be deleted" : "Delete column", danger:!f.is_system, disabled:f.is_system, run: () => confirmBox("Delete column", `Delete the column “${f.name}” with its values in every row? It can be brought back from History.`, "Delete column", () => act(() => q(sb.rpc("delete_field", { p_field: f.id })), { schema:true, ok:"Column deleted — History can bring it back" })) });
+  if (real && f.role !== "title") items.push(f.is_system
+    ? { label:"Delete column", hint:"values are kept", danger:true, run: () => confirmBox("Delete column", `Take “${f.name}” out of this table? It is a built-in column, so its values stay in the database and the plan keeps working. Bring it back any time: Columns → Add column.`, "Delete column", () => act(async () => { delete S.flt[f.id]; saveTV(); await setView({ removed: [...new Set([...(S.view.config?.removed || []), f.id])] }); }, { schema:true, ok:"Column removed — Columns → Add column brings it back" })) }
+    : { label:"Delete column", danger:true, run: () => confirmBox("Delete column", `Delete the column “${f.name}” with its values in every row? It can be brought back from History.`, "Delete column", () => act(() => q(sb.rpc("delete_field", { p_field: f.id })), { schema:true, ok:"Column deleted — History can bring it back" })) });
   openMenu(x, y, items); }
-function addField(afterId){ closeModal(); const v = document.createElement("div"); v.className = "veil";
+/* filter of one column, as in a spreadsheet: every value with its count; several columns work together */
+function openFilter(f, x, y){ closeMenu(); const el = document.createElement("div"); el.className = "menu fpop"; let vals = [];
+  const draw = () => { const set = S.flt[f.id] || new Set(); vals = fvalues(f);
+    el.innerHTML = `<div class="mh">Filter · ${esc(f.name)}</div><div class="fph"><button data-fa="all">Show all</button><button data-fa="none">Hide all</button></div><div class="fpl">${vals.map((o, i) => `<label><input type="checkbox" data-fi="${i}" ${set.has(o.k) ? "" : "checked"}><span class="fv">${f.type === "select" && o.k ? `<span class="chip" style="--c:${esc(meta(f, o.k).color || "#5980a6")}">${esc(o.k)}</span>` : esc(flabel(f, o.k))}</span><span class="n">${o.n}</span></label>`).join("") || `<div class="mh">No values yet</div>`}</div>`; };
+  draw(); placeMenu(el, x, y);
+  el.addEventListener("change", e => { const i = e.target.dataset.fi; if (i == null) return; const set = S.flt[f.id] ||= new Set(); const k = vals[+i].k; e.target.checked ? set.delete(k) : set.add(k); if (!set.size) delete S.flt[f.id]; saveTV(); render(); });
+  el.addEventListener("click", e => { const a = e.target.dataset.fa; if (!a) return; if (a === "all") delete S.flt[f.id]; else S.flt[f.id] = new Set(vals.map(o => o.k)); saveTV(); render(); draw(); }); }
+/* "Columns": what is shown, in the order of the table; adding a column lives here too */
+function openColumns(x, y){ closeMenu(); const el = document.createElement("div"); el.className = "menu fpop";
+  const draw = () => { const shown = new Set(columns().map(c => c.id)); const all = colList(S.allFields.filter(f => !S.removedFields.includes(f)));
+    el.innerHTML = `<div class="mh">Columns</div><div class="fph"><button data-ca="all">Show all</button></div><div class="fpl">${all.map(c => { const lock = c.role === "title" || (c.anchor && !S.fields.some(f => f.id === c.anchor));
+        return `<label title="${c.role === "title" ? "Always shown" : lock ? "Shown together with its source column" : ""}"><input type="checkbox" data-ci="${c.id}" ${shown.has(c.id) ? "checked" : ""} ${lock ? "disabled" : ""}><span class="fv">${esc(c.name)}</span>${c.virtual ? `<span class="n">computed</span>` : ""}</label>`; }).join("")}</div>
+      <hr><button data-ca="add">＋ Add column…</button>${S.removedFields.length ? `<div class="mh">Built-in, removed from this table</div>` + S.removedFields.map(f => `<button data-cr="${f.id}">＋ ${esc(f.name)}</button>`).join("") : ""}`; };
+  draw(); placeMenu(el, x, y); const again = () => { if (el.isConnected) draw(); };
+  el.addEventListener("change", e => { const id = e.target.dataset.ci; if (!id) return; const on = e.target.checked;
+    if (id.startsWith("__")) { on ? S.vhide.delete(id) : S.vhide.add(id); saveTV(); render(); return again(); }
+    act(() => q(sb.from("view_field").update({ mode: on ? "edit" : "hidden" }).eq("view_id", S.view.id).eq("field_id", id)), { schema:true }).then(again); });
+  el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.ca === "add") { closeMenu(); return addField(null); }
+    if (b.dataset.ca === "all") { S.vhide.clear(); saveTV(); const ids = S.hiddenFields.map(f => f.id); if (!ids.length) { render(); return again(); }
+      return act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", ids)), { schema:true }).then(again); }
+    if (b.dataset.cr) return act(async () => { await q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).eq("field_id", b.dataset.cr)); await setView({ removed: (S.view.config?.removed || []).filter(i => i !== b.dataset.cr) }); }, { schema:true, ok:"Column is back" }).then(again); }); }
+function addField(beforeId){ closeModal(); const v = document.createElement("div"); v.className = "veil";
   v.innerHTML = `<form class="modal" style="width:440px"><div class="mhead"><span class="t">New column</span></div><div class="mbody" style="display:flex;flex-direction:column;gap:10px">
     <input name="name" placeholder="Name" required autocomplete="off" style="height:32px;border:1px solid var(--frame);border-radius:3px;padding:0 9px">
     <select name="type" style="height:32px">${[["text","Text"],["number","Number"],["duration","Duration, hours"],["date","Date"],["checkbox","Checkbox"],["select","List of options"],["link","Link"],["person","Person"]].map(([a, b]) => `<option value="${a}">${b}</option>`).join("")}</select>
@@ -603,7 +734,7 @@ function addField(afterId){ closeModal(); const v = document.createElement("div"
   fm.addEventListener("submit", e => { e.preventDefault(); const opts = el.opts.value.split(",").map(s => s.trim()).filter(Boolean);
     if (el.type.value === "select" && !opts.length) return toast("A list needs at least one option", true);
     const name = el.name.value.trim(), type = el.type.value; closeModal();
-    const i = afterId ? S.fields.findIndex(f => f.id === afterId) : -1; const before = i >= 0 ? S.fields[i + 1]?.id : null;
+    const before = beforeId && S.fields.some(f => f.id === beforeId) ? beforeId : null;
     act(async () => { const id = await q(sb.rpc("add_field", { p_table: S.tbl.id, p_name: name, p_type: type, p_config: type === "select" ? { options: opts } : {} }));
       if (before) await q(sb.rpc("move_field", { p_view: S.view.id, p_field: id, p_before: before })); }, { schema:true, ok:"Column added" }); });
   v.addEventListener("click", e => { if (e.target === v || e.target.dataset.x === "cancel") closeModal(); });
@@ -632,13 +763,13 @@ async function applyDraft(){ const ops = S.draft.ops; if (!ops.length) return; c
   finally { S.saving--; } render(); }
 function discardDraft(){ if (!S.draft.ops.length) return; draftPush(); S.draft.ops = []; S.draft.note = null; saveDraft(); rebuild(); render(); toast("Draft discarded — Undo brings it back"); }
 /* settings: workflow, lists, levels */
-function openSettings(fieldId){ closeModal(); let tab = fieldId || byRole("status")?.id || "levels"; let draft = null;
+function openSettings(fieldId){ if (fieldId === "levels") return openStructure(); closeModal(); let tab = fieldId || byRole("status")?.id || "levels"; let draft = null;
   const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v);
   const lists = () => S.fields.filter(f => f.type === "select");
   const mk = f => (f.config?.options || []).map(o => ({ name:o, was:o, color: meta(f, o).color || "#5980a6", dim: !!meta(f, o).dim, done: !!meta(f, o).done }));
   const paint = () => { const f = lists().find(x => x.id === tab); if (f && !draft) draft = mk(f);
-    v.innerHTML = `<div class="modal"><div class="mhead"><span class="t">Workflow &amp; structure</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div>
-      <div class="mtabs">${lists().map(l => `<button data-tab="${l.id}" class="${tab === l.id ? "on" : ""}">${l.role === "status" ? "Status workflow" : esc(l.name)}</button>`).join("")}<button data-tab="levels" class="${tab === "levels" ? "on" : ""}">Tree levels</button></div>
+    v.innerHTML = `<div class="modal"><div class="mhead"><span class="t">Workflow &amp; options</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div>
+      <div class="mtabs">${lists().map(l => `<button data-tab="${l.id}" class="${tab === l.id ? "on" : ""}">${l.role === "status" ? "Status workflow" : esc(l.name)}</button>`).join("")}</div>
       <div class="mbody">${f ? draft.map((o, i) => `<div class="orow" data-i="${i}"><span class="n">${i + 1}</span><button class="ib" data-x="up" ${i ? "" : "disabled"}>▲</button><button class="ib" data-x="down" ${i < draft.length - 1 ? "" : "disabled"}>▼</button>
             <input type="color" value="${esc(o.color)}" data-k="color"><input type="text" value="${esc(o.name)}" data-k="name" placeholder="Name">
             ${f.role === "status" ? `<label title="Work in this status is finished: the plan skips it and Done counts it"><input type="checkbox" data-k="done" ${o.done ? "checked" : ""}> work finished</label>` : ""}<label><input type="checkbox" data-k="dim" ${o.dim ? "checked" : ""}> dims the row</label><button class="ib" data-x="del" title="Remove">✕</button></div>`).join("") +
@@ -667,6 +798,44 @@ function openSettings(fieldId){ closeModal(); let tab = fieldId || byRole("statu
       act(() => q(sb.rpc("set_field_options", { p_field: id, p_options: payload })), { schema:true, ok:"Saved" }); } });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
 
+/* Structure: which levels the project has, and the groups above the asset level (milestones, batches…) with their dates */
+function openStructure(){ closeModal(); const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v); let focusId = null;
+  const UP = 3;   // levels above this position are groups; this position is the asset / task list
+  const paint = () => { const dl = deadlineField(); const upper = S.tree.filter(r => (levelOf(r)?.position ?? 9) < UP); const ups = enabledLevels().filter(l => l.position < UP); const top = enabledLevels()[0];
+    const inside = r => { const l = S.tree.filter(x => x.id !== r.id && !x._del && isUnder(x, r.id)); const a = S.levels.find(z => z.position === UP); const na = l.filter(x => levelOf(x)?.position === UP).length;
+      return `${na} ${esc((a?.name || "asset").toLowerCase())}${na === 1 ? "" : "s"} · ${l.filter(x => x.is_leaf).length} work items`; };
+    const row = (r, d) => `<div class="srow ${r._del ? "del" : ""}" style="padding-left:${d * 22}px" data-id="${r.id}"><span class="slv">${esc(r.level || "")}</span><input class="sn" data-n="${r.id}" value="${esc(r.title ?? "")}" ${r._del ? "disabled" : ""} aria-label="Name">
+        <span class="sd" title="Earliest start of the work inside">${r.start_wh == null ? "—" : fmtDay(r.start_wh)}</span><span class="sd ${isLate(r) ? "late" : ""}" title="Latest end of the work inside">${r.end_wh == null ? "—" : fmtDay(r.end_wh, true)}</span>
+        <input type="date" class="sdl" data-d="${r.id}" value="${esc((dl && r.data?.[dl.id]) || "")}" ${r._del ? "disabled" : ""} title="Deadline: the End turns red when the work inside ends later" aria-label="Deadline">
+        <span class="sh">${inside(r)}</span>${r._del ? `<button class="tbtn" data-x="restore">Restore</button>` : `<button class="ib" data-x="clone" title="Clone with everything inside: estimates and realizers stay, fact and statuses start empty">⧉</button><button class="ib" data-x="del" title="Delete with everything inside (to the draft)">✕</button>`}</div>`;
+    const draw = (pid, d) => upper.filter(r => (r.parent_id || null) === pid).map(r => { const cl = childLevel(r); const sub = cl && cl.position < UP;
+      return row(r, d) + (sub ? draw(r.id, d + 1) + (r._del ? "" : `<div class="sadd" style="padding-left:${(d + 1) * 22}px"><button class="lnk" data-add="${r.id}">＋ ${esc(cl.name)}</button></div>`) : ""); }).join("");
+    v.innerHTML = `<div class="modal wide"><div class="mhead"><span class="t">Structure</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div><div class="mbody">
+      <div class="sec">Levels of the project</div>
+      <div class="lvls">${S.levels.map(l => { const n = S.tree.filter(r => r.level === l.name).length; return `<label class="lvl ${l.enabled ? "on" : ""}" title="${l.enabled && n ? "Has rows — it cannot be switched off" : ""}"><input type="checkbox" data-lon="${l.id}" ${l.enabled ? "checked" : ""} ${l.enabled && n ? "disabled" : ""}><input class="ln" data-lvl="${l.id}" value="${esc(l.name)}" aria-label="Level name"><span class="n">${n || ""}</span></label>`; }).join(`<span class="arr">›</span>`)}</div>
+      <p class="note">Three levels are on by default. Switch on the first two to group batches into milestones and epics, or the last one to split a work item into parts. Rename any level to your own words: Asset → Task list, Stage → Task.</p>
+      <div class="sec">${ups.map(l => esc(l.name) + "s").join(" · ") || "Groups"}<span class="shd"><span>Start</span><span>End</span><span>Deadline</span></span></div>
+      ${ups.length ? `<div class="stree">${draw(null, 0) || `<div class="empty" style="padding:14px">Nothing here yet.</div>`}</div><div class="sadd"><button class="tbtn" data-add="">＋ ${esc(top.name)}</button></div>` : `<div class="empty" style="padding:14px">No level above ${esc(S.levels.find(z => z.position === UP)?.name || "the asset")} is switched on.</div>`}
+      <p class="note">Start and End are collected from the plan of the work inside. Names, deadlines and deletions go to the <b>draft</b> and are saved by Apply. New and cloned groups are saved at once.${dl ? "" : " The first deadline adds a “Deadline” column to the table."}</p></div>
+      <div class="mfoot"><button class="tbtn pri" data-x="close">Close</button></div></div>`;
+    if (focusId) { const i = v.querySelector(`[data-n="${focusId}"]`); focusId = null; if (i) { i.focus(); i.select(); } } };
+  paint(); const again = () => { if (v.isConnected) paint(); };
+  v.addEventListener("change", async e => { const el = e.target, d = el.dataset;
+    if (d.lvl) { const name = el.value.trim(); if (!name) { toast("Level name cannot be empty", true); return paint(); } return act(() => q(sb.from("tree_level").update({ name }).eq("id", d.lvl)), { schema:true }).then(again); }
+    if (d.lon) return act(() => q(sb.from("tree_level").update({ enabled: el.checked }).eq("id", d.lon)), { schema:true }).then(again);
+    if (d.n) { const val = el.value.trim(); if (!val) { toast("Name cannot be empty", true); return paint(); } draftCell(d.n, byRole("title"), val); render(); return paint(); }
+    if (d.d) { const val = el.value || null; if (!deadlineField()) { if (!val) return; await act(() => q(sb.rpc("add_field", { p_table: S.tbl.id, p_name:"Deadline", p_type:"date", p_config:{ pmkit:"deadline" } })), { schema:true }); }
+      const f = deadlineField(); if (!f) return again(); draftCell(d.d, f, val); render(); return again(); } });
+  v.addEventListener("click", e => { if (e.target === v) return closeModal(); const b = e.target.closest("button"); if (!b) return; const x = b.dataset.x; const r = S.row[b.closest(".srow")?.dataset.id];
+    if (x === "close") return closeModal();
+    if (b.dataset.add != null) { const par = S.row[b.dataset.add] || null; const L = par ? childLevel(par) : enabledLevels()[0]; if (!L) return; const name = L.name + " " + (S.tree.filter(z => z.level === L.name).length + 1);
+      return act(async () => { focusId = await q(sb.rpc("add_record", { p_table: S.tbl.id, p_parent: par ? par.id : null, p_level: L.id, p_title: name, p_data: {}, p_pipeline: null })); }).then(again); }
+    if (!r) return;
+    if (x === "clone") return act(async () => { focusId = await q(sb.rpc("clone_record", { p_record: r.id })); }, { ok:`“${r.title}” cloned with everything inside` }).then(again);
+    if (x === "del") { deleteRow(r); return paint(); }
+    if (x === "restore") { restoreRow(r); return paint(); } });
+  v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); else if (e.key === "Enter" && e.target.tagName === "INPUT") e.target.blur(); }); }
+
 /* ---------------- time: working hours counted from a fixed Monday; 8 h a day, Mon–Fri ---------------- */
 const HPD = 8, EPOCH = Date.UTC(2026, 0, 5), DAY = 864e5, DAYW = 36;
 const STEPS = [[1, "1 hour"], [2, "2 hours"], [4, "Half a day"], [8, "1 day"]];
@@ -676,6 +845,7 @@ function whOfIso(iso){ const ms = Date.parse(iso); const days = Math.floor((ms -
   if (dow > 4) return base; const h = (ms - (EPOCH + days * DAY)) / 36e5 - 9; return Math.round((base + Math.max(0, Math.min(HPD, h))) * 100) / 100; }
 function isoOfWh(wh, isEnd){ let D = Math.floor(wh / HPD + 1e-9), h = wh - D * HPD; if (isEnd && h < 1e-9 && D > 0) { D -= 1; h = HPD; } return new Date(EPOCH + calOfWd(D) * DAY + (9 + h) * 36e5).toISOString(); }
 const todayWh = () => { const n = new Date(); return whOfDate(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())); };
+const fmtDay = (wh, isEnd) => new Date(EPOCH + calOfWd(Math.max(0, Math.floor((isEnd ? wh - 0.001 : wh) / HPD + 1e-9))) * DAY).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"2-digit", timeZone:"UTC" });
 const fmtWh = (wh, isEnd) => new Date(EPOCH + calOfWd(Math.max(0, Math.floor((isEnd ? wh - 0.001 : wh) / HPD + 1e-9))) * DAY).toLocaleDateString("en-GB", { day:"2-digit", month:"short", timeZone:"UTC" });
 const asgOf = r => { const f = byRole("assignee"); return (f && r.data?.[f.id]) || null; };
 function isDone(r){ const st = byRole("status"); const v = st && r.data?.[st.id]; if (!v) return false; const m = st.config?.meta || {};
@@ -730,6 +900,7 @@ function barMenu(id, x, y){ const r = S.row[id], s = S.segEff[id]; if (!r || !s)
     "-", { label:"Remove from the plan", danger:true, run: () => commitPlanOps([{ t:"unplan", record:id, version: segVersion(id) }], "Removed from the plan: " + r.title) });
   openMenu(x, y, items); }
 
+function clearFilters(){ S.flt = {}; S.hideDone = false; S.search = ""; saveTV(); render(); }
 function draftBar(){ const n = S.draft.ops.length;
   return `<button class="tbtn ico" data-act="undo" title="Undo (Ctrl+Z)" ${S.draft.undo.length ? "" : "disabled"}>↶</button><button class="tbtn ico" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button><span class="tsep"></span>
     <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
@@ -741,18 +912,19 @@ function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && col
       { label:"Apply the draft", disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
       { label:"Clear the cell", hint:"Delete", disabled: !onT || !r || !f || f.virtual || f.role === "title" || isRollup(r, f), run: () => setCell(r.id, f, f.type === "checkbox" ? false : null) },
       { label:"Delete the row", disabled: !onT || !r || r._del, danger:true, run: () => deleteRow(r) }, "-", { label:"Saved changes: open History", run: go("history") }],
-    insert: [{ label: `${lv?.name || "Row"} below`, disabled: !onT || !r, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) }, { label: `${lv?.name || "Row"} above`, disabled: !onT || !r, run: () => addRow(r.parent_id, lv, r.id) },
-      { label: `${cl?.name || "Row"} inside`, disabled: !onT || !cl, run: () => addRow(r.id, cl, null) }, { label: `New ${top?.name || "row"} at the top level`, disabled: !onT || !top, run: () => addRow(null, top, null) }, "-", { label:"Column…", disabled:!onT, run: () => addField() }],
+    insert: [...enabledLevels().map(L => { const sp = insertSpot(L); return { label: L.name, hint: sp.why || sp.hint, disabled: !onT || !!sp.why, run: () => addRow(sp.parent, L, sp.before) }; }), "-",
+      { label:"Row above", hint: lv?.name || "", disabled: !onT || !r, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Row below", hint: lv?.name || "", disabled: !onT || !r, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) }, "-",
+      (() => { const rf = f && !f.virtual ? f : null; const i = rf ? S.fields.indexOf(rf) : -1; return [{ label:"Column left", hint: rf ? "of " + rf.name : "select a cell", disabled: !onT || !rf || rf.role === "title", run: () => addField(rf.id) }, { label:"Column right", hint: rf ? "of " + rf.name : "at the end", disabled: !onT, run: () => addField(rf ? S.fields[i + 1]?.id || null : null) }]; })()].flat(),
     view: [{ label:"Collapse all", run: () => { S.tree.filter(x => x.depth >= 1 && !x.is_leaf).forEach(x => S.collapsed.add(x.id)); render(); } }, { label:"Expand all", run: () => { S.collapsed.clear(); render(); } }, "-",
-      { label:"Clear search and filters", disabled: !filtering(), run: () => { S.fStatus.clear(); S.fPerson.clear(); S.search = ""; render(); } },
-      { label:"Show hidden columns", disabled: !S.hiddenFields?.length, run: () => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) }, "-",
+      { label:"Clear search and filters", disabled: !filtering(), run: clearFilters }, { label:"Clear sort", disabled: !S.sort, run: () => { S.sort = null; saveTV(); render(); } },
+      { label:"Show hidden columns", disabled: !S.hiddenFields?.length && !S.vhide.size, run: () => { S.vhide.clear(); saveTV(); S.hiddenFields.length ? act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) : render(); } }, "-",
       { head:"Table font" }, ...FONTS.map(f => ({ label:f[0], hint: VIEW.font === f[0] ? "✓" : "", run: () => { VIEW.font = f[0]; applyView(true); render(); } })),
       { label:"Reset text size and zoom", disabled: VIEW.fs === 13 && VIEW.zoom === 100, run: () => { VIEW.fs = 13; VIEW.zoom = 100; applyView(true); render(); } }, "-",
       ...SHEETS.map(([k, n]) => ({ label: "Sheet: " + n, hint: S.sheet === k ? "✓" : "", run: go(k) }))],
     plan: [{ label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) }, "-",
       { label:"Remove everything from the plan", danger:true, disabled: !Object.keys(S.segEff).length, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }, "-", { head:"Step on the Gantt" },
       ...STEPS.map(([h, n]) => ({ label:n, hint: S.step === h ? "✓" : "", run: () => setStep(h) })), "-", { label:"Open the Gantt", run: go("gantt") }, { label:"Open the Workload", run: go("workload") }],
-    project: [{ label:"Status workflow…", run: () => openSettings(byRole("status")?.id) }, ...S.fields.filter(x => x.type === "select" && x.role !== "status").map(x => ({ label: x.name + " options…", run: () => openSettings(x.id) })), { label:"Tree levels…", run: () => openSettings("levels") }, "-",
+    project: [{ label:"Status workflow…", run: () => openSettings(byRole("status")?.id) }, ...S.fields.filter(x => x.type === "select" && x.role !== "status").map(x => ({ label: x.name + " options…", run: () => openSettings(x.id) })), "-", { label:"Structure…", hint:"levels, milestones, batches", run: openStructure }, "-",
       { label:"Pipelines", run: go("pipelines") }, { label:"History", run: go("history") }] };
   openMenu(x, y, M[name]); }
 
@@ -847,24 +1019,17 @@ $app.addEventListener("click", async e => {
     if (a === "discard") return discardDraft();
     if (a === "autoplan") { const box = b.getBoundingClientRect(); return openMenu(box.left, box.bottom + 2, [{ head:"Step: " + STEPS.find(x => x[0] === S.step)[1] }, { label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) },
       "-", { label:"Remove everything from the plan", danger:true, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }]); }
-    if (a === "hidden") { const box = b.getBoundingClientRect(); const show = ids => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", ids)), { schema:true });
-      return openMenu(box.left, box.bottom + 2, [{ head:"Show a column" }, ...S.hiddenFields.map(f => ({ label: f.name, run: () => show([f.id]) })), "-", { label:"Show all", run: () => show(S.hiddenFields.map(f => f.id)) }]); }
-    if (a === "fclear") { S.fStatus.clear(); S.fPerson.clear(); S.search = ""; return render(); }
-    if (a === "fstatus" || a === "fperson") { const set = a === "fstatus" ? S.fStatus : S.fPerson; const st = byRole("status"); const box = b.getBoundingClientRect();
-      const opts = a === "fstatus" ? (st?.config?.options || []).map(o => ({ v:o, html:`<span class="chip" style="--c:${esc(meta(st, o).color || "#5980a6")}">${esc(o)}</span>` })) : S.members.map(m => ({ v:m.id, html: esc(m.display_name) }));
-      const open = () => openMenu(box.left, box.bottom + 2, [...opts.map(o => ({ html: `<span class="box ${set.has(o.v) ? "on" : ""}"></span> ` + o.html, run: () => { set.has(o.v) ? set.delete(o.v) : set.add(o.v); render(); open(); } })), "-", { label:"Show all", run: () => { set.clear(); render(); } }]);
-      return open(); }
+    if (a === "cols") { const box = b.getBoundingClientRect(); return openColumns(box.right - 250, box.bottom + 2); }
+    if (a === "structure") return openStructure();
+    if (a === "sclear") { S.sort = null; saveTV(); return render(); }
+    if (a === "fclear") return clearFilters();
     if (a === "addroot") return addRow(null, enabledLevels()[0], null);
     if (a === "addrow") { const r = S.row[S.sel?.r]; return r ? addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null) : addRow(null, enabledLevels()[0], null); }
     if (a === "addmenu") { const bx = b.getBoundingClientRect(); return mainMenu("insert", bx.left, bx.bottom + 2); }
-    if (a === "filter") { const st = byRole("status"); const bx = b.getBoundingClientRect(); const tick = (set, v) => `<span class="box ${set.has(v) ? "on" : ""}"></span> `;
-      const open = () => openMenu(bx.left, bx.bottom + 2, [{ head:"Status" }, ...(st?.config?.options || []).map(o => ({ html: tick(S.fStatus, o) + `<span class="chip" style="--c:${esc(meta(st, o).color || "#5980a6")}">${esc(o)}</span>`, run: () => { S.fStatus.has(o) ? S.fStatus.delete(o) : S.fStatus.add(o); render(); open(); } })),
-        "-", { head:"Person" }, ...S.members.map(m => ({ html: tick(S.fPerson, m.id) + esc(m.display_name), run: () => { S.fPerson.has(m.id) ? S.fPerson.delete(m.id) : S.fPerson.add(m.id); render(); open(); } })), "-", { label:"Show everything", run: () => { S.fStatus.clear(); S.fPerson.clear(); render(); } }]);
-      return open(); }
     if (a === "addchild") { const r = S.row[S.sel?.r]; return r && addRow(r.id, childLevel(r), null); }
-    if (a === "addfield") return addField(S.sel && S.fields.some(f => f.id === S.sel.f) ? S.sel.f : null);
+    if (a === "addfield") return addField(null);
     if (a === "settings") return openSettings();
-    if (a === "colmenu") { const r = b.getBoundingClientRect(); return colMenu(S.fields.find(f => f.id === b.dataset.f), r.left, r.bottom + 2); }
+    if (a === "colmenu") { const r = b.getBoundingClientRect(); const f = columns().find(c => c.id === b.dataset.f); return f && colMenu(f, r.left, r.bottom + 2); }
     if (a === "dep") return act(async () => { if (b.classList.contains("on")) await q(sb.from("pipeline_stage_dep").delete().eq("stage_id", b.dataset.s).eq("depends_on_id", b.dataset.o));
       else await q(sb.from("pipeline_stage_dep").insert({ org_id: S.project.org_id, stage_id: b.dataset.s, depends_on_id: b.dataset.o })); }, { schema:true });
     if (a === "reloadhistory") { try { await loadHistory(); } catch (err) { fail(err); } return render(); }
@@ -880,7 +1045,7 @@ $app.addEventListener("dblclick", e => { if (S.sheet === "tracker" && e.target.c
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
   if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
   if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
-  if (th) { const f = S.fields.find(x => x.id === th.dataset.f); if (f) { e.preventDefault(); colMenu(f, e.clientX, e.clientY); } } });
+  if (th) { const f = columns().find(x => x.id === th.dataset.f); if (f) { e.preventDefault(); colMenu(f, e.clientX, e.clientY); } } });
 $app.addEventListener("keydown", e => {
   if (e.target.id === "cellbar") { e.stopPropagation();
     if (e.key === "Enter" && S.sel && !e.target.readOnly) { e.preventDefault(); const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); let v = e.target.value.trim();
@@ -897,6 +1062,7 @@ $app.addEventListener("keydown", e => {
   if (k === "Enter" || k === "F2") { e.preventDefault(); return startEdit(); }
   if (k === " ") { const f = columns().find(x => x.id === S.sel.f); if (f?.type === "checkbox") { e.preventDefault(); return startEdit(); } }
   if (k === "Delete" || k === "Backspace") { const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); e.preventDefault();
+    if (r && f?.kind === "start" && r.is_leaf && S.segEff[r.id]) return setStart(r, "");
     if (!r || !f || f.virtual || isRollup(r, f) || f.role === "title") return; return setCell(r.id, f, f.type === "checkbox" ? false : null); }
   if (k === "Escape") return closeMenu();
   if (k.length === 1) { const f = columns().find(x => x.id === S.sel.f); if (f && !f.virtual && ["text","number","money","duration"].includes(f.type)) { e.preventDefault(); return startEdit(k); } }
@@ -904,6 +1070,7 @@ $app.addEventListener("keydown", e => {
 $app.addEventListener("input", e => { if (e.target.id === "vzoom") { VIEW.zoom = +e.target.value; applyView(true); const v = document.getElementById("vzoomval"); if (v) v.textContent = VIEW.zoom + "%"; return; }
   if (e.target.id === "search") { S.search = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById("search"); s.focus(); s.setSelectionRange(pos, pos); } });
 $app.addEventListener("change", e => { const el = e.target;
+  if (el.id === "hidedone") { S.hideDone = el.checked; saveTV(); return render(); }
   if (el.id === "vfont") { VIEW.font = el.value; applyView(true); return; }
   if (el.id === "step") { S.step = +el.value; try { localStorage.setItem("pmkit.step", S.step); } catch (_) {} return render(); }
   if (el.id === "proj") { if (S.draft.ops.length) saveDraft(); S.project = S.projects.find(p => p.id === el.value); S.collapsed.clear(); S.sel = null; return act(async () => { if (S.sheet === "history") await loadHistory(); }, { schema:true }); }
@@ -939,6 +1106,7 @@ $app.addEventListener("mousedown", e => { const h = e.target.closest?.("[data-rz
 /* drag rows and columns */
 const clearDrop = () => document.querySelectorAll(".dropT,.dropB,.dropIn,.dropL,.dropR").forEach(x => x.classList.remove("dropT", "dropB", "dropIn", "dropL", "dropR"));
 $app.addEventListener("dragstart", e => { if (e.target.closest?.("[data-rz]")) return e.preventDefault(); const g = e.target.closest?.(".grip"); const th = e.target.closest?.("th[data-f]");
+  if (g && S.sort) { e.preventDefault(); return toast("The table is sorted — clear the sort to move rows by hand"); }
   if (g) { const tr = g.closest("tr"); S.drag = { kind:"row", id: tr.dataset.id }; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", tr.dataset.id); try { e.dataTransfer.setDragImage(tr, 20, 14); } catch (_) {} }
   else if (th) { S.drag = { kind:"col", id: th.dataset.f }; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", th.dataset.f); } });
 function dropTarget(e){ if (!S.drag) return null;
