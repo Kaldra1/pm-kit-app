@@ -6,7 +6,7 @@
 <title>PM-Kit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 /* PM-сетап look, spreadsheet layout: header, toolbar, cell bar, grid, status bar, sheet tabs at the bottom */
@@ -66,9 +66,12 @@ a{color:#2c5f8f;text-underline-offset:2px}
 .main{flex:1;min-height:0;overflow:auto;background:#fff;outline:none;position:relative}
 .main>*{zoom:var(--zoom,1)}
 table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
-.grid th{position:sticky;top:0;z-index:3;height:calc(var(--fs) * 2.15);padding:0 8px;background:var(--label-bg);border-bottom:1px solid var(--frame);border-right:1px solid var(--rule);text-align:left;font-family:var(--font-table);font-size:calc(var(--fs) - 2px);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);white-space:nowrap;user-select:none}
+.grid th{position:sticky;top:0;z-index:3;vertical-align:top;line-height:1.25;padding:calc(var(--fs) * .45) 8px;background:var(--label-bg);border-bottom:1px solid var(--frame);border-right:1px solid var(--rule);text-align:left;font-family:var(--font-table);font-size:calc(var(--fs) - 2px);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);white-space:nowrap;user-select:none}
 .grid th:first-child{left:0;z-index:5}
-.grid th .hm{float:right;border:0;background:none;color:var(--muted-3);cursor:pointer;padding:0 0 0 6px;visibility:hidden}
+.thc{display:flex;align-items:flex-start;gap:4px}
+.thn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grid th.wrap .thn{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:break-word}
+.grid th .hm{flex:none;border:0;background:none;color:var(--muted-3);cursor:pointer;padding:0;line-height:inherit;font-size:inherit;visibility:hidden}
 .grid th:hover .hm{visibility:visible}
 .grid th.dropL{box-shadow:inset 3px 0 0 var(--mark)} .grid th.dropR{box-shadow:inset -3px 0 0 var(--mark)}
 .grid th.virt{color:var(--muted-3)}
@@ -242,10 +245,11 @@ const S = { user:null, projects:[], project:null, tbl:null, view:null, levels:[]
   base:[], segs:{}, segAll:{}, segEff:{}, gapOf:{}, depsOf:{}, mode:"plan", step:4, draft:{ ops:[], undo:[], redo:[] } };
 try { S.step = +localStorage.getItem("pmkit.step") || 4; } catch (_) {}
 /* reading comfort: table font, text size and zoom are the viewer's own choice, kept in this browser */
-const FONTS = [["Inter",'"Inter",system-ui,sans-serif'],["Roboto",'"Roboto",system-ui,sans-serif'],["Source Sans",'"Source Sans 3",system-ui,sans-serif'],["IBM Plex Sans",'"IBM Plex Sans",system-ui,sans-serif'],["System",'system-ui,-apple-system,"Segoe UI",sans-serif'],["Barlow",'"Barlow",system-ui,sans-serif']];
+const FONTS = [["Inter",'"Inter",system-ui,sans-serif'],["Roboto",'"Roboto",system-ui,sans-serif'],["Barlow",'"Barlow",system-ui,sans-serif'],["System",'system-ui,-apple-system,"Segoe UI",sans-serif']];
 const VIEW = { font:"Inter", fs:13, zoom:100 }; try { Object.assign(VIEW, JSON.parse(localStorage.getItem("pmkit.view") || "{}")); } catch (_) {}
 function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zoom = Math.max(50, Math.min(200, VIEW.zoom)); const st = document.documentElement.style;
   st.setProperty("--font-table", (FONTS.find(f => f[0] === VIEW.font) || FONTS[0])[1]); st.setProperty("--fs", VIEW.fs + "px"); st.setProperty("--zoom", VIEW.zoom / 100);
+  if (!FONTS.some(f => f[0] === VIEW.font)) VIEW.font = FONTS[0][0];
   if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
 applyView(false);
 const zf = () => VIEW.zoom / 100;
@@ -448,14 +452,14 @@ function sheetTracker(){
   for (const r of rows) { const dim = st && meta(st, r.data?.[st.id]).dim;
     body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${filtering() && matches(r) ? "hit" : ""}" data-id="${r.id}">
       <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="Drag to move">⋮⋮</span>
-        <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="lvl">${esc(r.level || "")}</span><span class="ttl">${esc(r.title ?? "")}</span></div></td>
+        <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title ?? "")}</span></div></td>
       ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
   const leaves = S.tree.filter(r => r.is_leaf).length; const roots = S.tree.filter(r => r.depth === 0);
   const est = roots.reduce((a, r) => a + (+r.estimate_h || 0), 0), spent = roots.reduce((a, r) => a + (+r.spent_h || 0), 0), estT = roots.reduce((a, r) => a + (+r.est_tracked || 0), 0);
   const selVal = selRow && selF ? cellText(selRow, selF) : ""; const direct = selRow && selF && !selF.virtual && !isRollup(selRow, selF) && ["text","number","money","duration","date"].includes(selF.type);
   return `<div class="tb">${draftBar()}
       <span class="split"><button class="tbtn" data-act="addrow" title="Add a row of the same level below the selected one">＋ ${esc(selRow ? levelOf(selRow)?.name || "Row" : top?.name || "Row")}</button><button class="tbtn" data-act="addmenu" title="More ways to add a row">▾</button></span>
-      <button class="tbtn" data-act="addfield">＋ Field</button><span class="tsep"></span>
+      <button class="tbtn" data-act="addfield" title="Add your own column of any type">＋ Column</button><span class="tsep"></span>
       <input class="search" id="search" placeholder="Search the table" value="${esc(S.search)}" autocomplete="off">
       <button class="tbtn fbtn ${S.fStatus.size || S.fPerson.size ? "on" : ""}" data-act="filter">Filter${S.fStatus.size + S.fPerson.size ? " · " + (S.fStatus.size + S.fPerson.size) : ""} ▾</button>
       ${filtering() ? `<button class="tbtn" data-act="fclear">✕ Clear</button>` : ""}
@@ -463,7 +467,7 @@ function sheetTracker(){
     <div class="cb"><div class="ref">${selRow && selF ? esc(selRow.title) + " · " + esc(selF.name) : "Select a cell"}</div>
       <input id="cellbar" value="${esc(selVal)}" ${direct ? "" : "readonly"} autocomplete="off" placeholder="${selRow ? "" : "Arrows move, Enter edits, right-click for more"}">
       <span class="hint">${selRow && selF ? (selF.virtual ? "computed" : isRollup(selRow, selF) ? "sum of rows below" : "") : ""}</span></div>
-    <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)}>${esc(f.name)}${f.type === "duration" ? ", h" : ""}${f.virtual ? "" : `<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1">▾</button><span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
+    <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", h" : ""}</span>${f.virtual ? "" : `<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1">▾</button>`}</div>${f.virtual ? "" : `<span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
       <tbody>${body || `<tr><td colspan="${cols.length}"><div class="empty">${filtering() ? "Nothing matches the search or filters." : `Nothing here yet. Start with “+ ${esc(top?.name || "Row")}”.`}</div></td></tr>`}</tbody></table></div>
     <div class="stat"><div>Rows<b>${filtering() ? rows.length + " of " + S.tree.length : S.tree.length}</b></div><div>Work items<b>${leaves}</b></div><div>Estimate<b>${num(est)} h</b></div><div>Spent<b>${num(spent)} h</b></div>
       <div title="Time spent against the estimate of the work items that already have time logged">Over on started work<b>${estT && spent ? (spent / estT - 1 > 0 ? "+" : "") + Math.round((spent / estT - 1) * 100) + "%" : "—"}</b></div><div style="border:0">${enabledLevels().map(l => esc(l.name)).join(" › ")}</div>${viewBar()}</div>`;
@@ -505,7 +509,7 @@ function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = colu
   if (f.type === "thumbnail" || f.type === "attachment") return toast("Files are not in this prototype yet");
   S.editing = true; td.classList.add("editing");
   const isNum = ["number","money","duration"].includes(f.type); const cur = r.data?.[f.id];
-  td.innerHTML = `<input class="edit" type="${f.type === "date" ? "date" : "text"}" ${isNum ? 'inputmode="decimal"' : ""} value="${esc(seed != null ? seed : cur ?? "")}" style="${isNum ? "text-align:right;font-family:var(--font-mono)" : f.role === "title" ? `padding-left:${r.depth * 18 + 46}px` : ""}">`;
+  td.innerHTML = `<input class="edit" type="${f.type === "date" ? "date" : "text"}" ${isNum ? 'inputmode="decimal"' : ""} value="${esc(seed != null ? seed : cur ?? "")}" style="${isNum ? "text-align:right;font-family:var(--font-mono)" : f.role === "title" ? `padding-left:${r.depth * 18 + 42}px` : ""}">`;
   const inp = td.firstChild; inp.focus(); if (seed == null) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
   let done = false;
   const commit = async (dr, dc) => { if (done) return; done = true; S.editing = false; let v = inp.value.trim();
@@ -579,26 +583,29 @@ function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.t
   items.push("-", { label:"Delete row" + (kids ? " with everything inside" : ""), hint:"to the draft", danger:true, run: () => deleteRow(r) });
   openMenu(x, y, items); }
 function colMenu(f, x, y){ const i = S.fields.indexOf(f); const items = [{ head: f.name + " · " + f.type }];
-  items.push({ label:"Rename…", run: () => askName("Rename field", n => act(() => q(sb.rpc("rename_field", { p_field: f.id, p_name: n })), { schema:true }), "", f.name, "Rename") });
+  items.push({ label:"Rename…", run: () => askName("Rename column", n => act(() => q(sb.rpc("rename_field", { p_field: f.id, p_name: n })), { schema:true }), "", f.name, "Rename") });
   if (f.type === "select") items.push({ label: f.role === "status" ? "Edit workflow…" : "Edit options…", run: () => openSettings(f.id) });
   if (f.role !== "title") items.push("-", { label:"Move left", disabled: i <= 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i - 1].id })), { schema:true }) },
     { label:"Move right", disabled: i >= S.fields.length - 1, run: () => act(() => q(sb.rpc("move_field", { p_view: S.view.id, p_field: f.id, p_before: S.fields[i + 2]?.id || null })), { schema:true }) });
+  items.push({ label:"Insert column to the right…", run: () => addField(f.id) });
   if (f.role !== "title") items.push({ label:"Hide column", run: () => act(() => q(sb.from("view_field").update({ mode:"hidden" }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true, ok:"Column hidden — bring it back with “Hidden columns” in the toolbar" }) });
   if (f.width) items.push({ label:"Reset width", run: () => act(() => q(sb.from("view_field").update({ width:null }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true }) });
-  items.push("-", { label: f.is_system ? "Template field — cannot be deleted" : "Delete field", danger:!f.is_system, disabled:f.is_system, run: () => confirmBox("Delete field", `Delete the field “${f.name}” with its values in every row? It can be brought back from History.`, "Delete field", () => act(() => q(sb.rpc("delete_field", { p_field: f.id })), { schema:true, ok:"Field deleted — History can bring it back" })) });
+  items.push("-", { label: f.is_system ? "Built-in column — cannot be deleted" : "Delete column", danger:!f.is_system, disabled:f.is_system, run: () => confirmBox("Delete column", `Delete the column “${f.name}” with its values in every row? It can be brought back from History.`, "Delete column", () => act(() => q(sb.rpc("delete_field", { p_field: f.id })), { schema:true, ok:"Column deleted — History can bring it back" })) });
   openMenu(x, y, items); }
-function addField(){ closeModal(); const v = document.createElement("div"); v.className = "veil";
-  v.innerHTML = `<form class="modal" style="width:440px"><div class="mhead"><span class="t">New field</span></div><div class="mbody" style="display:flex;flex-direction:column;gap:10px">
+function addField(afterId){ closeModal(); const v = document.createElement("div"); v.className = "veil";
+  v.innerHTML = `<form class="modal" style="width:440px"><div class="mhead"><span class="t">New column</span></div><div class="mbody" style="display:flex;flex-direction:column;gap:10px">
     <input name="name" placeholder="Name" required autocomplete="off" style="height:32px;border:1px solid var(--frame);border-radius:3px;padding:0 9px">
     <select name="type" style="height:32px">${[["text","Text"],["number","Number"],["duration","Duration, hours"],["date","Date"],["checkbox","Checkbox"],["select","List of options"],["link","Link"],["person","Person"]].map(([a, b]) => `<option value="${a}">${b}</option>`).join("")}</select>
     <input name="opts" placeholder="Options, comma separated" hidden style="height:32px;border:1px solid var(--frame);border-radius:3px;padding:0 9px"></div>
-    <div class="mfoot"><button type="button" class="tbtn" data-x="cancel">Cancel</button><button class="tbtn pri" type="submit">Add field</button></div></form>`;
+    <div class="mfoot"><button type="button" class="tbtn" data-x="cancel">Cancel</button><button class="tbtn pri" type="submit">Add column</button></div></form>`;
   document.body.appendChild(v); const fm = v.querySelector("form"); const el = fm.elements; el.name.focus();
   el.type.addEventListener("change", () => { el.opts.hidden = el.type.value !== "select"; });
   fm.addEventListener("submit", e => { e.preventDefault(); const opts = el.opts.value.split(",").map(s => s.trim()).filter(Boolean);
     if (el.type.value === "select" && !opts.length) return toast("A list needs at least one option", true);
     const name = el.name.value.trim(), type = el.type.value; closeModal();
-    act(() => q(sb.rpc("add_field", { p_table: S.tbl.id, p_name: name, p_type: type, p_config: type === "select" ? { options: opts } : {} })), { schema:true, ok:"Field added" }); });
+    const i = afterId ? S.fields.findIndex(f => f.id === afterId) : -1; const before = i >= 0 ? S.fields[i + 1]?.id : null;
+    act(async () => { const id = await q(sb.rpc("add_field", { p_table: S.tbl.id, p_name: name, p_type: type, p_config: type === "select" ? { options: opts } : {} }));
+      if (before) await q(sb.rpc("move_field", { p_view: S.view.id, p_field: id, p_before: before })); }, { schema:true, ok:"Column added" }); });
   v.addEventListener("click", e => { if (e.target === v || e.target.dataset.x === "cancel") closeModal(); });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
 function undo(){ if (!S.draft.undo.length) return toast(S.draft.ops.length ? "Nothing more to undo in the draft" : "Nothing to undo — saved changes are taken back from History");
@@ -735,7 +742,7 @@ function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && col
       { label:"Clear the cell", hint:"Delete", disabled: !onT || !r || !f || f.virtual || f.role === "title" || isRollup(r, f), run: () => setCell(r.id, f, f.type === "checkbox" ? false : null) },
       { label:"Delete the row", disabled: !onT || !r || r._del, danger:true, run: () => deleteRow(r) }, "-", { label:"Saved changes: open History", run: go("history") }],
     insert: [{ label: `${lv?.name || "Row"} below`, disabled: !onT || !r, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) }, { label: `${lv?.name || "Row"} above`, disabled: !onT || !r, run: () => addRow(r.parent_id, lv, r.id) },
-      { label: `${cl?.name || "Row"} inside`, disabled: !onT || !cl, run: () => addRow(r.id, cl, null) }, { label: `New ${top?.name || "row"} at the top level`, disabled: !onT || !top, run: () => addRow(null, top, null) }, "-", { label:"Field…", disabled:!onT, run: addField }],
+      { label: `${cl?.name || "Row"} inside`, disabled: !onT || !cl, run: () => addRow(r.id, cl, null) }, { label: `New ${top?.name || "row"} at the top level`, disabled: !onT || !top, run: () => addRow(null, top, null) }, "-", { label:"Column…", disabled:!onT, run: () => addField() }],
     view: [{ label:"Collapse all", run: () => { S.tree.filter(x => x.depth >= 1 && !x.is_leaf).forEach(x => S.collapsed.add(x.id)); render(); } }, { label:"Expand all", run: () => { S.collapsed.clear(); render(); } }, "-",
       { label:"Clear search and filters", disabled: !filtering(), run: () => { S.fStatus.clear(); S.fPerson.clear(); S.search = ""; render(); } },
       { label:"Show hidden columns", disabled: !S.hiddenFields?.length, run: () => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) }, "-",
@@ -763,7 +770,7 @@ function sheetGantt(){
       if (g?.hours && !isDone(r)) bar += `<div class="gbar gap" data-gapof="${r.id}" style="left:${V.x(s.end)}px;width:${Math.max(8, V.xEnd(s.end + g.hours) - V.x(s.end))}px" title="${esc((g.type || "review").replace("_", " "))} · ${num(g.hours)} h">R</div>`; }
     else if (r.is_leaf) bar = `<span class="gdone">${isDone(r) ? "done" : +r.estimate_h > 0 ? "not on the plan" : "no estimate"}</span>`;
     else if (span[r.id]) bar = `<div class="gbar span" data-bar="${r.id}" style="left:${V.x(span[r.id].a)}px;width:${Math.max(8, V.xEnd(span[r.id].b) - V.x(span[r.id].a))}px" title="${esc(r.title)} · ${fmtWh(span[r.id].a)} → ${fmtWh(span[r.id].b, true)} · drag to move everything inside"></div>`;
-    body += `<div class="gr d${Math.min(r.depth, 3)}"><div class="gname" style="padding-left:${8 + r.depth * 16}px"><button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="lvl">${esc(r.level || "")}</span><span class="ttl">${esc(r.title || "")}</span></div><div class="gtrack" style="width:${V.width}px">${weHtml}${bar}</div></div>`; }
+    body += `<div class="gr d${Math.min(r.depth, 3)}"><div class="gname" style="padding-left:${8 + r.depth * 16}px"><button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title || "")}</span></div><div class="gtrack" style="width:${V.width}px">${weHtml}${bar}</div></div>`; }
   const open = S.tree.filter(r => r.is_leaf && !isDone(r) && +r.estimate_h > 0); const planned = open.filter(r => S.segEff[r.id]).length; const nConf = Object.keys(conf).length;
   const first = Object.entries(conf)[0];
   return `<div class="tb">${draftBar()}<button class="tbtn" data-act="autoplan">⚡ Autoplan ▾</button><span class="tsep"></span>
@@ -855,7 +862,7 @@ $app.addEventListener("click", async e => {
         "-", { head:"Person" }, ...S.members.map(m => ({ html: tick(S.fPerson, m.id) + esc(m.display_name), run: () => { S.fPerson.has(m.id) ? S.fPerson.delete(m.id) : S.fPerson.add(m.id); render(); open(); } })), "-", { label:"Show everything", run: () => { S.fStatus.clear(); S.fPerson.clear(); render(); } }]);
       return open(); }
     if (a === "addchild") { const r = S.row[S.sel?.r]; return r && addRow(r.id, childLevel(r), null); }
-    if (a === "addfield") return addField();
+    if (a === "addfield") return addField(S.sel && S.fields.some(f => f.id === S.sel.f) ? S.sel.f : null);
     if (a === "settings") return openSettings();
     if (a === "colmenu") { const r = b.getBoundingClientRect(); return colMenu(S.fields.find(f => f.id === b.dataset.f), r.left, r.bottom + 2); }
     if (a === "dep") return act(async () => { if (b.classList.contains("on")) await q(sb.from("pipeline_stage_dep").delete().eq("stage_id", b.dataset.s).eq("depends_on_id", b.dataset.o));
