@@ -180,9 +180,23 @@ table.plain{border-collapse:collapse;width:100%}
 .gtrack{position:relative;height:26px;flex:none;background-image:linear-gradient(to right,transparent 25px,var(--rule-3) 25px);background-size:26px 100%}
 .gwe{position:absolute;top:0;bottom:0;width:26px;background:rgba(160,172,190,.2)}
 .gbar{position:absolute;top:5px;height:16px;border-radius:3px;background:var(--c,#5980a6);color:#fff;font-size:10px;line-height:16px;padding:0 5px;overflow:hidden;white-space:nowrap}
-.gbar.span{top:10px;height:6px;background:var(--ink);opacity:.55;padding:0}
+.gbar.span{top:8px;height:10px;background:var(--ink);opacity:.5;padding:0;border-radius:2px}
+.gbar.span:hover{opacity:.8}
 .gbar.gap{background:repeating-linear-gradient(135deg,#c9b06a 0 4px,#efe2b6 4px 8px);color:#5d4708}
 .gdone{position:absolute;left:6px;top:5px;font-family:var(--font-mono);font-size:10px;color:var(--muted-3)}
+.gbar[data-bar]{cursor:grab;touch-action:none;user-select:none}
+.gbar.bad{outline:2px solid var(--danger);outline-offset:1px}
+.gbar.dr{box-shadow:0 0 0 2px #e0a800}
+.gbar.old{opacity:.35}
+.gwrap{position:relative}
+.gnow{position:absolute;top:0;bottom:0;border-left:2px solid #e0a800;z-index:2;pointer-events:none}
+.tag.bad{background:#f6d5cf;color:var(--danger)} .tag.ok{background:#dcefee;color:var(--teal)}
+.tbtn.mode{border-color:var(--rule)} .tbtn.mode.on{background:#fff6dc;border-color:#e9cf8a;color:#6d4f06}
+.kick{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stepsel{height:26px;border:1px solid var(--rule);border-radius:3px;background:#fff;padding:0 4px}
+.grid td.dr{background:#fff8e6!important;box-shadow:inset 0 -2px 0 #e0a800}
+.wl td.overb{background:#f6d5cf;color:var(--danger);font-weight:700}
+.saved.draft{color:#f3d489}
 .glegend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:0 12px;font-size:11.5px;color:var(--muted)}
 .glegend i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 
@@ -206,7 +220,9 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const S = { user:null, projects:[], project:null, tbl:null, view:null, levels:[], fields:[], members:[], pipelines:[], stages:[], deps:[],
-  tree:[], row:{}, batches:[], recdeps:[], gaps:[], sheet:"tracker", collapsed:new Set(), sel:null, editing:false, search:"", saving:0, drag:null, fStatus:new Set(), fPerson:new Set() };
+  tree:[], row:{}, batches:[], recdeps:[], gaps:[], sheet:"tracker", collapsed:new Set(), sel:null, editing:false, search:"", saving:0, drag:null, fStatus:new Set(), fPerson:new Set(),
+  base:[], segs:{}, segAll:{}, segEff:{}, gapOf:{}, depsOf:{}, mode:"plan", step:4, draft:{ ops:[], undo:[], redo:[] } };
+try { S.mode = localStorage.getItem("pmkit.mode") || "plan"; S.step = +localStorage.getItem("pmkit.step") || 4; } catch (_) {}
 
 /* ---------------- small helpers ---------------- */
 let toastTimer;
@@ -231,7 +247,7 @@ async function act(fn, { schema = false, ok = null } = {}){
   finally { S.saving--; }
   render();
 }
-function paintSaved(){ const el = document.querySelector(".saved"); if (el) { el.textContent = S.saving ? "Saving…" : "All changes saved"; el.classList.toggle("busy", !!S.saving); } }
+function paintSaved(){ const el = document.querySelector(".saved"); if (el && S.saving) { el.textContent = "Saving…"; el.className = "saved busy"; } }
 
 /* ---------------- auth ---------------- */
 async function boot(){
@@ -282,20 +298,43 @@ async function loadProject(){
   await loadTree();
 }
 async function loadTree(){
-  S.tree = await q(sb.rpc("get_tree", { p_table: S.tbl.id }));
-  S.row = Object.fromEntries(S.tree.map(r => [r.id, r]));
-  // estimate of only those work items that already have time logged: the fair base for "% over"
-  for (const r of S.tree) { r.est_tracked = 0; r.n_leaf = 0; r.n_done = 0; }
-  for (const r of S.tree) if (r.is_leaf && r.parent_id) { const d = isDone(r); let x = S.row[r.parent_id]; while (x) { x.n_leaf++; if (d) x.n_done++; x = S.row[x.parent_id]; } }
-  for (const r of S.tree) if (r.is_leaf && r.spent_h != null) { let x = r; while (x) { x.est_tracked += +r.estimate_h || 0; x = S.row[x.parent_id]; } }
-  if (S.sheet === "gantt" || S.sheet === "workload") await loadPlanData();
+  S.base = await q(sb.rpc("get_tree", { p_table: S.tbl.id }));
+  await loadPlanData(); loadDraft(); rebuild();
 }
 async function loadPlanData(){
-  const ids = S.tree.filter(r => r.is_leaf).map(r => r.id); const deps = [], gaps = [];
+  const ids = S.base.map(r => r.id); const deps = [], segs = [];
   for (let i = 0; i < ids.length; i += 80) { const part = ids.slice(i, i + 80);
     deps.push(...await q(sb.from("record_dep").select("record_id,depends_on_id").in("record_id", part)));
-    gaps.push(...await q(sb.from("segment").select("record_id,gap_type,hours").eq("kind", "gap").in("record_id", part))); }
-  S.recdeps = deps; S.gaps = gaps;
+    segs.push(...await q(sb.from("segment").select("id,record_id,kind,gap_type,hours,start_at,end_at,assignee_id,version").in("record_id", part))); }
+  S.depsOf = {}; for (const d of deps) (S.depsOf[d.record_id] ||= []).push(d.depends_on_id);
+  S.gapOf = {}; S.segs = {}; S.segAll = {};
+  for (const g of segs) { if (g.kind === "gap") { S.gapOf[g.record_id] = { hours: +g.hours || 0, type: g.gap_type }; continue; }
+    S.segAll[g.record_id] = g; if (g.start_at && g.end_at) S.segs[g.record_id] = { record: g.record_id, start: whOfIso(g.start_at), end: whOfIso(g.end_at), hours: +g.hours, assignee: g.assignee_id, version: g.version }; }
+}
+/* the draft lives in the browser until Apply; it survives a reload */
+const draftKey = () => "pmkit.draft." + S.project?.id;
+function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(S.draft.ops)); } catch (_) {} }
+function loadDraft(){ if (S.draft.project !== S.project.id) { S.draft = { ops:[], undo:[], redo:[], project:S.project.id }; try { S.draft.ops = JSON.parse(localStorage.getItem(draftKey()) || "[]"); } catch (_) {} }
+  const ids = new Set(S.base.map(r => r.id)), fids = new Set(S.fields.map(f => f.id)); S.draft.ops = S.draft.ops.filter(o => ids.has(o.record) && (o.t !== "cell" || fids.has(o.field))); }
+function draftPush(){ S.draft.undo.push(JSON.stringify(S.draft.ops)); if (S.draft.undo.length > 200) S.draft.undo.shift(); S.draft.redo = []; }
+function draftCell(rec, f, val){ draftPush(); const base = S.base.find(r => r.id === rec)?.data?.[f.id] ?? null;
+  S.draft.ops = S.draft.ops.filter(o => !(o.t === "cell" && o.record === rec && o.field === f.id));
+  if (JSON.stringify(base) !== JSON.stringify(val ?? null)) S.draft.ops.push({ t:"cell", record:rec, field:f.id, value: val ?? null, base });
+  saveDraft(); rebuild(); }
+/* what the sheets show = database state + the draft on top */
+function rebuild(){
+  const est = byRole("estimate"), sp = byRole("time_spent"), ti = byRole("title"), al = byRole("approved_lead"), ac = byRole("approved_client");
+  const byRec = {}; for (const o of S.draft.ops) if (o.t === "cell") (byRec[o.record] ||= []).push(o);
+  S.tree = S.base.map(r => ({ ...r, data: { ...r.data }, _dr: null })); S.row = Object.fromEntries(S.tree.map(r => [r.id, r]));
+  for (const r of S.tree) for (const o of byRec[r.id] || []) { if (o.value == null) delete r.data[o.field]; else r.data[o.field] = o.value; (r._dr ||= new Set()).add(o.field);
+    if (est && o.field === est.id) { let x = r; while (x) { for (const a of [al, ac]) if (a && x.data[a.id] === true && !(byRec[x.id] || []).some(c => c.field === a.id)) { x.data[a.id] = false; (x._dr ||= new Set()).add(a.id); } x = S.row[x.parent_id]; } } }
+  for (const r of S.tree) { if (ti && r.data[ti.id] != null) r.title = r.data[ti.id]; r.estimate_h = r.is_leaf && est && r.data[est.id] != null ? +r.data[est.id] : null; r.spent_h = r.is_leaf && sp && r.data[sp.id] != null ? +r.data[sp.id] : null; r.est_tracked = 0; r.n_leaf = 0; r.n_done = 0; }
+  for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i], p = S.row[r.parent_id]; if (!p) continue;
+    if (r.estimate_h != null) p.estimate_h = (p.estimate_h || 0) + r.estimate_h; if (r.spent_h != null) p.spent_h = (p.spent_h || 0) + r.spent_h; }
+  // estimate of only those work items that already have time logged: the fair base for "% over"
+  for (const r of S.tree) if (r.is_leaf) { const d = isDone(r); let x = r, first = true; while (x) { if (r.spent_h != null) x.est_tracked += r.estimate_h || 0; if (!first) { x.n_leaf++; if (d) x.n_done++; } first = false; x = S.row[x.parent_id]; } }
+  S.segEff = { ...S.segs };
+  for (const o of S.draft.ops) { if (o.t === "seg") S.segEff[o.record] = { record:o.record, start:o.start, end:o.end, hours:o.hours, assignee:o.assignee, version:o.version }; else if (o.t === "unplan") delete S.segEff[o.record]; }
 }
 async function loadHistory(){
   S.batches = await q(sb.from("change_batch").select("id,kind,summary,created_at,reverted_by,change_log(count)").eq("project_id", S.project.id).order("created_at", { ascending:false }).limit(80));
@@ -310,7 +349,7 @@ function render(){
     : ({ tracker: sheetTracker, gantt: sheetGantt, workload: sheetWorkload, pipelines: sheetPipelines, history: sheetHistory })[S.sheet]();
   $app.innerHTML = `<header class="hdr"><div class="brand">PM-KIT</div>
     ${S.projects.length ? `<select id="proj" title="Project">${S.projects.map(p => `<option value="${p.id}" ${p.id === S.project?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : ""}
-    <span class="saved ${S.saving ? "busy" : ""}">${S.saving ? "Saving…" : "All changes saved"}</span><span class="sp"></span>
+    <span class="saved ${S.saving ? "busy" : S.draft.ops.length ? "draft" : ""}">${S.saving ? "Saving…" : S.draft.ops.length ? `Draft · ${S.draft.ops.length} not applied` : "All changes saved"}</span><span class="sp"></span>
     <span class="who">${esc(S.user.email)}</span><button class="hbtn" data-act="pwd">Password</button><button class="hbtn" data-act="out">Sign out</button></header>
     ${body}
     <nav class="tabs">${SHEETS.map(([k, n]) => `<button class="tab" data-sheet="${k}" ${S.sheet === k ? 'aria-current="page"' : ""}>${n}</button>`).join("")}<span class="soon">General info · your own tables — later</span></nav>`;
@@ -361,6 +400,7 @@ function cellClass(r, f){ const c = [];
   if (f.kind === "over" || ["number","money","duration"].includes(f.type)) c.push("num"); if (f.type === "checkbox") c.push("ctr");
   if (isRollup(r, f) || f.virtual) c.push("sum");
   if (["estimate","approved_lead","approved_client"].includes(f.role)) { const a = byRole("approved_lead"), b = byRole("approved_client"); if (a && b && r.data?.[a.id] === true && r.data?.[b.id] === true) c.push("ok2"); }
+  if (r._dr?.has(f.id)) c.push("dr");
   if (S.sel && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
 const wst = f => f.width ? ` style="width:${f.width}px;min-width:${f.width}px;max-width:${f.width}px"` : "";
 function sheetTracker(){
@@ -377,7 +417,7 @@ function sheetTracker(){
   const est = roots.reduce((a, r) => a + (+r.estimate_h || 0), 0), spent = roots.reduce((a, r) => a + (+r.spent_h || 0), 0), estT = roots.reduce((a, r) => a + (+r.est_tracked || 0), 0);
   const selVal = selRow && selF ? cellText(selRow, selF) : ""; const direct = selRow && selF && !selF.virtual && !isRollup(selRow, selF) && ["text","number","money","duration","date"].includes(selF.type);
   return `<div class="tb">
-      <button class="tbtn" data-act="undo" title="Undo the last change in this project (Ctrl+Z)">↶ Undo</button><span class="tsep"></span>
+      ${draftBar()}
       ${top ? `<button class="tbtn" data-act="addroot">+ ${esc(top.name)}</button>` : ""}<button class="tbtn" data-act="addrow" ${selRow ? "" : "disabled"} title="Add a row below the selected one">+ Row</button>
       <button class="tbtn" data-act="addchild" ${selRow && childLevel(selRow) ? "" : "disabled"}>+ ${esc(selRow && childLevel(selRow)?.name || "Child")}</button>
       <button class="tbtn" data-act="addfield">+ Field</button><span class="tsep"></span>
@@ -401,13 +441,24 @@ function select(r, f, scroll = true){ S.sel = { r, f }; S.editing = false; rende
 function moveSel(dr, dc){ const rows = visibleRows(), cols = columns(); if (!rows.length) return;
   let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : 0, ci = S.sel ? cols.findIndex(x => x.id === S.sel.f) : 0; if (ri < 0) ri = 0; if (ci < 0) ci = 0;
   ri = Math.max(0, Math.min(rows.length - 1, ri + dr)); ci = Math.max(0, Math.min(cols.length - 1, ci + dc)); select(rows[ri].id, cols[ci].id); }
-async function setCell(rec, f, val){ const old = S.row[rec]?.data?.[f.id] ?? null;
+async function setCell(rec, f, val, confirmed){ const old = S.row[rec]?.data?.[f.id] ?? null;
   if (JSON.stringify(old) === JSON.stringify(val ?? null)) return render();
   if (f.role === "title" && !val) { toast("Name cannot be empty", true); return render(); }
+  if (f.role === "estimate" && !confirmed && S.segEff[rec]) return estimateWarning(rec, f, val);
   let had = false;
   if (f.role === "estimate") { const a = byRole("approved_lead"), c = byRole("approved_client"); let x = S.row[rec];
     while (x) { if ((a && x.data?.[a.id] === true) || (c && x.data?.[c.id] === true)) had = true; x = S.row[x.parent_id]; } }
+  if (S.mode === "plan") { draftCell(rec, f, val); if (had) toast("Estimate changed — approvals will be reset and need to be given again"); return render(); }
   await act(() => q(sb.rpc("set_cell", { p_record: rec, p_field: f.id, p_value: val })), { ok: had ? "Estimate changed — approvals were reset and need to be given again" : null }); }
+/* a stage that already has dates: say so before the estimate changes */
+function estimateWarning(rec, f, val){ closeModal(); const r = S.row[rec], s = S.segEff[rec]; const v = document.createElement("div"); v.className = "veil";
+  v.innerHTML = `<div class="modal" style="width:620px"><div class="mhead"><span class="t">This stage is on the plan</span></div><div class="mbody">
+    <p style="margin:0 0 8px"><b>${esc(r.title)}</b> is planned ${fmtWh(s.start)} → ${fmtWh(s.end, true)} as ${num(s.hours)} h. You are changing the estimate to <b>${val == null ? "empty" : num(val) + " h"}</b>.</p>
+    <p class="note" style="margin:0">The dates will not move by themselves. The Gantt will mark this bar as a conflict until you fit it or run Autoplan.${S.mode === "plan" ? " You are in planning mode, so nothing is saved until you press Apply." : ""}</p></div>
+    <div class="mfoot"><button class="tbtn" data-x="cancel">Cancel</button><button class="tbtn" data-x="keep">Change, fix the plan later</button><button class="tbtn pri" data-x="gantt">Change and open Gantt</button></div></div>`;
+  document.body.appendChild(v); v.querySelector("[data-x=gantt]").focus();
+  v.addEventListener("click", async e => { const x = e.target.dataset?.x; if (e.target === v || x === "cancel") { closeModal(); return render(); } if (!x) return; closeModal(); await setCell(rec, f, val, true); if (x === "gantt") { S.sheet = "gantt"; render(); } });
+  v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") { closeModal(); render(); } }); }
 function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); const td = document.querySelector("td.sel"); if (!r || !f || !td) return;
   if (f.kind === "done") return toast("Computed: finished work items inside this row");
   if (f.virtual) return toast("Computed: time spent against the estimate of work that already has time logged");
@@ -503,30 +554,39 @@ function addField(){ closeModal(); const v = document.createElement("div"); v.cl
     act(() => q(sb.rpc("add_field", { p_table: S.tbl.id, p_name: name, p_type: type, p_config: type === "select" ? { options: opts } : {} })), { schema:true, ok:"Field added" }); });
   v.addEventListener("click", e => { if (e.target === v || e.target.dataset.x === "cancel") closeModal(); });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
-async function undo(){ try { const b = (await q(sb.from("change_batch").select("id,summary,kind").eq("project_id", S.project.id).neq("kind", "revert").is("reverted_by", null).order("created_at", { ascending:false }).limit(1)))[0];
-    if (!b) return toast("Nothing to undo"); await act(async () => { await q(sb.rpc("revert_batch", { p_batch: b.id })); if (S.sel && S.sheet === "tracker") { /* selection may point at a removed row */ } }, { schema:true, ok:"Undone: " + (b.summary || b.kind) });
+async function undo(){
+  if (S.mode === "plan" && S.draft.undo.length) { S.draft.redo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.undo.pop()); saveDraft(); rebuild(); return render(); }
+  if (S.draft.ops.length) return toast("The draft has nothing more to undo. Apply or discard it to undo saved changes.");
+  try { const b = (await q(sb.from("change_batch").select("id,summary,kind").eq("project_id", S.project.id).neq("kind", "revert").is("reverted_by", null).order("created_at", { ascending:false }).limit(1)))[0];
+    if (!b) return toast("Nothing to undo"); await act(() => q(sb.rpc("revert_batch", { p_batch: b.id })), { schema:true, ok:"Undone: " + (b.summary || b.kind) });
     if (S.sel && !S.row[S.sel.r]) { S.sel = null; render(); } } catch (e) { fail(e); } }
-
+function redo(){ if (!S.draft.redo.length) return; S.draft.undo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.redo.pop()); saveDraft(); rebuild(); render(); }
+async function applyDraft(){ const ops = S.draft.ops; if (!ops.length) return; const n = ops.length; S.saving++; paintSaved();
+  try { await q(sb.rpc("apply_plan", { p_table: S.tbl.id, p_changes: planPayload(ops), p_summary: `Plan applied: ${n} change${n > 1 ? "s" : ""}` }));
+    S.draft.ops = []; S.draft.undo = []; S.draft.redo = []; saveDraft(); await loadProject(); toast(`Applied ${n} change${n > 1 ? "s" : ""} as one entry in History`); }
+  catch (e) { fail(e); try { await loadProject(); } catch (_) {} }
+  finally { S.saving--; } render(); }
+function discardDraft(){ draftPush(); S.draft.ops = []; saveDraft(); rebuild(); render(); toast("Draft discarded — Undo brings it back"); }
 /* settings: workflow, lists, levels */
 function openSettings(fieldId){ closeModal(); let tab = fieldId || byRole("status")?.id || "levels"; let draft = null;
   const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v);
   const lists = () => S.fields.filter(f => f.type === "select");
-  const mk = f => (f.config?.options || []).map(o => ({ name:o, was:o, color: meta(f, o).color || "#5980a6", dim: !!meta(f, o).dim }));
+  const mk = f => (f.config?.options || []).map(o => ({ name:o, was:o, color: meta(f, o).color || "#5980a6", dim: !!meta(f, o).dim, done: !!meta(f, o).done }));
   const paint = () => { const f = lists().find(x => x.id === tab); if (f && !draft) draft = mk(f);
     v.innerHTML = `<div class="modal"><div class="mhead"><span class="t">Workflow &amp; structure</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div>
       <div class="mtabs">${lists().map(l => `<button data-tab="${l.id}" class="${tab === l.id ? "on" : ""}">${l.role === "status" ? "Status workflow" : esc(l.name)}</button>`).join("")}<button data-tab="levels" class="${tab === "levels" ? "on" : ""}">Tree levels</button></div>
       <div class="mbody">${f ? draft.map((o, i) => `<div class="orow" data-i="${i}"><span class="n">${i + 1}</span><button class="ib" data-x="up" ${i ? "" : "disabled"}>▲</button><button class="ib" data-x="down" ${i < draft.length - 1 ? "" : "disabled"}>▼</button>
             <input type="color" value="${esc(o.color)}" data-k="color"><input type="text" value="${esc(o.name)}" data-k="name" placeholder="Name">
-            <label><input type="checkbox" data-k="dim" ${o.dim ? "checked" : ""}> dims the row</label><button class="ib" data-x="del" title="Remove">✕</button></div>`).join("") +
+            ${f.role === "status" ? `<label title="Work in this status is finished: the plan skips it and Done counts it"><input type="checkbox" data-k="done" ${o.done ? "checked" : ""}> work finished</label>` : ""}<label><input type="checkbox" data-k="dim" ${o.dim ? "checked" : ""}> dims the row</label><button class="ib" data-x="del" title="Remove">✕</button></div>`).join("") +
           `<div style="margin-top:8px"><button class="tbtn" data-x="add">+ Add ${f.role === "status" ? "status" : "option"}</button></div>
-          <p class="note">${f.role === "status" ? "<b>The order is the workflow.</b> Add stages your project needs (for example Art Director Review) and remove the ones it does not. " : ""}Renaming updates every row that uses the option. An option that rows still use cannot be removed until those rows are changed. “Dims the row” greys out finished work so it stops pulling attention.</p>`
+          <p class="note">${f.role === "status" ? "<b>The order is the workflow.</b> Add stages your project needs (for example Art Director Review) and remove the ones it does not. " : ""}Renaming updates every row that uses the option. An option that rows still use cannot be removed until those rows are changed. “Work finished” tells the plan and the Done column that nothing is left to do. “Dims the row” greys the row out so it stops pulling attention.</p>`
         : `<table class="plain"><thead><tr><th style="width:36px">#</th><th>Name</th><th style="width:80px">Rows</th><th style="width:90px">State</th><th style="width:90px"></th></tr></thead><tbody>${S.levels.map((l, i) => { const n = S.tree.filter(r => r.level === l.name).length;
             return `<tr><td>${i + 1}</td><td><input data-lvl="${l.id}" value="${esc(l.name)}"></td><td>${n}</td><td>${l.enabled ? `<span class="tag">visible</span>` : `<span class="tag off">hidden</span>`}</td>
             <td><button class="tbtn" data-x="lvl" data-id="${l.id}" data-on="${l.enabled ? 0 : 1}" ${l.enabled && n ? "disabled title='Has rows'" : ""}>${l.enabled ? "Hide" : "Show"}</button></td></tr>`; }).join("")}</tbody></table>
           <p class="note"><b>All six levels always exist</b>; a new project shows three. Switch on Epic or Milestone to group batches, or Part to split a stage between people. A level that already has rows cannot be hidden.</p>`}</div>
       <div class="mfoot"><button class="tbtn" data-x="close">Close</button>${f ? `<button class="tbtn pri" data-x="save">Save ${f.role === "status" ? "workflow" : "options"}</button>` : ""}</div></div>`; };
   paint();
-  v.addEventListener("input", e => { const row = e.target.closest(".orow"); if (!row || !e.target.dataset.k) return; const o = draft[+row.dataset.i]; const k = e.target.dataset.k; o[k] = k === "dim" ? e.target.checked : e.target.value; });
+  v.addEventListener("input", e => { const row = e.target.closest(".orow"); if (!row || !e.target.dataset.k) return; const o = draft[+row.dataset.i]; const k = e.target.dataset.k; o[k] = k === "dim" || k === "done" ? e.target.checked : e.target.value; });
   v.addEventListener("change", e => { if (e.target.dataset.lvl) { const name = e.target.value.trim(); if (!name) return toast("Level name cannot be empty", true);
     act(() => q(sb.from("tree_level").update({ name }).eq("id", e.target.dataset.lvl)), { schema:true }).then(paint); } });
   v.addEventListener("click", e => { if (e.target === v) return closeModal(); const b = e.target.closest("[data-x],[data-tab]"); if (!b) return;
@@ -536,86 +596,122 @@ function openSettings(fieldId){ closeModal(); let tab = fieldId || byRole("statu
     if (x === "up") { [draft[i - 1], draft[i]] = [draft[i], draft[i - 1]]; return paint(); }
     if (x === "down") { [draft[i + 1], draft[i]] = [draft[i], draft[i + 1]]; return paint(); }
     if (x === "del") { draft.splice(i, 1); return paint(); }
-    if (x === "add") { draft.push({ name:"", color:"#5980a6", dim:false }); paint(); const ins = v.querySelectorAll(".orow input[type=text]"); return ins[ins.length - 1]?.focus(); }
+    if (x === "add") { draft.push({ name:"", color:"#5980a6", dim:false, done:false }); paint(); const ins = v.querySelectorAll(".orow input[type=text]"); return ins[ins.length - 1]?.focus(); }
     if (x === "lvl") return act(() => q(sb.from("tree_level").update({ enabled: b.dataset.on === "1" }).eq("id", b.dataset.id)), { schema:true }).then(paint);
     if (x === "save") { if (draft.some(o => !o.name.trim())) return toast("Every option needs a name", true);
-      const payload = draft.map(o => ({ name:o.name.trim(), color:o.color, dim:o.dim, ...(o.was ? { was:o.was } : {}) })); const id = tab; closeModal();
+      const payload = draft.map(o => ({ name:o.name.trim(), color:o.color, dim:o.dim, done:!!o.done, ...(o.was ? { was:o.was } : {}) })); const id = tab; closeModal();
       act(() => q(sb.rpc("set_field_options", { p_field: id, p_options: payload })), { schema:true, ok:"Saved" }); } });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
 
-/* ---------------- gantt (preview computed in the browser, nothing saved) ---------------- */
-const DAYW = 26, HPD = 8;
-function isDone(r){ const st = byRole("status"); const v = st && r.data?.[st.id]; return !!v && (!!meta(st, v).dim || /^approved/i.test(v)); }
-function buildPlan(){
-  const asg = byRole("assignee"); const leaves = S.tree.filter(r => r.is_leaf);
-  const depsOf = {}; for (const d of S.recdeps) (depsOf[d.record_id] ||= []).push(d.depends_on_id);
-  const gapOf = {}; for (const g of S.gaps) gapOf[g.record_id] = { hours: +g.hours || 0, type: g.gap_type };
-  const plan = {}; const free = {}; const todo = leaves.filter(r => !isDone(r) && +r.estimate_h > 0);
-  for (const r of leaves) if (isDone(r)) plan[r.id] = { done:true, end:0 };
-  let guard = 0;
-  while (todo.length && guard++ < 5000) {
-    // next = earliest row in table order whose dependencies are all placed
-    const i = todo.findIndex(r => (depsOf[r.id] || []).every(d => plan[d] || !S.row[d])); const r = todo.splice(i < 0 ? 0 : i, 1)[0];
-    const who = (asg && r.data?.[asg.id]) || "none:" + r.id; let start = free[who] || 0;
-    for (const d of depsOf[r.id] || []) { const p = plan[d]; if (p && !p.done) start = Math.max(start, p.end + (gapOf[d]?.hours || 0)); }
-    const left = Math.max(1, (+r.estimate_h || 0) - (+r.spent_h || 0)); const end = start + left;
-    plan[r.id] = { start, end, who, gap: gapOf[r.id] || null }; free[who] = end;
-  }
-  return plan;
-}
-function planCalendar(plan){
-  // working-hour offset -> calendar pixel; day 0 = today or the next working day
-  const t0 = new Date(); t0.setHours(0, 0, 0, 0); while ([0, 6].includes(t0.getDay())) t0.setDate(t0.getDate() + 1);
-  let maxH = 40; for (const p of Object.values(plan)) if (!p.done) maxH = Math.max(maxH, p.end + (p.gap?.hours || 0));
-  const workDays = Math.ceil(maxH / HPD) + 3; const cal = []; const d = new Date(t0); const wd2cal = [];
-  while (wd2cal.length <= workDays) { const we = [0, 6].includes(d.getDay()); if (!we) wd2cal.push(cal.length); cal.push({ date: new Date(d), we }); d.setDate(d.getDate() + 1); }
-  const px = h => { const wd = Math.floor(h / HPD), fr = (h - wd * HPD) / HPD; return (wd2cal[Math.min(wd, wd2cal.length - 1)] + fr) * DAYW; };
-  const pxEnd = h => { const wd = Math.floor((h - 0.0001) / HPD), fr = (h - wd * HPD) / HPD; return (wd2cal[Math.min(Math.max(wd, 0), wd2cal.length - 1)] + fr) * DAYW; };   // an end at the close of a day stays in that day
-  const fmt = h => cal[wd2cal[Math.min(Math.max(Math.floor(h / HPD), 0), wd2cal.length - 1)]].date.toLocaleDateString("en-GB", { day:"2-digit", month:"short" });
-  return { cal, wd2cal, px, pxEnd, fmt, width: cal.length * DAYW };
-}
-/* ---------------- workload: the same plan seen per person per day ---------------- */
-function sheetWorkload(){
-  const plan = buildPlan(); const { cal, wd2cal, fmt } = planCalendar(plan); const live = Object.entries(plan).filter(([, p]) => !p.done);
-  const people = [...S.members.map(m => ({ id:m.id, name:m.display_name, role:m.access_role })), { id:null, name:"Unassigned", role:"" }];
-  const load = {}; const tasks = {};                                   // person -> working-day index -> hours / titles
-  for (const [id, p] of live) { const who = String(p.who).startsWith("none:") ? null : p.who; const L = load[who] ||= {}, T = tasks[who] ||= {};
-    for (let h = p.start; h < p.end - 1e-9;) { const wd = Math.floor(h / HPD + 1e-9); const upto = Math.min(p.end, (wd + 1) * HPD); L[wd] = (L[wd] || 0) + (upto - h); (T[wd] ||= []).push((S.row[S.row[id].parent_id]?.title || "") + " · " + S.row[id].title); h = upto; } }
-  const cal2wd = {}; wd2cal.forEach((c, i) => cal2wd[c] = i);
-  let body = "";
-  for (const m of people) { const L = load[m.id] || {}; const total = Object.values(L).reduce((a, b) => a + b, 0); if (m.id === null && !total) continue;
-    const last = Math.max(-1, ...Object.keys(L).map(Number));
-    body += `<tr><td style="min-width:200px;font-weight:600">${esc(m.name)}</td><td style="color:var(--muted);min-width:70px">${esc(m.role)}</td><td class="num" style="min-width:70px">${num(total)}</td><td style="min-width:90px;color:var(--muted)">${total ? "after " + fmt(last * HPD) : "now"}</td>
-      ${cal.map((c, i) => { if (c.we) return `<td class="h we"></td>`; const h = L[cal2wd[i]] || 0; const cls = m.id === null ? (h ? "part" : "free") : h >= HPD - 0.01 ? "full" : h ? "part" : "free";
-        return `<td class="h ${cls}" title="${esc((tasks[m.id]?.[cal2wd[i]] || []).join("\n"))}">${h ? num(h) : "·"}</td>`; }).join("")}</tr>`; }
-  return `<div class="tb"><div class="glegend" style="padding-left:2px"><span><i style="background:#d9ebf8"></i>full day</span><span><i style="background:#eef6fc;border:1px solid var(--rule)"></i>part of a day</span><span>· free</span></div><span class="sp"></span><span class="tag warn">Preview · computed, not saved</span></div>
-    <div class="cb"><div class="ref">Where these hours come from</div><input readonly value="The same plan as on the Gantt sheet, seen per person and per day. Hover a cell to see what the person works on that day."><span class="hint"></span></div>
-    <div class="main" tabindex="0"><table class="grid wl"><thead><tr><th>Person</th><th>Role</th><th>Hours</th><th>Free</th>${cal.map(c => `<th class="d ${c.we ? "we" : ""}">${"SMTWTFS"[c.date.getDay()]}<br>${c.date.getDate()}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
-    <div class="stat"><div>People with work<b>${Object.keys(load).filter(k => k !== "null").length}</b></div><div>Hours planned<b>${num(live.reduce((a, [, p]) => a + p.end - p.start, 0))} h</b></div><div style="border:0">8 h a day · no vacations or holidays yet · unassigned work is shown without a daily limit</div></div>`;
-}
+/* ---------------- time: working hours counted from a fixed Monday; 8 h a day, Mon–Fri ---------------- */
+const HPD = 8, EPOCH = Date.UTC(2026, 0, 5), DAY = 864e5, DAYW = 36;
+const STEPS = [[1, "1 hour"], [2, "2 hours"], [4, "Half a day"], [8, "1 day"]];
+const calOfWd = D => Math.floor(D / 5) * 7 + (D % 5);
+function whOfDate(ms){ const days = Math.floor((ms - EPOCH) / DAY); const w = Math.floor(days / 7), dow = days - w * 7; return dow > 4 ? (w + 1) * 5 * HPD : (w * 5 + dow) * HPD; }
+function whOfIso(iso){ const ms = Date.parse(iso); const days = Math.floor((ms - EPOCH) / DAY); const dow = days - Math.floor(days / 7) * 7; const base = whOfDate(ms);
+  if (dow > 4) return base; const h = (ms - (EPOCH + days * DAY)) / 36e5 - 9; return Math.round((base + Math.max(0, Math.min(HPD, h))) * 100) / 100; }
+function isoOfWh(wh, isEnd){ let D = Math.floor(wh / HPD + 1e-9), h = wh - D * HPD; if (isEnd && h < 1e-9 && D > 0) { D -= 1; h = HPD; } return new Date(EPOCH + calOfWd(D) * DAY + (9 + h) * 36e5).toISOString(); }
+const todayWh = () => { const n = new Date(); return whOfDate(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())); };
+const fmtWh = (wh, isEnd) => new Date(EPOCH + calOfWd(Math.max(0, Math.floor((isEnd ? wh - 0.001 : wh) / HPD + 1e-9))) * DAY).toLocaleDateString("en-GB", { day:"2-digit", month:"short", timeZone:"UTC" });
+const asgOf = r => { const f = byRole("assignee"); return (f && r.data?.[f.id]) || null; };
+function isDone(r){ const st = byRole("status"); const v = st && r.data?.[st.id]; if (!v) return false; const m = st.config?.meta || {};
+  return Object.values(m).some(x => x.done) ? !!m[v]?.done : (!!m[v]?.dim || /^approved/i.test(v)); }
+const isUnder = (r, id) => { let x = r; while (x) { if (x.id === id) return true; x = S.row[x.parent_id]; } return false; };
+
+/* the calendar strip both plan sheets draw on */
+function planView(){ const segs = Object.values(S.segEff); const now = todayWh();
+  const a = Math.min(now, ...segs.map(s => s.start)), b = Math.max(now + 15 * HPD, ...segs.map(s => s.end + (S.gapOf[s.record]?.hours || 0)));
+  const c0raw = calOfWd(Math.max(0, Math.floor(a / HPD) - 2)); const c0 = c0raw - (c0raw % 7); const c1 = calOfWd(Math.ceil(b / HPD) + 6); const cal = [];
+  for (let c = c0; c <= c1; c++) cal.push({ c, we: c % 7 > 4, date: new Date(EPOCH + c * DAY) });
+  const x = wh => { const D = Math.floor(wh / HPD + 1e-9); return (calOfWd(D) - c0 + (wh - D * HPD) / HPD) * DAYW; };
+  const xEnd = wh => { const D = Math.max(0, Math.floor((wh - 1e-6) / HPD)); return (calOfWd(D) - c0 + (wh - D * HPD) / HPD) * DAYW; };   // an end at the close of a day stays in that day
+  const whAt = px => { const cf = px / DAYW + c0; let c = Math.floor(cf), fr = cf - c; const dow = ((c % 7) + 7) % 7; if (dow > 4) { c += 7 - dow; fr = 0; } const w = Math.floor(c / 7); return (w * 5 + (c - w * 7)) * HPD + fr * HPD; };
+  return { cal, c0, x, xEnd, whAt, width: cal.length * DAYW, now }; }
+
+/* what is wrong with the stored plan: nothing moves by itself, problems are only shown */
+function planConflicts(){ const out = {}; const add = (id, m) => (out[id] ||= []).push(m); const segs = S.segEff;
+  for (const [id, s] of Object.entries(segs)) { const r = S.row[id]; if (!r || isDone(r)) continue;
+    if (Math.abs(s.hours - (+r.estimate_h || 0)) > 0.01) add(id, `Bar is ${num(s.hours)} h, estimate is ${num(r.estimate_h) || 0} h`);
+    if ((s.assignee || null) !== asgOf(r)) add(id, `Planned for ${memberName(s.assignee) || "nobody"}, the row says ${memberName(asgOf(r)) || "nobody"}`);
+    for (const d of S.depsOf[id] || []) { const ds = segs[d], dr = S.row[d]; if (!dr || isDone(dr)) continue;
+      if (!ds) add(id, `“${dr.title}” is not on the plan yet`);
+      else if (s.start < ds.end + (S.gapOf[d]?.hours || 0) - 0.01) add(id, `Starts before “${dr.title}” is finished${S.gapOf[d]?.hours ? " and reviewed" : ""}`); } }
+  const by = {}; for (const [id, s] of Object.entries(segs)) if (s.assignee && S.row[id] && !isDone(S.row[id])) (by[s.assignee] ||= []).push([id, s]);
+  for (const l of Object.values(by)) { l.sort((p, q2) => p[1].start - q2[1].start);
+    for (let i = 1; i < l.length; i++) if (l[i][1].start < l[i - 1][1].end - 0.01) { add(l[i][0], `Overlaps with “${S.row[l[i - 1][0]].title}” (same person)`); add(l[i - 1][0], `Overlaps with “${S.row[l[i][0]].title}” (same person)`); } }
+  return out; }
+
+/* plan changes go to the draft in planning mode, or straight to the database in direct mode */
+function planPayload(ops){ return ops.map(o => o.t === "cell" ? { t:"cell", record:o.record, field:o.field, value:o.value, base:o.base }
+  : o.t === "seg" ? { t:"seg", record:o.record, start: isoOfWh(o.start), end: isoOfWh(o.end, true), hours:o.hours, assignee:o.assignee, version:o.version } : { t:"unplan", record:o.record, version:o.version }); }
+function commitPlanOps(ops, summary){ if (!ops.length) return render();
+  if (S.mode === "plan") { draftPush(); const ids = new Set(ops.map(o => o.record)); S.draft.ops = S.draft.ops.filter(o => o.t === "cell" || !ids.has(o.record)).concat(ops); saveDraft(); rebuild(); render(); return toast(summary + " — in the draft, press Apply to save"); }
+  return act(() => q(sb.rpc("apply_plan", { p_table: S.tbl.id, p_changes: planPayload(ops), p_summary: summary })), { ok: summary }); }
+const segVersion = id => S.segAll[id]?.version ?? null;
+function autoplan(all){ const now = todayWh(), step = S.step; const up = h => Math.ceil((h - 1e-9) / step) * step;
+  const todo = S.tree.filter(r => r.is_leaf && !isDone(r) && +r.estimate_h > 0 && (all || !S.segEff[r.id])); if (!todo.length) return toast(all ? "No open work to plan" : "Everything open is already on the plan");
+  const inTodo = new Set(todo.map(r => r.id)); const placed = {}, free = {};
+  for (const [id, s] of Object.entries(S.segEff)) { const r = S.row[id]; if (!r || inTodo.has(id)) continue; placed[id] = s; if (s.assignee && !isDone(r)) free[s.assignee] = Math.max(free[s.assignee] || now, s.end); }
+  const list = [...todo], ops = []; let guard = 0;
+  while (list.length && guard++ < 9999) { let i = list.findIndex(r => (S.depsOf[r.id] || []).every(d => !list.some(x => x.id === d))); if (i < 0) i = 0; const r = list.splice(i, 1)[0];
+    const who = asgOf(r); let start = who ? (free[who] || now) : now;
+    for (const d of S.depsOf[r.id] || []) if (placed[d]) start = Math.max(start, placed[d].end + (S.gapOf[d]?.hours || 0));
+    start = up(Math.max(start, now)); const hours = +r.estimate_h, end = start + hours; placed[r.id] = { start, end }; if (who) free[who] = end;
+    ops.push({ t:"seg", record:r.id, start, end, hours, assignee:who, version: segVersion(r.id) }); }
+  commitPlanOps(ops, all ? `Autoplan: ${ops.length} stages from today` : `Autoplan: ${ops.length} unplanned stages`); }
+function barMenu(id, x, y){ const r = S.row[id], s = S.segEff[id]; if (!r || !s) return; const conf = planConflicts()[id] || []; const items = [{ head: r.title + " · " + fmtWh(s.start) + " → " + fmtWh(s.end, true) }];
+  for (const c of conf) items.push({ label: "⚠ " + c, disabled:true });
+  items.push("-", { label:"Fit the bar to the estimate", disabled: Math.abs(s.hours - (+r.estimate_h || 0)) < 0.01, run: () => commitPlanOps([{ t:"seg", record:id, start:s.start, end:s.start + (+r.estimate_h || 0), hours:+r.estimate_h || 0, assignee:s.assignee, version: segVersion(id) }], "Bar fitted: " + r.title) },
+    { label:"Plan it for the row's realizer", disabled: (s.assignee || null) === asgOf(r), run: () => commitPlanOps([{ t:"seg", record:id, start:s.start, end:s.end, hours:s.hours, assignee: asgOf(r), version: segVersion(id) }], "Realizer updated: " + r.title) },
+    "-", { label:"Remove from the plan", danger:true, run: () => commitPlanOps([{ t:"unplan", record:id, version: segVersion(id) }], "Removed from the plan: " + r.title) });
+  openMenu(x, y, items); }
+
+function draftBar(){ const n = S.draft.ops.length, plan = S.mode === "plan";
+  return `<button class="tbtn mode ${plan ? "on" : ""}" data-act="mode" title="${plan ? "Changes collect in a draft and are saved together when you press Apply" : "Every change is saved the moment you make it"}">${plan ? "● Planning mode" : "○ Direct edit"}</button>
+    <button class="tbtn" data-act="undo" title="Undo (Ctrl+Z)">↶</button><button class="tbtn" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button>
+    ${n ? `<span class="tag warn">Draft · ${n} change${n > 1 ? "s" : ""}</span><button class="tbtn pri" data-act="apply">Apply</button><button class="tbtn" data-act="discard">Discard</button>` : ""}<span class="tsep"></span>`; }
+
+/* ---------------- gantt: the stored plan ---------------- */
 function sheetGantt(){
-  const plan = buildPlan(); const asg = byRole("assignee");
-  const palette = ["#2f7fc1","#3f8f6b","#7a5fb0","#c2772b","#5b4a9e","#b5483a","#10635f","#9a7b2e"]; const colorOf = id => { const i = S.members.findIndex(m => m.id === id); return i < 0 ? "#8a93a3" : palette[i % palette.length]; };
-  const { cal, wd2cal, px, pxEnd, fmt, width } = planCalendar(plan); const weHtml = cal.map((c, i) => c.we ? `<div class="gwe" style="left:${i * DAYW}px"></div>` : "").join("");
-  const span = {}; for (const r of S.tree) if (r.is_leaf && plan[r.id] && !plan[r.id].done) { let x = S.row[r.parent_id]; while (x) { const s = span[x.id] ||= { a:Infinity, b:0 }; s.a = Math.min(s.a, plan[r.id].start); s.b = Math.max(s.b, plan[r.id].end); x = S.row[x.parent_id]; } }
-  const rows = visibleRows(); const kids = new Set(S.tree.map(r => r.parent_id).filter(Boolean));
-  let body = "";
-  for (const r of rows) { const p = plan[r.id]; let bar = "";
-    if (r.is_leaf && p && !p.done) { const l = px(p.start), w = Math.max(6, pxEnd(p.end) - l); const who = asg && r.data?.[asg.id];
-      bar = `<div class="gbar" style="left:${l}px;width:${w}px;--c:${colorOf(who)}" title="${esc(r.title)} · ${esc(memberName(who) || "Unassigned")} · ${fmt(p.start)} → ${fmt(p.end - 0.01)} · ${num(p.end - p.start)} h left">${w > 52 ? esc(memberName(who) || "") : ""}</div>`;
-      if (p.gap?.hours) bar += `<div class="gbar gap" style="left:${px(p.end)}px;width:${Math.max(6, pxEnd(p.end + p.gap.hours) - px(p.end))}px" title="${esc((p.gap.type || "review").replace("_", " "))} · ${num(p.gap.hours)} h">R</div>`; }
-    else if (r.is_leaf && p?.done) bar = `<span class="gdone">done</span>`;
-    else if (span[r.id]) bar = `<div class="gbar span" style="left:${px(span[r.id].a)}px;width:${Math.max(6, pxEnd(span[r.id].b) - px(span[r.id].a))}px" title="${fmt(span[r.id].a)} → ${fmt(span[r.id].b - 0.01)}"></div>`;
-    body += `<div class="gr d${Math.min(r.depth, 3)}"><div class="gname" style="padding-left:${8 + r.depth * 16}px"><button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="lvl">${esc(r.level || "")}</span><span class="ttl">${esc(r.title || "")}</span></div><div class="gtrack" style="width:${width}px">${weHtml}${bar}</div></div>`; }
-  const live = Object.values(plan).filter(p => !p.done); const used = [...new Set(live.map(p => p.who))].filter(w => !String(w).startsWith("none:"));
-  const lastEnd = Math.max(0, ...live.map(p => p.end));
-  return `<div class="tb"><button class="tbtn" data-act="collapse">Collapse</button><button class="tbtn" data-act="expand">Expand</button><span class="tsep"></span>
-      <div class="glegend">${used.map(w => `<span><i style="background:${colorOf(w)}"></i>${esc(memberName(w))}</span>`).join("")}<span><i style="background:repeating-linear-gradient(135deg,#c9b06a 0 3px,#efe2b6 3px 6px)"></i>review after the stage</span></div>
-      <span class="sp"></span><span class="tag warn">Preview · computed, not saved</span></div>
-    <div class="cb"><div class="ref">How this plan is built</div><input readonly value="From today: each person does their stages in table order, 8 h a day, Mon–Fri; a stage waits for the stages it depends on and for the review after them; finished stages are skipped.">
-      <span class="hint">${lastEnd ? "last stage ends " + fmt(lastEnd - 0.01) : ""}</span></div>
-    <div class="main" tabindex="0"><div class="gwrap"><div class="gh"><div class="gname">Asset / stage</div><div class="gdays">${cal.map(c => `<div class="gd ${c.we ? "we" : ""} ${c.date.getDay() === 1 ? "mo" : ""}"><span>${"SMTWTFS"[c.date.getDay()]}</span><span>${c.date.getDate()}</span></div>`).join("")}</div></div>${body || `<div class="empty">No rows yet.</div>`}</div></div>
-    <div class="stat"><div>Stages to do<b>${live.length}</b></div><div>Finished<b>${Object.values(plan).filter(p => p.done).length}</b></div><div>Hours left<b>${num(live.reduce((a, p) => a + p.end - p.start, 0))} h</b></div><div style="border:0">Dates are not stored yet · no vacations or holidays · dragging bars and autoplanning come next</div></div>`;
+  const V = planView(); const conf = planConflicts(); const palette = ["#2f7fc1","#3f8f6b","#7a5fb0","#c2772b","#5b4a9e","#b5483a","#10635f","#9a7b2e"];
+  const colorOf = id => { const i = S.members.findIndex(m => m.id === id); return i < 0 ? "#8a93a3" : palette[i % palette.length]; };
+  const drafted = new Set(S.draft.ops.filter(o => o.t !== "cell").map(o => o.record));
+  const weHtml = V.cal.map((c, i) => c.we ? `<div class="gwe" style="left:${i * DAYW}px"></div>` : "").join("");
+  const span = {}; for (const [id, s] of Object.entries(S.segEff)) { let x = S.row[S.row[id]?.parent_id]; while (x) { const sp = span[x.id] ||= { a:Infinity, b:0 }; sp.a = Math.min(sp.a, s.start); sp.b = Math.max(sp.b, s.end); x = S.row[x.parent_id]; } }
+  const rows = visibleRows(); const kids = new Set(S.tree.map(r => r.parent_id).filter(Boolean)); let body = "";
+  for (const r of rows) { const s = S.segEff[r.id]; let bar = "";
+    if (r.is_leaf && s) { const l = V.x(s.start), w = Math.max(8, V.xEnd(s.end) - l); const c = conf[r.id]; const g = S.gapOf[r.id];
+      bar = `<div class="gbar ${c ? "bad" : ""} ${drafted.has(r.id) ? "dr" : ""} ${isDone(r) ? "old" : ""}" data-bar="${r.id}" style="left:${l}px;width:${w}px;--c:${colorOf(s.assignee)}" title="${esc(r.title)} · ${esc(memberName(s.assignee) || "Unassigned")} · ${fmtWh(s.start)} → ${fmtWh(s.end, true)} · ${num(s.hours)} h${c ? "\n⚠ " + esc(c.join("\n⚠ ")) : ""}">${c ? "⚠ " : ""}${w > 60 ? esc(memberName(s.assignee) || "") : ""}</div>`;
+      if (g?.hours && !isDone(r)) bar += `<div class="gbar gap" data-gapof="${r.id}" style="left:${V.x(s.end)}px;width:${Math.max(8, V.xEnd(s.end + g.hours) - V.x(s.end))}px" title="${esc((g.type || "review").replace("_", " "))} · ${num(g.hours)} h">R</div>`; }
+    else if (r.is_leaf) bar = `<span class="gdone">${isDone(r) ? "done" : +r.estimate_h > 0 ? "not on the plan" : "no estimate"}</span>`;
+    else if (span[r.id]) bar = `<div class="gbar span" data-bar="${r.id}" style="left:${V.x(span[r.id].a)}px;width:${Math.max(8, V.xEnd(span[r.id].b) - V.x(span[r.id].a))}px" title="${esc(r.title)} · ${fmtWh(span[r.id].a)} → ${fmtWh(span[r.id].b, true)} · drag to move everything inside"></div>`;
+    body += `<div class="gr d${Math.min(r.depth, 3)}"><div class="gname" style="padding-left:${8 + r.depth * 16}px"><button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="lvl">${esc(r.level || "")}</span><span class="ttl">${esc(r.title || "")}</span></div><div class="gtrack" style="width:${V.width}px">${weHtml}${bar}</div></div>`; }
+  const open = S.tree.filter(r => r.is_leaf && !isDone(r) && +r.estimate_h > 0); const planned = open.filter(r => S.segEff[r.id]).length; const nConf = Object.keys(conf).length;
+  const first = Object.entries(conf)[0];
+  return `<div class="tb">${draftBar()}<button class="tbtn" data-act="autoplan">⚡ Autoplan ▾</button><span class="tsep"></span>
+      <span class="kick">Step</span><select id="step" class="stepsel">${STEPS.map(([h, n]) => `<option value="${h}" ${S.step === h ? "selected" : ""}>${n}</option>`).join("")}</select><span class="tsep"></span>
+      <button class="tbtn" data-act="collapse">Collapse</button><button class="tbtn" data-act="expand">Expand</button>
+      <span class="sp"></span>${nConf ? `<span class="tag bad">⚠ ${nConf} conflict${nConf > 1 ? "s" : ""}</span>` : planned ? `<span class="tag ok">No conflicts</span>` : ""}</div>
+    <div class="cb"><div class="ref">${nConf ? "First conflict" : "How it works"}</div><input readonly value="${nConf ? esc(S.row[first[0]]?.title + ": " + first[1][0] + ". Right-click the bar to fix it, or use Autoplan.") : "Drag a stage to move it alone; drag the bar of an asset or batch to move everything inside. Nothing moves by itself: when an estimate or a person changes, the bar is marked and you decide."}">
+      <span class="hint">${planned}/${open.length} open stages planned</span></div>
+    <div class="main" tabindex="0"><div class="gwrap"><div class="gnow" style="left:${330 + V.x(V.now)}px" title="Today"></div><div class="gh"><div class="gname">Asset / stage</div><div class="gdays">${V.cal.map(c => `<div class="gd ${c.we ? "we" : ""} ${c.c % 7 === 0 ? "mo" : ""}" style="width:${DAYW}px"><span>${"MTWTFSS"[c.c % 7]}</span><span>${c.date.getUTCDate()}</span></div>`).join("")}</div></div>${body || `<div class="empty">No rows yet.</div>`}</div></div>
+    <div class="stat"><div>On the plan<b>${planned}</b></div><div>Not planned<b>${open.length - planned}</b></div><div>Conflicts<b>${nConf}</b></div><div>Step<b>${STEPS.find(x => x[0] === S.step)[1]}</b></div><div style="border:0">8 h a day, Mon–Fri · no vacations or holidays yet · bar length is the full estimate</div></div>`;
+}
+
+/* ---------------- workload: the same stored plan per person per day ---------------- */
+function sheetWorkload(){
+  const V = planView(); const load = {}, tasks = {}; let total = 0;
+  for (const [id, s] of Object.entries(S.segEff)) { const r = S.row[id]; if (!r || isDone(r)) continue; const who = s.assignee || "none"; const L = load[who] ||= {}, T = tasks[who] ||= {}; total += s.end - s.start;
+    for (let h = s.start; h < s.end - 1e-9;) { const D = Math.floor(h / HPD + 1e-9); const upto = Math.min(s.end, (D + 1) * HPD); L[D] = (L[D] || 0) + (upto - h); (T[D] ||= []).push((S.row[r.parent_id]?.title || "") + " · " + r.title); h = upto; } }
+  const people = [...S.members.map(m => ({ id:m.id, name:m.display_name, role:m.access_role })), { id:"none", name:"Unassigned", role:"" }]; let body = "", over = 0;
+  for (const m of people) { const L = load[m.id] || {}; const sum = Object.values(L).reduce((a, b) => a + b, 0); if (m.id === "none" && !sum) continue; const last = Math.max(-1, ...Object.keys(L).map(Number));
+    body += `<tr><td style="min-width:200px;font-weight:600">${esc(m.name)}</td><td style="color:var(--muted);min-width:70px">${esc(m.role)}</td><td class="num" style="min-width:70px">${num(sum)}</td><td style="min-width:100px;color:var(--muted)">${sum ? "after " + fmtWh(last * HPD) : "now"}</td>
+      ${V.cal.map(c => { if (c.we) return `<td class="h we"></td>`; const w = Math.floor(c.c / 7); const D = w * 5 + (c.c - w * 7); const h = L[D] || 0; if (m.id !== "none" && h > HPD + 0.01) over++;
+        const cls = m.id !== "none" && h > HPD + 0.01 ? "overb" : h >= HPD - 0.01 ? "full" : h ? "part" : "free"; return `<td class="h ${cls}" title="${esc((tasks[m.id]?.[D] || []).join("\n"))}">${h ? num(h) : "·"}</td>`; }).join("")}</tr>`; }
+  return `<div class="tb">${draftBar()}<div class="glegend" style="padding-left:2px"><span><i style="background:#d9ebf8"></i>full day</span><span><i style="background:#eef6fc;border:1px solid var(--rule)"></i>part of a day</span><span><i style="background:#f6d5cf"></i>more than 8 h</span><span>· free</span></div><span class="sp"></span>${over ? `<span class="tag bad">⚠ ${over} overbooked day${over > 1 ? "s" : ""}</span>` : ""}</div>
+    <div class="cb"><div class="ref">Where these hours come from</div><input readonly value="The plan from the Gantt sheet${S.draft.ops.length ? ", including your draft" : ""}, seen per person and per day. Hover a cell to see what the person works on that day."><span class="hint"></span></div>
+    <div class="main" tabindex="0"><table class="grid wl"><thead><tr><th>Person</th><th>Role</th><th>Hours</th><th>Free</th>${V.cal.map(c => `<th class="d ${c.we ? "we" : ""}">${"MTWTFSS"[c.c % 7]}<br>${c.date.getUTCDate()}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
+    <div class="stat"><div>People with work<b>${Object.keys(load).filter(k => k !== "none").length}</b></div><div>Hours on the plan<b>${num(total)} h</b></div><div style="border:0">8 h a day · no vacations or holidays yet</div></div>`;
 }
 
 /* ---------------- pipelines ---------------- */
@@ -651,7 +747,7 @@ document.addEventListener("mousedown", e => { if (!e.target.closest(".menu")) cl
 $app.addEventListener("click", async e => {
   const t = e.target; const b = t.closest("[data-sheet],[data-act]");
   if (b?.dataset.sheet) { S.sheet = b.dataset.sheet; S.editing = false; closeMenu();
-    try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadPlanData(); } catch (err) { fail(err); } return render(); }
+    try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadTree(); } catch (err) { fail(err); } return render(); }
   if (b) { const a = b.dataset.act, id = b.dataset.id;
     if (a === "out") return sb.auth.signOut();
     if (a === "pwd") { const p = window.prompt("New password (at least 8 characters):"); if (!p) return; if (p.length < 8) return toast("Too short", true); const { error } = await sb.auth.updateUser({ password: p }); return error ? fail(error) : toast("Password changed"); }
@@ -659,6 +755,13 @@ $app.addEventListener("click", async e => {
     if (a === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
     if (a === "expand") { S.collapsed.clear(); return render(); }
     if (a === "undo") return undo();
+    if (a === "redo") return redo();
+    if (a === "apply") return applyDraft();
+    if (a === "discard") return discardDraft();
+    if (a === "mode") { if (S.mode === "plan" && S.draft.ops.length) return toast("Apply or discard the draft first", true); S.mode = S.mode === "plan" ? "direct" : "plan"; try { localStorage.setItem("pmkit.mode", S.mode); } catch (_) {}
+      toast(S.mode === "plan" ? "Planning mode: changes wait in a draft until you press Apply" : "Direct edit: every change is saved at once"); return render(); }
+    if (a === "autoplan") { const box = b.getBoundingClientRect(); return openMenu(box.left, box.bottom + 2, [{ head:"Step: " + STEPS.find(x => x[0] === S.step)[1] }, { label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) },
+      "-", { label:"Remove everything from the plan", danger:true, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }]); }
     if (a === "hidden") { const box = b.getBoundingClientRect(); const show = ids => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", ids)), { schema:true });
       return openMenu(box.left, box.bottom + 2, [{ head:"Show a column" }, ...S.hiddenFields.map(f => ({ label: f.name, run: () => show([f.id]) })), "-", { label:"Show all", run: () => show(S.hiddenFields.map(f => f.id)) }]); }
     if (a === "fclear") { S.fStatus.clear(); S.fPerson.clear(); S.search = ""; return render(); }
@@ -684,7 +787,8 @@ $app.addEventListener("click", async e => {
     if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)))) startEdit(); }
 });
 $app.addEventListener("dblclick", e => { if (S.sheet === "tracker" && e.target.closest("td[data-f]") && !S.editing) startEdit(); });
-$app.addEventListener("contextmenu", e => { if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
+$app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
+  if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
   if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
   if (th) { const f = S.fields.find(x => x.id === th.dataset.f); if (f) { e.preventDefault(); colMenu(f, e.clientX, e.clientY); } } });
 $app.addEventListener("keydown", e => {
@@ -693,7 +797,8 @@ $app.addEventListener("keydown", e => {
       if (["number","money","duration"].includes(f.type)) { v = v === "" ? null : Number(v.replace(",", ".")); if (Number.isNaN(v)) return toast("This cell needs a number", true); } else if (v === "") v = null; e.target.blur(); return setCell(r.id, f, v); }
     if (e.key === "Escape") { e.target.blur(); render(); } return; }
   if (S.sheet !== "tracker" || S.editing || !e.target.classList.contains("main")) return; const k = e.key;
-  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); return undo(); }
+  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
+  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "y") { e.preventDefault(); return redo(); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (k === "ArrowDown") { e.preventDefault(); return moveSel(1, 0); } if (k === "ArrowUp") { e.preventDefault(); return moveSel(-1, 0); }
   if (k === "ArrowRight") { e.preventDefault(); return moveSel(0, 1); } if (k === "ArrowLeft") { e.preventDefault(); return moveSel(0, -1); }
@@ -707,7 +812,8 @@ $app.addEventListener("keydown", e => {
 });
 $app.addEventListener("input", e => { if (e.target.id === "search") { S.search = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById("search"); s.focus(); s.setSelectionRange(pos, pos); } });
 $app.addEventListener("change", e => { const el = e.target;
-  if (el.id === "proj") { S.project = S.projects.find(p => p.id === el.value); S.collapsed.clear(); S.sel = null; return act(async () => { if (S.sheet === "history") await loadHistory(); }, { schema:true }); }
+  if (el.id === "step") { S.step = +el.value; try { localStorage.setItem("pmkit.step", S.step); } catch (_) {} return render(); }
+  if (el.id === "proj") { if (S.draft.ops.length) saveDraft(); S.project = S.projects.find(p => p.id === el.value); S.collapsed.clear(); S.sel = null; return act(async () => { if (S.sheet === "history") await loadHistory(); }, { schema:true }); }
   if (el.dataset.ps) return act(async () => { const k = el.dataset.k; let v = el.value; if (k === "default_hours") v = v === "" ? null : Number(v); if (k === "gap_type") v = v || null; if (k === "name" && !v) throw new Error("Stage name cannot be empty");
     await q(sb.from("pipeline_stage").update({ [k]: v }).eq("id", el.dataset.ps)); }, { schema:true }); });
 $app.addEventListener("submit", e => { const f = e.target; if (f.id === "lf") return; e.preventDefault();
@@ -717,6 +823,18 @@ $app.addEventListener("submit", e => { const f = e.target; if (f.id === "lf") re
       const row = (await q(sb.from("pipeline_stage").insert({ org_id: S.project.org_id, pipeline_id: pl, name, position: pos, default_hours: hours === "" ? null : Number(hours) }).select()))[0];
       if (st.length) await q(sb.from("pipeline_stage_dep").insert({ org_id: S.project.org_id, stage_id: row.id, depends_on_id: st[st.length - 1].id })); }, { schema:true, ok:"Stage added" }); } });
 
+/* gantt: drag a stage alone, or the bar of an asset / batch with everything inside */
+$app.addEventListener("pointerdown", e => { if (S.sheet !== "gantt" || e.button !== 0) return; const bar = e.target.closest(".gbar[data-bar]"); if (!bar) return; closeMenu();
+  const id = bar.dataset.bar; const ids = S.tree.filter(r => r.is_leaf && S.segEff[r.id] && isUnder(r, id)).map(r => r.id); if (!ids.length) return;
+  const els = [...document.querySelectorAll(".gbar[data-bar],.gbar[data-gapof]")].filter(el => { const k = el.dataset.bar || el.dataset.gapof; return ids.includes(k) || (el.dataset.bar && S.row[k] && !S.row[k].is_leaf && (k === id || isUnder(S.row[k], id))); });
+  const x0 = e.clientX; let dx = 0; bar.setPointerCapture(e.pointerId); bar.style.cursor = "grabbing";
+  const move = ev => { dx = ev.clientX - x0; els.forEach(el => { el.style.transform = `translateX(${dx}px)`; }); };
+  const up = () => { bar.removeEventListener("pointermove", move); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up);
+    if (Math.abs(dx) < 4) { els.forEach(el => { el.style.transform = ""; }); bar.style.cursor = ""; const c = planConflicts()[id]; if (c) toast("⚠ " + c.join(" · "), true); return; }
+    const V = planView(); const ref = Math.min(...ids.map(k => S.segEff[k].start)); const target = Math.round(V.whAt(V.x(ref) + dx) / S.step) * S.step; const delta = target - ref;
+    if (!delta) return render();
+    commitPlanOps(ids.map(k => { const s = S.segEff[k]; return { t:"seg", record:k, start:s.start + delta, end:s.end + delta, hours:s.hours, assignee:s.assignee, version: segVersion(k) }; }), "Moved: " + (S.row[id]?.title || "")); };
+  bar.addEventListener("pointermove", move); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up); });
 /* column width: drag the right edge of a header */
 $app.addEventListener("mousedown", e => { const h = e.target.closest?.("[data-rz]"); if (!h) return; e.preventDefault(); e.stopPropagation();
   const th = h.closest("th"); const id = h.dataset.rz; const x0 = e.clientX, w0 = th.getBoundingClientRect().width; let w = w0; h.classList.add("on");
