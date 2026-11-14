@@ -6,7 +6,7 @@
 <title>PM-Kit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 /* PM-сетап look, spreadsheet layout: header, toolbar, cell bar, grid, status bar, sheet tabs at the bottom */
@@ -14,6 +14,7 @@
   --font-heading:"Barlow Condensed",system-ui,sans-serif; --font-body:"Barlow",system-ui,sans-serif; --font-mono:ui-monospace,Menlo,Consolas,monospace;
   --ink:#17324d; --ink-2:#1d4467; --text:#23303f; --text-2:#3f4a5c; --muted:#6b7689; --muted-2:#7b879a; --muted-3:#9aa6b6;
   --page:#eef2f8; --frame:#b8c3d4; --rule:#dfe6ef; --rule-2:#e6ebf2; --rule-3:#eef2f7; --band:#e4ebf4; --band-2:#eff3f8;
+  --font-table:"Inter",system-ui,sans-serif; --fs:13px;
   --label-bg:#f2f5f9; --soft:#f7f9fc; --mark:#3d86c6; --honey:#8a6410; --teal:#10635f; --danger:#a8432f;
 }
 *{box-sizing:border-box}
@@ -58,13 +59,14 @@ a{color:#2c5f8f;text-underline-offset:2px}
 .search:focus,.cb input:focus{outline:2px solid var(--mark);outline-offset:-1px;background:#fff}
 .cb{flex:none;display:flex;align-items:center;height:30px;background:#fff;border-bottom:1px solid var(--frame)}
 .cb .ref{flex:none;width:300px;padding:0 12px;font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--rule)}
-.cb input{flex:1;height:100%;border:0;padding:0 10px;background:none;min-width:0}
+.cb input{flex:1;height:100%;border:0;padding:0 10px;background:none;min-width:0;font-family:var(--font-table)}
 .cb .hint{padding:0 12px;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3);white-space:nowrap}
 
 /* grid */
 .main{flex:1;min-height:0;overflow:auto;background:#fff;outline:none;position:relative}
+.main>*{zoom:var(--zoom,1)}
 table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
-.grid th{position:sticky;top:0;z-index:3;height:28px;padding:0 8px;background:var(--label-bg);border-bottom:1px solid var(--frame);border-right:1px solid var(--rule);text-align:left;font-family:var(--font-mono);font-size:10px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;user-select:none}
+.grid th{position:sticky;top:0;z-index:3;height:calc(var(--fs) * 2.15);padding:0 8px;background:var(--label-bg);border-bottom:1px solid var(--frame);border-right:1px solid var(--rule);text-align:left;font-family:var(--font-table);font-size:calc(var(--fs) - 2px);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);white-space:nowrap;user-select:none}
 .grid th:first-child{left:0;z-index:5}
 .grid th .hm{float:right;border:0;background:none;color:var(--muted-3);cursor:pointer;padding:0 0 0 6px;visibility:hidden}
 .grid th:hover .hm{visibility:visible}
@@ -73,7 +75,7 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .grid th{position:sticky}
 .rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:6}
 .rz:hover,.rz.on{background:var(--mark);opacity:.5}
-.grid td{height:28px;padding:0 8px;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule-3);white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis;cursor:cell;background:#fff}
+.grid td{height:calc(var(--fs) * 2.15);font-family:var(--font-table);font-size:var(--fs);padding:0 8px;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule-3);white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis;cursor:cell;background:#fff}
 .grid td:first-child{position:sticky;left:0;z-index:2;max-width:none;border-right:1px solid var(--frame);min-width:300px}
 .grid tr.d0 td{background:var(--band-2);font-weight:600;color:var(--ink)}
 .grid tr.d1 td{font-weight:500}
@@ -81,7 +83,7 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .grid tr.dim .chip{opacity:.55} .grid tr.dim a{color:var(--muted-3)}
 .grid td.sel{outline:2px solid var(--mark);outline-offset:-2px;z-index:1;position:relative}
 .grid td:first-child.sel{position:sticky;z-index:2}
-.grid td.num{text-align:right;font-family:var(--font-mono);font-size:12px}
+.grid td.num{text-align:right;font-variant-numeric:tabular-nums}
 .grid td.sum{color:var(--muted)}
 .grid td.ok2{background:#e7f4f1!important}
 .grid td.ctr{text-align:center}
@@ -92,9 +94,9 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 tr:hover .grip{visibility:visible}
 .caret{flex:none;width:14px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:9px;padding:0}
 .caret.leaf{visibility:hidden}
-.lvl{flex:none;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);border:1px solid var(--rule);border-radius:2px;padding:1px 3px;background:#fff;font-weight:400}
+.lvl{flex:none;font-family:var(--font-mono);font-size:calc(var(--fs) - 4.5px);letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);border:1px solid var(--rule);border-radius:2px;padding:1px 3px;background:#fff;font-weight:400}
 .ttl{overflow:hidden;text-overflow:ellipsis}
-.chip{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11.5px;font-weight:500;line-height:16px;color:var(--c,#5980a6);background:color-mix(in srgb,var(--c,#5980a6) 13%,#fff);border:1px solid color-mix(in srgb,var(--c,#5980a6) 30%,#fff)}
+.chip{display:inline-block;padding:1px 7px;border-radius:9px;font-size:calc(var(--fs) - 1.5px);font-weight:500;line-height:calc(var(--fs) + 3px);color:var(--c,#5980a6);background:color-mix(in srgb,var(--c,#5980a6) 13%,#fff);border:1px solid color-mix(in srgb,var(--c,#5980a6) 30%,#fff)}
 .box{display:inline-block;width:14px;height:14px;border:1.5px solid var(--rule);border-radius:2px;vertical-align:middle;position:relative;background:#fff}
 tr:hover .box,td.sel .box{border-color:var(--frame)}
 .box.on,tr:hover .box.on{background:var(--teal);border-color:var(--teal)}
@@ -117,6 +119,13 @@ td:first-child.editing{position:sticky}
 .stat{flex:none;display:flex;align-items:center;height:26px;background:var(--label-bg);border-top:1px solid var(--frame);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .stat div{padding:0 14px;border-right:1px solid var(--rule);white-space:nowrap}
 .stat b{font-size:12px;color:var(--ink);letter-spacing:0;margin-left:5px}
+.stat .sp{flex:1;border:0;padding:0}
+.stat .vw{display:flex;align-items:center;gap:6px;border-right:0;border-left:1px solid var(--rule);text-transform:none;letter-spacing:0}
+.stat .vw select{height:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;font-size:11.5px;font-family:var(--font-body);padding:0 2px}
+.stat .vw button{width:22px;height:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;cursor:pointer;font-size:11px;line-height:1;color:var(--ink-2);padding:0}
+.stat .vw button:hover{background:var(--band-2)}
+.stat .vw input[type=range]{width:110px;accent-color:var(--ink-2)}
+.stat .vw .val{min-width:38px;text-align:right;color:var(--ink);font-size:11.5px}
 .tabs{flex:none;display:flex;align-items:stretch;height:32px;background:var(--band);border-top:1px solid var(--frame);padding-left:8px}
 .tab{display:flex;align-items:center;padding:0 16px;border:0;border-right:1px solid var(--frame);background:none;font-family:var(--font-heading);font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);cursor:pointer}
 .tab:first-of-type{border-left:1px solid var(--frame)}
@@ -180,7 +189,7 @@ table.plain{border-collapse:collapse;width:100%}
 /* gantt */
 .gwrap{display:grid;min-width:max-content}
 .gh{position:sticky;top:0;z-index:4;display:flex;background:var(--label-bg);border-bottom:1px solid var(--frame)}
-.gname{position:sticky;left:0;z-index:3;flex:none;width:330px;background:#fff;border-right:1px solid var(--frame);display:flex;align-items:center;gap:6px;padding:0 8px;height:26px;overflow:hidden;white-space:nowrap}
+.gname{position:sticky;left:0;z-index:3;flex:none;width:330px;font-family:var(--font-table);background:#fff;border-right:1px solid var(--frame);display:flex;align-items:center;gap:6px;padding:0 8px;height:26px;overflow:hidden;white-space:nowrap}
 .gh .gname{background:var(--label-bg);z-index:6;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);height:40px}
 .gdays{display:flex}
 .gd{flex:none;width:26px;height:40px;border-right:1px solid var(--rule-3);font-family:var(--font-mono);font-size:9.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.25}
@@ -232,6 +241,17 @@ const S = { user:null, projects:[], project:null, tbl:null, view:null, levels:[]
   tree:[], row:{}, batches:[], recdeps:[], gaps:[], sheet:"tracker", collapsed:new Set(), sel:null, editing:false, search:"", saving:0, drag:null, fStatus:new Set(), fPerson:new Set(),
   base:[], segs:{}, segAll:{}, segEff:{}, gapOf:{}, depsOf:{}, mode:"plan", step:4, draft:{ ops:[], undo:[], redo:[] } };
 try { S.step = +localStorage.getItem("pmkit.step") || 4; } catch (_) {}
+/* reading comfort: table font, text size and zoom are the viewer's own choice, kept in this browser */
+const FONTS = [["Inter",'"Inter",system-ui,sans-serif'],["Roboto",'"Roboto",system-ui,sans-serif'],["Source Sans",'"Source Sans 3",system-ui,sans-serif'],["IBM Plex Sans",'"IBM Plex Sans",system-ui,sans-serif'],["System",'system-ui,-apple-system,"Segoe UI",sans-serif'],["Barlow",'"Barlow",system-ui,sans-serif']];
+const VIEW = { font:"Inter", fs:13, zoom:100 }; try { Object.assign(VIEW, JSON.parse(localStorage.getItem("pmkit.view") || "{}")); } catch (_) {}
+function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zoom = Math.max(50, Math.min(200, VIEW.zoom)); const st = document.documentElement.style;
+  st.setProperty("--font-table", (FONTS.find(f => f[0] === VIEW.font) || FONTS[0])[1]); st.setProperty("--fs", VIEW.fs + "px"); st.setProperty("--zoom", VIEW.zoom / 100);
+  if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
+applyView(false);
+const zf = () => VIEW.zoom / 100;
+function viewBar(){ return `<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
+    <button data-act="fsdown" title="Smaller text">A−</button><span class="val" style="min-width:20px;text-align:center">${VIEW.fs}</span><button data-act="fsup" title="Bigger text">A+</button></div>
+    <div class="vw"><button data-act="zoomout" title="Zoom out">−</button><input type="range" id="vzoom" min="50" max="200" step="5" value="${VIEW.zoom}" title="Zoom"><button data-act="zoomin" title="Zoom in">+</button><span class="val" id="vzoomval">${VIEW.zoom}%</span></div>`; }
 
 /* ---------------- small helpers ---------------- */
 let toastTimer;
@@ -446,7 +466,7 @@ function sheetTracker(){
     <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)}>${esc(f.name)}${f.type === "duration" ? ", h" : ""}${f.virtual ? "" : `<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1">▾</button><span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
       <tbody>${body || `<tr><td colspan="${cols.length}"><div class="empty">${filtering() ? "Nothing matches the search or filters." : `Nothing here yet. Start with “+ ${esc(top?.name || "Row")}”.`}</div></td></tr>`}</tbody></table></div>
     <div class="stat"><div>Rows<b>${filtering() ? rows.length + " of " + S.tree.length : S.tree.length}</b></div><div>Work items<b>${leaves}</b></div><div>Estimate<b>${num(est)} h</b></div><div>Spent<b>${num(spent)} h</b></div>
-      <div title="Time spent against the estimate of the work items that already have time logged">Over on started work<b>${estT && spent ? (spent / estT - 1 > 0 ? "+" : "") + Math.round((spent / estT - 1) * 100) + "%" : "—"}</b></div><div style="border:0">${enabledLevels().map(l => esc(l.name)).join(" › ")}</div></div>`;
+      <div title="Time spent against the estimate of the work items that already have time logged">Over on started work<b>${estT && spent ? (spent / estT - 1 > 0 ? "+" : "") + Math.round((spent / estT - 1) * 100) + "%" : "—"}</b></div><div style="border:0">${enabledLevels().map(l => esc(l.name)).join(" › ")}</div>${viewBar()}</div>`;
 }
 
 /* selection + editing */
@@ -719,6 +739,8 @@ function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && col
     view: [{ label:"Collapse all", run: () => { S.tree.filter(x => x.depth >= 1 && !x.is_leaf).forEach(x => S.collapsed.add(x.id)); render(); } }, { label:"Expand all", run: () => { S.collapsed.clear(); render(); } }, "-",
       { label:"Clear search and filters", disabled: !filtering(), run: () => { S.fStatus.clear(); S.fPerson.clear(); S.search = ""; render(); } },
       { label:"Show hidden columns", disabled: !S.hiddenFields?.length, run: () => act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) }, "-",
+      { head:"Table font" }, ...FONTS.map(f => ({ label:f[0], hint: VIEW.font === f[0] ? "✓" : "", run: () => { VIEW.font = f[0]; applyView(true); render(); } })),
+      { label:"Reset text size and zoom", disabled: VIEW.fs === 13 && VIEW.zoom === 100, run: () => { VIEW.fs = 13; VIEW.zoom = 100; applyView(true); render(); } }, "-",
       ...SHEETS.map(([k, n]) => ({ label: "Sheet: " + n, hint: S.sheet === k ? "✓" : "", run: go(k) }))],
     plan: [{ label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) }, "-",
       { label:"Remove everything from the plan", danger:true, disabled: !Object.keys(S.segEff).length, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }, "-", { head:"Step on the Gantt" },
@@ -750,7 +772,7 @@ function sheetGantt(){
     <div class="cb"><div class="ref">${nConf ? "First conflict" : "How it works"}</div><input readonly value="${nConf ? esc(S.row[first[0]]?.title + ": " + first[1][0] + ". Right-click the bar to fix it, or use Autoplan.") : "Drag a stage to move it alone; drag the bar of an asset or batch to move everything inside. Nothing moves by itself: when an estimate or a person changes, the bar is marked and you decide."}">
       <span class="hint">${planned}/${open.length} open stages planned</span></div>
     <div class="main" tabindex="0"><div class="gwrap"><div class="gnow" style="left:${330 + V.x(V.now)}px" title="Today"></div><div class="gh"><div class="gname">Asset / stage</div><div class="gdays">${V.cal.map(c => `<div class="gd ${c.we ? "we" : ""} ${c.c % 7 === 0 ? "mo" : ""}" style="width:${DAYW}px"><span>${"MTWTFSS"[c.c % 7]}</span><span>${c.date.getUTCDate()}</span></div>`).join("")}</div></div>${body || `<div class="empty">No rows yet.</div>`}</div></div>
-    <div class="stat"><div>On the plan<b>${planned}</b></div><div>Not planned<b>${open.length - planned}</b></div><div>Conflicts<b>${nConf}</b></div><div>Step<b>${STEPS.find(x => x[0] === S.step)[1]}</b></div><div style="border:0">8 h a day, Mon–Fri · no vacations or holidays yet · bar length is the full estimate</div></div>`;
+    <div class="stat"><div>On the plan<b>${planned}</b></div><div>Not planned<b>${open.length - planned}</b></div><div>Conflicts<b>${nConf}</b></div><div>Step<b>${STEPS.find(x => x[0] === S.step)[1]}</b></div><div style="border:0">8 h a day, Mon–Fri · no vacations or holidays yet</div>${viewBar()}</div>`;
 }
 
 /* ---------------- workload: the same stored plan per person per day ---------------- */
@@ -766,7 +788,7 @@ function sheetWorkload(){
   return `<div class="tb">${draftBar()}<div class="glegend" style="padding-left:2px"><span><i style="background:#d9ebf8"></i>full day</span><span><i style="background:#eef6fc;border:1px solid var(--rule)"></i>part of a day</span><span><i style="background:#f6d5cf"></i>more than 8 h</span><span>· free</span></div><span class="sp"></span>${over ? `<span class="tag bad">⚠ ${over} overbooked day${over > 1 ? "s" : ""}</span>` : ""}</div>
     <div class="cb"><div class="ref">Where these hours come from</div><input readonly value="The plan from the Gantt sheet${S.draft.ops.length ? ", including your draft" : ""}, seen per person and per day. Hover a cell to see what the person works on that day."><span class="hint"></span></div>
     <div class="main" tabindex="0"><table class="grid wl"><thead><tr><th>Person</th><th>Role</th><th>Hours</th><th>Free</th>${V.cal.map(c => `<th class="d ${c.we ? "we" : ""}">${"MTWTFSS"[c.c % 7]}<br>${c.date.getUTCDate()}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
-    <div class="stat"><div>People with work<b>${Object.keys(load).filter(k => k !== "none").length}</b></div><div>Hours on the plan<b>${num(total)} h</b></div><div style="border:0">8 h a day · no vacations or holidays yet</div></div>`;
+    <div class="stat"><div>People with work<b>${Object.keys(load).filter(k => k !== "none").length}</b></div><div>Hours on the plan<b>${num(total)} h</b></div><div style="border:0">8 h a day · no vacations or holidays yet</div>${viewBar()}</div>`;
 }
 
 /* ---------------- pipelines ---------------- */
@@ -810,6 +832,8 @@ $app.addEventListener("click", async e => {
     if (a === "toggle") { S.collapsed.has(id) ? S.collapsed.delete(id) : S.collapsed.add(id); return render(); }
     if (a === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
     if (a === "expand") { S.collapsed.clear(); return render(); }
+    if (a === "fsdown" || a === "fsup") { VIEW.fs += a === "fsup" ? 1 : -1; applyView(true); return render(); }
+    if (a === "zoomout" || a === "zoomin") { VIEW.zoom += a === "zoomin" ? 10 : -10; applyView(true); return render(); }
     if (a === "undo") return undo();
     if (a === "redo") return redo();
     if (a === "apply") return applyDraft();
@@ -870,8 +894,10 @@ $app.addEventListener("keydown", e => {
   if (k === "Escape") return closeMenu();
   if (k.length === 1) { const f = columns().find(x => x.id === S.sel.f); if (f && !f.virtual && ["text","number","money","duration"].includes(f.type)) { e.preventDefault(); return startEdit(k); } }
 });
-$app.addEventListener("input", e => { if (e.target.id === "search") { S.search = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById("search"); s.focus(); s.setSelectionRange(pos, pos); } });
+$app.addEventListener("input", e => { if (e.target.id === "vzoom") { VIEW.zoom = +e.target.value; applyView(true); const v = document.getElementById("vzoomval"); if (v) v.textContent = VIEW.zoom + "%"; return; }
+  if (e.target.id === "search") { S.search = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById("search"); s.focus(); s.setSelectionRange(pos, pos); } });
 $app.addEventListener("change", e => { const el = e.target;
+  if (el.id === "vfont") { VIEW.font = el.value; applyView(true); return; }
   if (el.id === "step") { S.step = +el.value; try { localStorage.setItem("pmkit.step", S.step); } catch (_) {} return render(); }
   if (el.id === "proj") { if (S.draft.ops.length) saveDraft(); S.project = S.projects.find(p => p.id === el.value); S.collapsed.clear(); S.sel = null; return act(async () => { if (S.sheet === "history") await loadHistory(); }, { schema:true }); }
   if (el.dataset.ps) return act(async () => { const k = el.dataset.k; let v = el.value; if (k === "default_hours") v = v === "" ? null : Number(v); if (k === "gap_type") v = v || null; if (k === "name" && !v) throw new Error("Stage name cannot be empty");
@@ -888,7 +914,7 @@ $app.addEventListener("pointerdown", e => { if (S.sheet !== "gantt" || e.button 
   const id = bar.dataset.bar; const ids = S.tree.filter(r => r.is_leaf && S.segEff[r.id] && isUnder(r, id)).map(r => r.id); if (!ids.length) return;
   const els = [...document.querySelectorAll(".gbar[data-bar],.gbar[data-gapof]")].filter(el => { const k = el.dataset.bar || el.dataset.gapof; return ids.includes(k) || (el.dataset.bar && S.row[k] && !S.row[k].is_leaf && (k === id || isUnder(S.row[k], id))); });
   const x0 = e.clientX; let dx = 0; bar.setPointerCapture(e.pointerId); bar.style.cursor = "grabbing";
-  const move = ev => { dx = ev.clientX - x0; els.forEach(el => { el.style.transform = `translateX(${dx}px)`; }); };
+  const move = ev => { dx = (ev.clientX - x0) / zf(); els.forEach(el => { el.style.transform = `translateX(${dx}px)`; }); };
   const up = () => { bar.removeEventListener("pointermove", move); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up);
     if (Math.abs(dx) < 4) { els.forEach(el => { el.style.transform = ""; }); bar.style.cursor = ""; const c = planConflicts()[id]; if (c) toast("⚠ " + c.join(" · "), true); return; }
     const V = planView(); const ref = Math.min(...ids.map(k => S.segEff[k].start)); const target = Math.round(V.whAt(V.x(ref) + dx) / S.step) * S.step; const delta = target - ref;
@@ -897,9 +923,9 @@ $app.addEventListener("pointerdown", e => { if (S.sheet !== "gantt" || e.button 
   bar.addEventListener("pointermove", move); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up); });
 /* column width: drag the right edge of a header */
 $app.addEventListener("mousedown", e => { const h = e.target.closest?.("[data-rz]"); if (!h) return; e.preventDefault(); e.stopPropagation();
-  const th = h.closest("th"); const id = h.dataset.rz; const x0 = e.clientX, w0 = th.getBoundingClientRect().width; let w = w0; h.classList.add("on");
+  const th = h.closest("th"); const id = h.dataset.rz; const x0 = e.clientX, w0 = th.getBoundingClientRect().width / zf(); let w = w0; h.classList.add("on");
   const cells = document.querySelectorAll(`.grid [data-f="${id}"]`);
-  const move = ev => { w = Math.max(48, Math.min(700, Math.round(w0 + ev.clientX - x0))); cells.forEach(c => { c.style.width = c.style.minWidth = c.style.maxWidth = w + "px"; }); };
+  const move = ev => { w = Math.max(48, Math.min(700, Math.round(w0 + (ev.clientX - x0) / zf()))); cells.forEach(c => { c.style.width = c.style.minWidth = c.style.maxWidth = w + "px"; }); };
   const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); if (Math.abs(w - w0) < 2) return render();
     act(() => q(sb.from("view_field").update({ width: w }).eq("view_id", S.view.id).eq("field_id", id)), { schema:true }); };
   document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); });
