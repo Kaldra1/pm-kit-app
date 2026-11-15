@@ -190,6 +190,10 @@ td:first-child.editing{position:sticky}
 .stat .vw{display:flex;align-items:center;gap:6px;border-right:0;border-left:1px solid var(--rule);text-transform:none;letter-spacing:0}
 .stat .vw select{height:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;font-size:11.5px;font-family:var(--font-body);padding:0 2px}
 .stat .vw button{width:22px;height:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;cursor:pointer;font-size:11px;line-height:1;color:var(--ink-2);padding:0}
+.stat .vw.seg{gap:0}
+.stat .vw.seg button{width:auto;padding:0 9px;border-radius:0;font:600 10.5px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);transition:background .15s,color .15s}
+.stat .vw.seg button:first-child{border-radius:3px 0 0 3px} .stat .vw.seg button:last-child{border-radius:0 3px 3px 0;border-left:0}
+.stat .vw.seg button.on{background:var(--ink-2);color:#fff;border-color:var(--ink-2)}
 .stat .vw button:hover{background:var(--band-2)} .stat .vw button:disabled{opacity:.4;cursor:default}
 .stat .vw input[type=range]{width:110px;accent-color:var(--ink-2)}
 .stat .vw .val{min-width:38px;text-align:right;color:var(--ink);font-size:11.5px}
@@ -330,7 +334,7 @@ function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zo
   if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
 applyView(false);
 const zf = () => VIEW.zoom / 100;
-function viewBar(){ return `<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
+function viewBar(){ if (S.sel) S.modePref = S.sel.row ? "row" : "cell"; const cell = S.modePref === "cell"; return `${S.sheet !== "tracker" ? "" : `<div class="vw seg" title="What clicks and arrows work with · ${esc(keyHint("selmode"))} switches"><button data-act="mode-row" class="${cell ? "" : "on"}">Row</button><button data-act="mode-cell" class="${cell ? "on" : ""}">Cell</button></div>`}<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
     <button data-act="fsdown" title="Smaller text" ${VIEW.fs <= 10 ? "disabled" : ""}>A−</button><span class="val" style="min-width:20px;text-align:center" title="Table text size">${VIEW.fs}</span><button data-act="fsup" title="Bigger text" ${VIEW.fs >= 20 ? "disabled" : ""}>A+</button></div>
     <div class="vw"><button data-act="zoomout" title="Zoom out">−</button><input type="range" id="vzoom" min="50" max="200" step="5" value="${VIEW.zoom}" title="Zoom"><button data-act="zoomin" title="Zoom in">+</button><span class="val" id="vzoomval">${VIEW.zoom}%</span></div>`; }
 
@@ -664,7 +668,7 @@ function sheetTracker(){
 }
 
 /* selection + editing */
-function select(r, f, scroll = true, row = false, keepMulti = false){ S.sel = { r, f, row }; S.editing = false; if (!keepMulti) { S.multi = null; S.anchor = r; } render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
+function select(r, f, scroll = true, row = false, keepMulti = false){ S.sel = { r, f, row }; S.modePref = row ? "row" : "cell"; S.editing = false; if (!keepMulti) { S.multi = null; S.anchor = r; } render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
 /* keyboard, rows first (as in Jira Structure and the treegrid pattern): ↑↓ move by rows, → steps into a cell, ← from the first cell back to the row */
 function moveRowSel(dr){ const rows = visibleRows(); if (!rows.length) return; let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : -1;
   ri = ri < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, ri + dr)); select(rows[ri].id, S.sel?.f || columns()[0].id, true, true); }
@@ -678,6 +682,11 @@ const picked = () => S.multi?.size > 1 ? [...S.multi].filter(id => S.row[id]) : 
 function enterCell(){ if (!S.sel) return; const cols = columns(); let f = cols.find(c => c.id === S.sel.f); if (!f || f.role === "title") f = cols[1] || cols[0]; select(S.sel.r, f.id); }
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /* Ctrl+← / Ctrl+→ (Option on a Mac): collapse and expand; with Shift — everything inside */
+/* Row or Cell: what clicks and arrows work with. Switch: the Row | Cell control at the bottom, or Shift+Space */
+function setSelMode(cell){ if (cell == null) cell = S.sel ? !!S.sel.row : S.modePref !== "cell"; S.modePref = cell ? "cell" : "row";
+  if (!S.sel) { render(); return toast(cell ? "Clicks will pick cells" : "Clicks will pick rows"); }
+  if (cell && S.sel.row) { S.multi = null; return enterCell(); }
+  if (!cell && !S.sel.row) return select(S.sel.r, S.sel.f, false, true); render(); }
 /* Ctrl+Alt+← / → (⌃⌥ on a Mac): the whole table one level at a time — ← hides the deepest level that is open anywhere,
    → opens the next one back; view only, nothing goes to the draft */
 function foldTable(open){ closeMenu();
@@ -746,6 +755,7 @@ const CMDS = [
   { id:"expand", group:"Tree", name:"Expand the row", scope:"grid", def:[FOLD + "+Right"], run: () => foldSel(true, false) },
   { id:"collapseall", group:"Tree", name:"Collapse everything inside", scope:"grid", def:[FOLD + "+Shift+Left"], run: () => foldSel(false, true) },
   { id:"expandall", group:"Tree", name:"Expand everything inside", scope:"grid", def:[FOLD + "+Shift+Right"], run: () => foldSel(true, true) },
+  { id:"selmode", group:"Move around", name:"Switch between row and cell", scope:"tracker", def:["Shift+Space"], run: () => setSelMode() },
   { id:"foldtable", group:"Tree", name:"Hide the deepest open level, whole table", scope:"tracker", def:["Ctrl+Alt+Left"], run: () => foldTable(false) },
   { id:"unfoldtable", group:"Tree", name:"Show one more level, whole table", scope:"tracker", def:["Ctrl+Alt+Right"], run: () => foldTable(true) },
   { id:"first", group:"Move around", name:"First row", scope:"grid", def: IS_MAC ? ["Meta+Up"] : ["Ctrl+Home"], run: () => { const v = visibleRows(); if (v.length) select(v[0].id, S.sel?.f || columns()[0].id, true, true); } },
@@ -1395,6 +1405,7 @@ $app.addEventListener("click", async e => {
     if (a === "toggle") { S.collapsed.has(id) ? S.collapsed.delete(id) : S.collapsed.add(id); return render(); }
     if (a === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
     if (a === "expand") { S.collapsed.clear(); return render(); }
+    if (a === "mode-row" || a === "mode-cell") return setSelMode(a === "mode-cell");
     if (a === "fsdown" || a === "fsup") { VIEW.fs += a === "fsup" ? 1 : -1; applyView(true); return render(); }
     if (a === "zoomout" || a === "zoomin") { VIEW.zoom += a === "zoomin" ? 10 : -10; applyView(true); return render(); }
     if (a === "undo") return undo();
@@ -1429,7 +1440,9 @@ $app.addEventListener("click", async e => {
     if (!box) { S.multi = null; S.anchor = tr.dataset.id; }
     const now = Date.now(), dbl = !box && LASTCLICK.r === tr.dataset.id && LASTCLICK.f === td.dataset.f && now - LASTCLICK.t < 450; LASTCLICK = dbl ? { t:0 } : { r: tr.dataset.id, f: td.dataset.f, t: now };
     if (dbl) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render(); return startEdit(); }
-    if (!box && !(S.sel && S.sel.r === tr.dataset.id)) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
+    // the mode sticks: a picked row → a click picks another row; a picked cell → a click picks another cell; the ⋮⋮ handle always picks the row
+    const rowMode = (!S.sel ? S.modePref !== "cell" : S.sel.row) || !!t.closest(".grip");
+    if (!box && rowMode && !(S.sel && S.sel.row === false ? false : S.sel && S.sel.r === tr.dataset.id && !t.closest(".grip"))) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
     S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render();
     if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)))) startEdit(); }
 });
