@@ -100,6 +100,16 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .srow .sn:hover,.srow .sdl:hover{border-color:var(--rule)}.srow .sn:focus,.srow .sdl:focus{outline:2px solid var(--mark);background:#fff}
 .srow .sd{font-family:var(--font-mono);font-size:11.5px;color:var(--text-2)}.srow .sd.late{color:#b5483a;font-weight:600}.srow .sh{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sadd{padding:6px 0 8px}
+.keyhelp{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:4px 26px}
+.kcol .sec{margin-top:6px}.krow{display:flex;justify-content:space-between;gap:12px;padding:3px 0;font-size:12.5px;border-bottom:1px solid var(--rule-2)}
+.kk{white-space:nowrap;color:var(--muted)}kbd{font-family:var(--font-mono);font-size:11px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--label-bg);color:var(--ink)}
+.prefs{width:min(900px,94vw)}.pbody{display:flex;min-height:420px;overflow:hidden}.pnav{display:flex;flex-direction:column;gap:2px;padding:12px 8px;border-right:1px solid var(--rule);min-width:150px;background:var(--label-bg)}
+.pnav button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:3px;cursor:pointer;font-size:13px;color:var(--text-2)}.pnav button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:inset 3px 0 0 var(--mark)}
+.pbody .mbody{flex:1;overflow:auto}.prow{display:flex;align-items:center;gap:14px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:13px}.prow>span:first-child{min-width:110px;color:var(--text-2)}
+.prow input[type=password]{height:30px;border:1px solid var(--frame);border-radius:3px;padding:0 8px}.prow select{height:30px}
+.chk2{align-items:flex-start;cursor:pointer}.chk2>span:first-child{min-width:0!important}
+.hkbar{display:flex;gap:8px;margin-bottom:8px}.hkbar input{height:30px;border:1px solid var(--frame);border-radius:3px;padding:0 9px;width:280px}
+table.hk td{vertical-align:middle}table.hk tr.rec td{background:#fff8e6}.recn{color:var(--honey);font-weight:600}
 .grid th.dropL{box-shadow:inset 3px 0 0 var(--mark)} .grid th.dropR{box-shadow:inset -3px 0 0 var(--mark)}
 .grid th.virt{color:var(--muted-3)}
 .grid th{position:sticky}
@@ -281,8 +291,7 @@ function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zo
   if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
 applyView(false);
 const zf = () => VIEW.zoom / 100;
-function viewBar(){ return `<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
-    <button data-act="fsdown" title="Smaller text">A−</button><span class="val" style="min-width:20px;text-align:center">${VIEW.fs}</span><button data-act="fsup" title="Bigger text">A+</button></div>
+function viewBar(){ return `<div class="sp"></div><div class="vw"><button data-act="prefs" title="Font and text size: Settings → General">Aa</button></div>
     <div class="vw"><button data-act="zoomout" title="Zoom out">−</button><input type="range" id="vzoom" min="50" max="200" step="5" value="${VIEW.zoom}" title="Zoom"><button data-act="zoomin" title="Zoom in">+</button><span class="val" id="vzoomval">${VIEW.zoom}%</span></div>`; }
 
 /* ---------------- small helpers ---------------- */
@@ -373,7 +382,7 @@ async function loadPlanData(){
 }
 /* the draft lives in the browser until Apply; it survives a reload */
 const draftKey = () => "pmkit.draft." + S.project?.id;
-function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(S.draft.ops)); } catch (_) {} }
+function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(S.draft.ops)); } catch (_) {} if (PREF.autoApply && S.draft.ops.length) scheduleAuto(); }
 function loadDraft(){ if (S.draft.project !== S.project.id) { S.draft = { ops:[], undo:[], redo:[], project:S.project.id }; try { S.draft.ops = JSON.parse(localStorage.getItem(draftKey()) || "[]"); } catch (_) {} }
   const ids = new Set(S.base.map(r => r.id)), fids = new Set(S.raw.fields.map(f => f.id)), keep = [];
   for (const o of S.draft.ops) {
@@ -476,7 +485,7 @@ function render(){
   $app.innerHTML = `<header class="hdr"><div class="brand">PM-KIT</div>
     ${S.projects.length ? `<select id="proj" title="Project">${S.projects.map(p => `<option value="${p.id}" ${p.id === S.project?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : ""}
     <span class="saved ${S.saving ? "busy" : S.draft.ops.length ? "draft" : ""}">${S.saving ? "Saving…" : S.draft.ops.length ? `Draft · ${S.draft.ops.length} change${S.draft.ops.length > 1 ? "s" : ""} not applied` : "All changes saved"}</span><span class="sp"></span>
-    <span class="who">${esc(S.user.email)}</span><button class="hbtn" data-act="pwd">Password</button><button class="hbtn" data-act="out">Sign out</button></header>
+    ${PREF.autoApply ? `<span class="saved" title="Settings → General">saving at once</span>` : ""}<span class="who">${esc(S.user.email)}</span><button class="hbtn" data-act="prefs" title="Settings (${keyHint("settings")})">⚙ Settings</button><button class="hbtn" data-act="out">Sign out</button></header>
     <div class="mrow">${["Edit","Insert","View","Plan","Project"].map(m => `<button data-menu="${m.toLowerCase()}">${m}</button>`).join("")}</div>
     ${body}
     <nav class="tabs">${SHEETS.map(([k, n]) => `<button class="tab" data-sheet="${k}" ${S.sheet === k ? 'aria-current="page"' : ""}>${n}</button>`).join("")}<span class="soon">General info · your own tables — later</span></nav>`;
@@ -612,16 +621,134 @@ function foldSel(open, deep){ const r = S.row[S.sel?.r]; if (!r) return; const k
   if (deep) { inside().forEach(id => S.collapsed.add(id)); if (kids(r.id)) S.collapsed.add(r.id); return select(r.id, S.sel.f, true, true); }
   if (kids(r.id) && !S.collapsed.has(r.id)) { S.collapsed.add(r.id); return select(r.id, S.sel.f, true, true); }
   const p = S.row[r.parent_id]; select(p ? p.id : r.id, S.sel.f, true, true); }
-/* Ctrl+Enter (⌘Enter): close the cell being edited, then Apply */
+/* Apply by key: close the cell being edited, then Apply */
 async function applyByKey(){ const a = document.activeElement;
   if (a?.id === "cellbar" && !a.readOnly && S.sel) a.dispatchEvent(new KeyboardEvent("keydown", { key:"Enter", bubbles:true }));
   else if (a && a.matches?.("input,select,textarea") && a.id !== "search") a.blur();
   await new Promise(r => setTimeout(r, 40));
   if (document.querySelector(".veil")) return;   // a question popped up (e.g. the estimate of a planned stage) — answer it first
   closeMenu(); if (!S.draft.ops.length) return toast("Nothing to apply — the draft is empty"); applyDraft(); }
-document.addEventListener("keydown", e => { if (e.key !== "Enter" || !(IS_MAC ? e.metaKey : e.ctrlKey) || e.shiftKey || e.altKey) return;
-  if (document.querySelector(".veil form")) return;   // a dialog with a form: Enter belongs to it
-  e.preventDefault(); e.stopPropagation(); if (document.querySelector(".veil")) { document.activeElement?.blur?.(); closeModal(); } applyByKey(); }, true);
+/* ================= HOTKEYS: one list of commands; Ctrl+/ shows it, Settings → Hotkeys changes it ================= */
+const PREF = { keys:{}, autoApply:false }; try { Object.assign(PREF, JSON.parse(localStorage.getItem("pmkit.prefs") || "{}")); } catch (_) {}
+const savePref = () => { try { localStorage.setItem("pmkit.prefs", JSON.stringify(PREF)); } catch (_) {} };
+const KEYN = { Slash:"/", Equal:"=", Minus:"-", Period:".", Comma:",", Semicolon:";", Quote:"'", Backquote:"`", BracketLeft:"[", BracketRight:"]", Backslash:"\\",
+  ArrowUp:"Up", ArrowDown:"Down", ArrowLeft:"Left", ArrowRight:"Right", Enter:"Enter", NumpadEnter:"Enter", Delete:"Delete", Backspace:"Backspace", Home:"Home", End:"End",
+  PageUp:"PageUp", PageDown:"PageDown", Escape:"Esc", Space:"Space", Tab:"Tab", Insert:"Insert" };
+/* keys are read by their place on the keyboard, so they work the same in the Ukrainian layout */
+const keyName = c => c.startsWith("Key") ? c.slice(3) : c.startsWith("Digit") ? c.slice(5) : c.startsWith("Numpad") && /\d$/.test(c) ? c.slice(6) : KEYN[c] || (/^F\d+$/.test(c) ? c : null);
+function comboOf(e){ const k = keyName(e.code || ""); if (!k) return null; return [e.ctrlKey && "Ctrl", e.metaKey && "Meta", e.altKey && "Alt", e.shiftKey && "Shift", k].filter(Boolean).join("+"); }
+const ARW = { Up:"↑", Down:"↓", Left:"←", Right:"→" };
+function showKey(c){ const p = c.split("+"); const k = p.pop(); const key = ARW[k] || (k === "Backspace" && IS_MAC ? "⌫" : k === "Enter" && IS_MAC ? "↩" : k);
+  if (IS_MAC) return p.map(m => ({ Ctrl:"⌃", Meta:"⌘", Alt:"⌥", Shift:"⇧" })[m]).join("") + key; return [...p.map(m => m === "Meta" ? "Win" : m), key].join("+"); }
+const M = IS_MAC ? "Meta" : "Ctrl", FOLD = IS_MAC ? "Alt" : "Ctrl";
+const SHEET_KEYS = SHEETS.map(([k, n], i) => ({ id:"sheet_" + k, group:"Sheets", name:"Go to " + n, scope:"page", def:["Alt+" + (i + 1)], run: () => goSheet(k) }));
+const CMDS = [
+  { id:"apply", group:"Draft", name:"Apply the draft", scope:"any", def:[M + "+Enter"], run: applyByKey },
+  { id:"discard", group:"Draft", name:"Discard the draft", scope:"page", def:[], run: () => discardDraft(), note:"No key on purpose — set one only if you want it" },
+  { id:"undo", group:"Draft", name:"Undo", scope:"page", def:[M + "+Z"], run: undo },
+  { id:"redo", group:"Draft", name:"Redo", scope:"page", def: IS_MAC ? ["Meta+Shift+Z", "Meta+Y"] : ["Ctrl+Y", "Ctrl+Shift+Z"], run: redo },
+  { id:"newrow", group:"Rows", name:"New row of the same level below", scope:"rows", def:["Shift+="], run: () => { const r = S.row[S.sel?.r]; r ? addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null) : addRow(null, enabledLevels()[0], null); } },
+  { id:"insertmenu", group:"Rows", name:"Open the Insert menu", scope:"tracker", def:[M + "+Alt+="], run: () => { const b = document.querySelector("[data-menu=insert]")?.getBoundingClientRect(); if (b) mainMenu("insert", b.left, b.bottom + 1); } },
+  { id:"delrows", group:"Rows", name:"Delete the selected rows (to the draft)", scope:"rows", def: IS_MAC ? ["Backspace", "Delete"] : ["Delete", "Backspace"], run: () => deleteMany(picked()) },
+  { id:"moveup", group:"Rows", name:"Move the row up", scope:"grid", def:["Alt+Up"], run: () => nudgeRow(-1) },
+  { id:"movedown", group:"Rows", name:"Move the row down", scope:"grid", def:["Alt+Down"], run: () => nudgeRow(1) },
+  { id:"clone", group:"Rows", name:"Clone the row below", scope:"grid", def:["Alt+Shift+Down"], run: () => { const r = S.row[S.sel?.r]; if (r && !r._del) cloneRow(r); } },
+  { id:"selectall", group:"Rows", name:"Select every visible row", scope:"grid", def:[M + "+A"], run: () => { const ids = visibleRows().map(r => r.id); if (!ids.length) return;
+      S.multi = new Set(ids); S.anchor = ids[0]; S.sel = { r: S.sel?.r && S.multi.has(S.sel.r) ? S.sel.r : ids[0], f: S.sel?.f || columns()[0].id, row:true }; render(); } },
+  { id:"collapse", group:"Tree", name:"Collapse the row, or step to its parent", scope:"grid", def:[FOLD + "+Left"], run: () => foldSel(false, false) },
+  { id:"expand", group:"Tree", name:"Expand the row", scope:"grid", def:[FOLD + "+Right"], run: () => foldSel(true, false) },
+  { id:"collapseall", group:"Tree", name:"Collapse everything inside", scope:"grid", def:[FOLD + "+Shift+Left"], run: () => foldSel(false, true) },
+  { id:"expandall", group:"Tree", name:"Expand everything inside", scope:"grid", def:[FOLD + "+Shift+Right"], run: () => foldSel(true, true) },
+  { id:"first", group:"Move around", name:"First row", scope:"grid", def: IS_MAC ? ["Meta+Up"] : ["Ctrl+Home"], run: () => { const v = visibleRows(); if (v.length) select(v[0].id, S.sel?.f || columns()[0].id, true, true); } },
+  { id:"last", group:"Move around", name:"Last row", scope:"grid", def: IS_MAC ? ["Meta+Down"] : ["Ctrl+End"], run: () => { const v = visibleRows(); if (v.length) select(v[v.length - 1].id, S.sel?.f || columns()[0].id, true, true); } },
+  { id:"search", group:"Move around", name:"Search the table", scope:"any", def:[M + "+F"], run: () => { const go = () => { const i = document.getElementById("search"); if (i) { i.focus(); i.select(); } }; if (S.sheet !== "tracker") goSheet("tracker").then(go); else go(); } },
+  { id:"hidecol", group:"Columns", name:"Hide the selected column", scope:"grid", def:[M + "+Alt+0"], run: hideSelCol },
+  ...SHEET_KEYS,
+  { id:"help", group:"Help", name:"Show all shortcuts", scope:"any", def:[M + "+/"], run: openHelp },
+  { id:"settings", group:"Help", name:"Open Settings", scope:"page", def:[M + "+,"], run: () => openPrefs("general") } ];
+const keysOf = c => PREF.keys[c.id] ?? c.def;
+const keyHint = id => { const c = CMDS.find(x => x.id === id); const k = c && keysOf(c)[0]; return k ? showKey(k) : ""; };
+function goSheet(k){ const b = document.querySelector(`[data-sheet="${k}"]`); if (b) b.click(); return new Promise(r => setTimeout(r, 60)); }
+function nudgeRow(d){ const r = S.row[S.sel?.r]; if (!r || r._del) return; if (S.sort) return toast("The table is sorted — clear the sort to move rows by hand");
+  const sib = S.tree.filter(x => x.parent_id === r.parent_id); const i = sib.indexOf(r); const j = i + d; if (j < 0 || j >= sib.length) return;
+  moveRow(r, r.parent_id, d < 0 ? sib[j].id : sib[j + 1]?.id || null); select(r.id, S.sel.f, true, S.sel.row); }
+function hideSelCol(){ const f = S.sel && columns().find(c => c.id === S.sel.f); if (!f) return; if (f.role === "title") return toast("Name is always shown");
+  if (f.virtual) { S.vhide.add(f.id); saveTV(); } else act(() => q(sb.from("view_field").update({ mode:"hidden" }).eq("view_id", S.view.id).eq("field_id", f.id)), { schema:true });
+  const cols = columns().filter(c => c.id !== f.id); S.sel = { ...S.sel, f: cols[Math.min(cols.length - 1, 1)]?.id || cols[0].id }; render(); toast(`“${f.name}” hidden — Columns brings it back`); }
+const typing = el => el && (el.matches?.("input,textarea,select") || el.isContentEditable) && el.type !== "checkbox" && el.type !== "range";
+document.addEventListener("keydown", e => { if (S.recKey || !S.user || e.repeat && !/Up|Down|Left|Right/.test(e.code)) return; const combo = comboOf(e); if (!combo) return;
+  const modal = document.querySelector(".veil"), act0 = document.activeElement, inInput = typing(act0);
+  if (combo === "Esc" && modal && !modal.contains(act0)) { e.preventDefault(); S.recKey = false; return closeModal(); }
+  for (const c of CMDS) { if (!keysOf(c).includes(combo)) continue;
+    if (c.scope !== "any" && (modal || inInput)) continue;
+    if (c.id === "apply" && document.querySelector(".veil form")) continue;   // a dialog with a form: Enter belongs to it
+    if ((c.scope === "grid" || c.scope === "rows" || c.scope === "tracker") && (S.sheet !== "tracker" || S.editing)) continue;
+    if ((c.scope === "grid" || c.scope === "rows") && act0 && act0 !== document.body && !act0.classList?.contains("main")) continue;
+    if (c.scope === "rows" && !S.sel?.row) continue;
+    e.preventDefault(); e.stopPropagation(); if (modal && c.id === "apply") { act0?.blur?.(); closeModal(); }
+    closeMenu(); c.run(); return; } }, true);
+/* Ctrl+/ — every shortcut in one place */
+function openHelp(){ closeModal(); const v = document.createElement("div"); v.className = "veil"; const groups = [...new Set(CMDS.map(c => c.group))];
+  const nav = [["↑ ↓", "Move between rows"], ["→ / Enter", "Step from the row into a cell"], ["← (first cell) / Esc", "Back to the row"], ["Enter / F2 / typing", "Edit the cell"], ["Tab / Shift+Tab", "Next / previous cell"],
+    ["Shift+↑ ↓ · Shift+click", "Select a range of rows"], [(IS_MAC ? "⌘" : "Ctrl+") + "click", "Add or remove one row"], ["Esc", "Back to one row"]];
+  v.innerHTML = `<div class="modal wide"><div class="mhead"><span class="t">Keyboard shortcuts</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div><div class="mbody keyhelp">
+    <div class="kcol"><div class="sec">Moving around the table</div>${nav.map(([k, n]) => `<div class="krow"><span>${esc(n)}</span><span class="kk">${esc(k)}</span></div>`).join("")}</div>
+    ${groups.map(g => `<div class="kcol"><div class="sec">${esc(g)}</div>${CMDS.filter(c => c.group === g).map(c => `<div class="krow"><span>${esc(c.name)}</span><span class="kk">${keysOf(c).map(k => `<kbd>${esc(showKey(k))}</kbd>`).join(" ") || "<i>none</i>"}</span></div>`).join("")}</div>`).join("")}
+    </div><div class="mfoot"><button class="tbtn" data-x="keys">Change in Settings → Hotkeys</button><button class="tbtn pri" data-x="close">Close</button></div></div>`;
+  document.body.appendChild(v); v.tabIndex = -1; v.focus();
+  v.addEventListener("click", e => { if (e.target === v || e.target.closest("[data-x=close]")) return closeModal(); if (e.target.closest("[data-x=keys]")) openPrefs("hotkeys"); });
+  v.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); }); }
+/* Settings: General, Hotkeys, Account — the viewer's own, kept in this browser for now */
+function openPrefs(tab = "general"){ closeModal(); const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v); let rec = null, filter = "";
+  const tabs = [["general", "General"], ["hotkeys", "Hotkeys"], ["account", "Account"]];
+  const paint = () => { const wasFilter = document.activeElement?.id === "pkfilter"; const body = tab === "general" ? `
+      <div class="sec">Table</div>
+      <div class="prow"><span>Font</span><select id="pfont">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select></div>
+      <div class="prow"><span>Text size</span><span class="vw"><button data-x="fs-">A−</button><span class="val">${VIEW.fs}</span><button data-x="fs+">A+</button></span></div>
+      <div class="prow"><span>Zoom</span><span class="val">${VIEW.zoom}% · change it with the slider at the bottom right</span></div>
+      <div class="sec">Saving</div>
+      <label class="prow chk2"><input type="checkbox" id="pauto" ${PREF.autoApply ? "checked" : ""}><span><b>Save every change at once</b><br><span class="note">Off by default. Every change still goes through the draft, but is applied by itself a moment later — you lose the chance to look before you save. Undo then means History.</span></span></label>`
+    : tab === "hotkeys" ? `
+      <div class="hkbar"><input id="pkfilter" placeholder="Find a command or a key" value="${esc(filter)}" autocomplete="off"><span class="sp"></span><button class="tbtn" data-x="resetall">Reset all to default</button></div>
+      <table class="plain hk"><thead><tr><th>Command</th><th style="width:210px">Keys</th><th style="width:190px"></th></tr></thead><tbody>${CMDS.filter(c => !filter || (c.name + " " + keysOf(c).map(showKey).join(" ")).toLowerCase().includes(filter.toLowerCase())).map(c => { const mine = PREF.keys[c.id] != null;
+        return `<tr data-c="${c.id}" class="${rec === c.id ? "rec" : ""}"><td>${esc(c.name)}<div class="note" style="margin:0">${esc(c.group)}${c.note ? " · " + esc(c.note) : ""}</div></td>
+          <td>${rec === c.id ? `<span class="recn">Press the keys… <span class="note">Esc cancels</span></span>` : keysOf(c).map(k => `<kbd>${esc(showKey(k))}</kbd>`).join(" ") || `<span class="note">none</span>`}${mine ? ` <span class="tag">yours</span>` : ""}</td>
+          <td style="text-align:right;white-space:nowrap"><button class="tbtn" data-x="rec">${keysOf(c).length ? "Change" : "Set"}</button>${keysOf(c).length ? `<button class="tbtn" data-x="clear" title="No key for this command">Clear</button>` : ""}${mine ? `<button class="tbtn" data-x="reset" title="Back to ${esc(c.def.map(showKey).join(", ") || "no key")}">Reset</button>` : ""}</td></tr>`; }).join("")}</tbody></table>
+      <p class="note">Click Change and press the keys. If another command already uses them, it gives them up. Keys are matched by their place on the keyboard, so they work in any layout. Plain arrows, Enter and Esc move around the table and are not listed here.</p>`
+    : `<div class="sec">Account</div><div class="prow"><span>Signed in as</span><b>${esc(S.user.email)}</b></div>
+      <div class="sec">Change password</div><form class="prow" id="ppw" style="gap:8px"><input name="p1" type="password" placeholder="New password, 8+ characters" autocomplete="new-password" required><input name="p2" type="password" placeholder="Repeat it" autocomplete="new-password" required><button class="tbtn pri" type="submit">Change password</button></form>`;
+    v.innerHTML = `<div class="modal wide prefs"><div class="mhead"><span class="t">Settings</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div>
+      <div class="pbody"><nav class="pnav">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${n}</button>`).join("")}</nav><div class="mbody">${body}</div></div>
+      <div class="mfoot"><button class="tbtn pri" data-x="close">Done</button></div></div>`;
+    if (!v.contains(document.activeElement) || rec) v.focus();
+    if (tab === "hotkeys" && wasFilter && !rec) { const f = v.querySelector("#pkfilter"); if (f) { f.focus(); f.setSelectionRange(filter.length, filter.length); } } };
+  const stopRec = () => { rec = null; S.recKey = false; paint(); };
+  paint(); v.tabIndex = -1; v.focus();
+  v.addEventListener("click", e => { if (e.target === v) return closeModal(); const b = e.target.closest("button"); if (!b) return; const x = b.dataset.x, c = CMDS.find(z => z.id === b.closest("tr")?.dataset.c);
+    if (b.dataset.tab) { tab = b.dataset.tab; rec = null; S.recKey = false; return paint(); }
+    if (x === "close") { S.recKey = false; return closeModal(); }
+    if (x === "fs-" || x === "fs+") { VIEW.fs += x === "fs+" ? 1 : -1; applyView(true); render(); return paint(); }
+    if (x === "resetall") { PREF.keys = {}; savePref(); render(); return paint(); }
+    if (!c) return;
+    if (x === "rec") { rec = c.id; S.recKey = true; return paint(); }
+    if (x === "clear") { PREF.keys[c.id] = []; savePref(); render(); return paint(); }
+    if (x === "reset") { delete PREF.keys[c.id]; savePref(); render(); return paint(); } });
+  v.addEventListener("keydown", e => { e.stopPropagation();
+    if (rec) { e.preventDefault(); if (e.key === "Escape") return stopRec(); const combo = comboOf(e); if (!combo || /^(Ctrl|Meta|Alt|Shift)$/.test(e.key)) return;
+      const other = CMDS.find(z => z.id !== rec && keysOf(z).includes(combo)); if (other) PREF.keys[other.id] = keysOf(other).filter(k => k !== combo);
+      PREF.keys[rec] = [combo]; savePref(); const c = CMDS.find(z => z.id === rec); stopRec(); render(); toast(`${c.name}: ${showKey(combo)}` + (other ? ` — taken from “${other.name}”` : "")); return; }
+    if (e.key === "Escape") closeModal(); });
+  v.addEventListener("input", e => { if (e.target.id === "pkfilter") { filter = e.target.value; paint(); } });
+  v.addEventListener("change", e => { if (e.target.id === "pfont") { VIEW.font = e.target.value; applyView(true); render(); }
+    if (e.target.id === "pauto") { PREF.autoApply = e.target.checked; savePref(); render(); if (PREF.autoApply && S.draft.ops.length) toast("Changes will be applied by themselves — the current draft too", false), scheduleAuto(); } });
+  v.addEventListener("submit", async e => { e.preventDefault(); const f = e.target; if (f.id !== "ppw") return; const a = f.elements.p1.value, b2 = f.elements.p2.value;
+    if (a.length < 8) return toast("At least 8 characters", true); if (a !== b2) return toast("The two passwords differ", true);
+    const { error } = await sb.auth.updateUser({ password: a }); if (error) return fail(error); f.reset(); toast("Password changed"); }); }
+let autoTimer = null;
+function scheduleAuto(){ if (!PREF.autoApply) return; clearTimeout(autoTimer); autoTimer = setTimeout(() => { if (S.draft.ops.length && !S.saving && !document.querySelector(".veil")) applyDraft(); else if (S.draft.ops.length) scheduleAuto(); }, 700); }
+function deleteMany(ids){ const rows = ids.map(id => S.row[id]).filter(r => r && !r._del); const top = rows.filter(r => !rows.some(o => o !== r && isUnder(r, o.id))); if (!top.length) return;
+  if (top.length === 1) return deleteRow(top[0]); draftPush(); for (const r of top) deleteRow(r, true); S.multi = null; saveDraft(); rebuild(); render();
+  toast(`${top.length} rows marked for deletion — Apply to delete, Ctrl+Z to keep`); }
 function moveSel(dr, dc){ const rows = visibleRows(), cols = columns(); if (!rows.length) return;
   let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : 0, ci = S.sel ? cols.findIndex(x => x.id === S.sel.f) : 0; if (ri < 0) ri = 0; if (ci < 0) ci = 0;
   ri = Math.max(0, Math.min(rows.length - 1, ri + dr)); ci = Math.max(0, Math.min(cols.length - 1, ci + dc)); select(rows[ri].id, cols[ci].id); }
@@ -745,12 +872,13 @@ function cloneRow(r){ const ti = byRole("title"); const strip = ["time_spent","s
   S.sel = { r: map[r.id], f: S.fields[0].id }; pushOps([{ t:"rows", rows, deps, gaps }], `“${r.title}” cloned with everything inside — estimates and realizers kept, fact and statuses empty`); return map[r.id]; }
 function nextSibling(r){ const sibs = S.tree.filter(x => x.parent_id === r.parent_id); return sibs[sibs.indexOf(r) + 1] || null; }
 function under(id){ return S.tree.filter(x => isUnder(x, id)).map(x => x.id); }
-function deleteRow(r){ if (r._del) return; const ids = new Set(under(r.id));
-  if (r._new) { ids.add(r.id); draftPush(); const ti = byRole("title");   // a row the draft itself added: deleting it just takes it out of the draft
+function deleteRow(r, bulk){ if (r._del) return; const ids = new Set(under(r.id));
+  if (r._new) { ids.add(r.id); if (!bulk) draftPush(); const ti = byRole("title");   // a row the draft itself added: deleting it just takes it out of the draft
     S.draft.ops = S.draft.ops.map(o => o.t !== "rows" ? o : { ...o, rows: o.rows.filter(x => !ids.has(x.id)), deps: (o.deps || []).filter(([a, b]) => !ids.has(a) && !ids.has(b)), gaps: (o.gaps || []).filter(g => !ids.has(g.record)) })
       .filter(o => (o.t !== "rows" || o.rows.length) && !(o.record && ids.has(o.record)) && !(o.t === "move" && (ids.has(o.parent) || ids.has(o.before))) && !(o.t === "rows" && o.pipe && ids.has(o.pipe.record)));
     for (const o of S.draft.ops) if (o.t === "rows") for (const x of o.rows) if (ids.has(x.before)) x.before = null;
-    if (S.sel && ids.has(S.sel.r)) S.sel = null; saveDraft(); rebuild(); render(); return toast(`“${r.title}” was new in the draft — it is gone; Ctrl+Z brings it back`); }
+    if (bulk) return; if (S.sel && ids.has(S.sel.r)) S.sel = null; saveDraft(); rebuild(); render(); return toast(`“${r.title}” was new in the draft — it is gone; Ctrl+Z brings it back`); }
+  if (bulk) { S.draft.ops = S.draft.ops.filter(o => !ids.has(o.record)); S.draft.ops.push({ t:"del", record:r.id }); return; }
   draftPush();
   S.draft.ops = S.draft.ops.filter(o => !ids.has(o.record)); S.draft.ops.push({ t:"del", record:r.id }); saveDraft(); rebuild(); render();
   toast(`${ids.size} row${ids.size > 1 ? "s" : ""} marked for deletion — Apply to delete, Ctrl+Z to keep`); }
@@ -999,13 +1127,13 @@ function barMenu(id, x, y){ const r = S.row[id], s = S.segEff[id]; if (!r || !s)
 function clearFilters(){ S.flt = {}; S.hideDone = false; S.search = ""; saveTV(); render(); }
 function draftBar(){ const n = S.draft.ops.length;
   return `<button class="tbtn ico" data-act="undo" title="Undo (Ctrl+Z)" ${S.draft.undo.length ? "" : "disabled"}>↶</button><button class="tbtn ico" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button><span class="tsep"></span>
-    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database (${IS_MAC ? "⌘" : "Ctrl+"}Enter)" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
+    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database (${keyHint("apply")})" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
 const stepName = () => STEPS.find(x => x[0] === S.step)[1];
 function setStep(h){ S.step = h; try { localStorage.setItem("pmkit.step", h); } catch (_) {} render(); }
 function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && columns().find(c => c.id === S.sel.f); const lv = r && levelOf(r), cl = r && childLevel(r), top = enabledLevels()[0]; const onT = S.sheet === "tracker"; const go = sh => async () => { S.sheet = sh; try { if (sh === "history") await loadHistory(); } catch (e) { fail(e); } render(); };
   const M = {
-    edit: [{ label:"Undo", hint:"Ctrl+Z", disabled:!S.draft.undo.length, run: undo }, { label:"Redo", hint:"Ctrl+Y", disabled:!S.draft.redo.length, run: redo }, "-",
-      { label:"Apply the draft", hint: IS_MAC ? "⌘Enter" : "Ctrl+Enter", disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
+    edit: [{ label:"Undo", hint: keyHint("undo"), disabled:!S.draft.undo.length, run: undo }, { label:"Redo", hint: keyHint("redo"), disabled:!S.draft.redo.length, run: redo }, "-",
+      { label:"Apply the draft", hint: keyHint("apply"), disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
       { label:"Clear the cell", hint:"Delete", disabled: !onT || !r || !f || f.virtual || f.role === "title" || isRollup(r, f), run: () => setCell(r.id, f, f.type === "checkbox" ? false : null) },
       { label:"Delete the row", disabled: !onT || !r || r._del, danger:true, run: () => deleteRow(r) }, "-", { label:"Saved changes: open History", run: go("history") }],
     insert: [...enabledLevels().map(L => { const sp = insertSpot(L); return { label: L.name, hint: sp.why || sp.hint, disabled: !onT || !!sp.why, run: () => addRow(sp.parent, L, sp.before) }; }), "-",
@@ -1103,6 +1231,7 @@ $app.addEventListener("click", async e => {
     try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadTree(); } catch (err) { fail(err); } return render(); }
   if (b) { const a = b.dataset.act, id = b.dataset.id;
     if (a === "out") return sb.auth.signOut();
+    if (a === "prefs") return openPrefs("general");
     if (a === "pwd") { const p = window.prompt("New password (at least 8 characters):"); if (!p) return; if (p.length < 8) return toast("Too short", true); const { error } = await sb.auth.updateUser({ password: p }); return error ? fail(error) : toast("Password changed"); }
     if (a === "toggle") { S.collapsed.has(id) ? S.collapsed.delete(id) : S.collapsed.add(id); return render(); }
     if (a === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
@@ -1154,12 +1283,7 @@ $app.addEventListener("keydown", e => {
       if (["number","money","duration"].includes(f.type)) { v = v === "" ? null : Number(v.replace(",", ".")); if (Number.isNaN(v)) return toast("This cell needs a number", true); } else if (v === "") v = null; e.target.blur(); return setCell(r.id, f, v); }
     if (e.key === "Escape") { e.target.blur(); render(); } return; }
   if (S.sheet !== "tracker" || S.editing || !e.target.classList.contains("main")) return; const k = e.key;
-  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
-  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "y") { e.preventDefault(); return redo(); }
   if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (k === "ArrowDown" || k === "ArrowUp")) { e.preventDefault(); return extendSel(k === "ArrowDown" ? 1 : -1); }
-  if ((IS_MAC ? e.metaKey : e.ctrlKey) && !e.shiftKey && !e.altKey && k.toLowerCase() === "a") { e.preventDefault(); const ids = visibleRows().map(r => r.id); if (!ids.length) return;
-    S.multi = new Set(ids); S.anchor = ids[0]; S.sel = { r: S.sel?.r && S.multi.has(S.sel.r) ? S.sel.r : ids[0], f: S.sel?.f || columns()[0].id, row:true }; return render(); }
-  if ((k === "ArrowLeft" || k === "ArrowRight") && (IS_MAC ? e.altKey && !e.metaKey && !e.ctrlKey : e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); return foldSel(k === "ArrowRight", e.shiftKey); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (!S.sel || S.sel.row) {   // row mode
     if (k === "ArrowDown") { e.preventDefault(); return moveRowSel(1); } if (k === "ArrowUp") { e.preventDefault(); return moveRowSel(-1); }
