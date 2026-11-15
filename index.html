@@ -121,7 +121,9 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .chgl{flex:1;overflow:auto}.chgi{display:flex;align-items:flex-start;gap:8px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--rule-2);cursor:pointer}.chgi:hover{background:var(--band)}
 .chgi .ck{flex:none;width:62px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--honey);padding-top:2px}
 .chgi .ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;font-size:12.5px}.chgi .ct b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chgi .ct span{color:var(--muted);font-size:12px;word-break:break-word}
-.chgi .ib{flex:none;width:24px;height:24px;opacity:.55}.chgi:hover .ib{opacity:1}.chgi .ib:hover{color:#a8432f;border-color:#a8432f}
+.chgi .ib{flex:none;width:24px;height:24px;font-size:14px;line-height:1;opacity:.6}.chgi:hover .ib{opacity:1}.chgi .ib:hover{color:var(--mark);border-color:var(--mark)}
+.chgi.off{cursor:default;background:var(--soft)}.chgi.off .ct b,.chgi.off .ct span{text-decoration:line-through;color:var(--muted-3)}.chgi.off .ck{color:var(--muted-3)}.chgi.off .ib{opacity:1;color:var(--mark)}
+.chgh .n.off{background:var(--band);color:var(--muted)}
 .chgf{padding:8px 12px;border-top:1px solid var(--rule);font-size:11.5px;color:var(--muted)}
 .tbtn.on{background:var(--band-2)}
 .keyhelp{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:4px 26px}
@@ -406,8 +408,8 @@ async function loadPlanData(){
 }
 /* the draft lives in the browser until Apply; it survives a reload */
 const draftKey = () => "pmkit.draft." + S.project?.id;
-function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(S.draft.ops)); } catch (_) {} if (PREF.autoApply && S.draft.ops.length) scheduleAuto(); }
-function loadDraft(){ if (S.draft.project !== S.project.id) { S.draft = { ops:[], undo:[], redo:[], project:S.project.id }; try { S.draft.ops = JSON.parse(localStorage.getItem(draftKey()) || "[]"); } catch (_) {} }
+function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(S.draft.ops)); localStorage.setItem(draftKey() + ".off", JSON.stringify(S.draft.parked || [])); } catch (_) {} if (PREF.autoApply && S.draft.ops.length) scheduleAuto(); }
+function loadDraft(){ if (S.draft.project !== S.project.id) { S.draft = { ops:[], parked:[], undo:[], redo:[], project:S.project.id }; try { S.draft.ops = JSON.parse(localStorage.getItem(draftKey()) || "[]"); S.draft.parked = JSON.parse(localStorage.getItem(draftKey() + ".off") || "[]"); } catch (_) {} }
   const ids = new Set(S.base.map(r => r.id)), fids = new Set(S.raw.fields.map(f => f.id)), keep = [];
   for (const o of S.draft.ops) {
     if (o.t === "rows") { if (o.pipe && !ids.has(o.pipe.record)) continue; if (o.rows.some(x => x.parent && !ids.has(x.parent) && !o.rows.some(y => y.id === x.parent))) continue; o.rows.forEach(x => ids.add(x.id)); keep.push(o); continue; }
@@ -449,7 +451,9 @@ function deriveSchema(){ const R = S.raw, ops = S.draft?.project === S.project?.
   S.removedFields = S.allFields.filter(f => removed.has(f.id));
   S.hiddenFields = S.allFields.filter(f => f.mode === "hidden" && !removed.has(f.id));
   S.fields = S.allFields.filter(f => f.mode !== "hidden" && !removed.has(f.id)); }
-function draftPush(){ S.draft.undo.push(JSON.stringify(S.draft.ops)); if (S.draft.undo.length > 200) S.draft.undo.shift(); S.draft.redo = []; }
+const draftSnap = () => JSON.stringify({ o: S.draft.ops, p: S.draft.parked || [] });
+function draftRestore(t){ const v = JSON.parse(t); if (Array.isArray(v)) { S.draft.ops = v; S.draft.parked = []; } else { S.draft.ops = v.o; S.draft.parked = v.p || []; } }
+function draftPush(){ S.draft.undo.push(draftSnap()); if (S.draft.undo.length > 200) S.draft.undo.shift(); S.draft.redo = []; }
 function draftCell(rec, f, val){ draftPush(); const base = S.base.find(r => r.id === rec)?.data?.[f.id] ?? null;
   S.draft.ops = S.draft.ops.filter(o => !(o.t === "cell" && o.record === rec && o.field === f.id));
   if (JSON.stringify(base) !== JSON.stringify(val ?? null)) S.draft.ops.push({ t:"cell", record:rec, field:f.id, value: val ?? null, base });
@@ -987,7 +991,7 @@ function addField(beforeId){ closeModal(); const v = document.createElement("div
   v.addEventListener("click", e => { if (e.target === v || e.target.dataset.x === "cancel") closeModal(); });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
 function undo(){ if (!S.draft.undo.length) return toast(S.draft.ops.length ? "Nothing more to undo in the draft" : "Nothing to undo — saved changes are taken back from History");
-  S.draft.redo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.undo.pop()); saveDraft(); rebuild(); if (S.sel && !S.row[S.sel.r]) S.sel = null; render(); }
+  S.draft.redo.push(draftSnap()); draftRestore(S.draft.undo.pop()); saveDraft(); rebuild(); if (S.sel && !S.row[S.sel.r]) S.sel = null; render(); }
 /* taking back something already saved: the reverse change goes into the draft and waits for Apply */
 async function undoEntry(id){ try { const b = S.batches.find(x => x.id === id);
     const lines = await q(sb.from("change_log").select("id,target_type,target_id,field_id,attr,old_value,new_value").eq("batch_id", id).order("id", { ascending:false }));
@@ -1003,13 +1007,13 @@ async function undoEntry(id){ try { const b = S.batches.find(x => x.id === id);
     if (!ops.length) return toast("Nothing to take back: the table already has those values");
     draftPush(); for (const o of ops) S.draft.ops = S.draft.ops.filter(x => !(x.record === o.record && ((o.t === "cell" && x.t === "cell" && x.field === o.field) || (o.t !== "cell" && (x.t === "seg" || x.t === "unplan"))))); S.draft.ops.push(...ops);
     S.draft.note = "Undo: " + (b?.summary || "saved change"); saveDraft(); rebuild(); S.sheet = ops.some(o => o.t === "cell") ? "tracker" : "gantt"; render(); toast(`${ops.length} reverse change${ops.length > 1 ? "s" : ""} put into the draft — check them and press Apply`); } catch (e) { fail(e); } }
-function redo(){ if (!S.draft.redo.length) return; S.draft.undo.push(JSON.stringify(S.draft.ops)); S.draft.ops = JSON.parse(S.draft.redo.pop()); saveDraft(); rebuild(); render(); }
+function redo(){ if (!S.draft.redo.length) return; S.draft.undo.push(draftSnap()); draftRestore(S.draft.redo.pop()); saveDraft(); rebuild(); render(); }
 async function applyDraft(){ const ops = S.draft.ops; if (!ops.length) return; const n = ops.length; S.saving++; paintSaved();
   try { await q(sb.rpc("apply_plan", { p_table: S.tbl.id, p_changes: planPayload(ops), p_summary: S.draft.note ? `${S.draft.note} (${n} change${n > 1 ? "s" : ""})` : `Draft applied: ${n} change${n > 1 ? "s" : ""}` }));
-    S.draft.ops = []; S.draft.undo = []; S.draft.redo = []; S.draft.note = null; saveDraft(); await loadProject(); toast(`Applied ${n} change${n > 1 ? "s" : ""} as one entry in History`); }
+    S.draft.ops = []; S.draft.parked = []; S.draft.undo = []; S.draft.redo = []; S.draft.note = null; saveDraft(); await loadProject(); toast(`Applied ${n} change${n > 1 ? "s" : ""} as one entry in History`); }
   catch (e) { fail(e); try { await loadProject(); } catch (_) {} }
   finally { S.saving--; } render(); }
-function discardDraft(){ if (!S.draft.ops.length) return; draftPush(); S.draft.ops = []; S.draft.note = null; saveDraft(); rebuild(); render(); toast("Draft discarded — Undo brings it back"); }
+function discardDraft(){ if (!S.draft.ops.length && !S.draft.parked?.length) return; draftPush(); S.draft.ops = []; S.draft.parked = []; S.draft.note = null; saveDraft(); rebuild(); render(); toast("Draft discarded — Undo brings it back"); }
 /* settings: workflow, lists, levels */
 function openSettings(fieldId){ if (fieldId === "levels") return openStructure(); closeModal(); let tab = fieldId || byRole("status")?.id || "levels"; let draft = null;
   const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v);
@@ -1183,27 +1187,37 @@ function opInfo(o){ const fld = id => S.allFields.find(f => f.id === id) || S.ra
     case "revert": return { k:"Take back", t: o.summary || "a saved entry", d:"from History", go:["history"] };
     default: return { k:o.t, t:"", d:"" }; } }
 /* take back one change, and whatever only makes sense with it (edits to a row it added, a column it added…) */
-function dropOp(i){ const o = S.draft.ops[i]; if (!o) return; draftPush(); let ops = S.draft.ops.filter((_, k) => k !== i); const rows = new Set(), flds = new Set(), pls = new Set(), sts = new Set();
+/* ↶ switches one change off — it stays in the list, struck through, together with what only makes sense with it; ↷ brings the group back */
+function parkOp(i){ const o = S.draft.ops[i]; if (!o) return; const rest = S.draft.ops.map((op, at) => ({ op, at })).filter(x => x.at !== i); const rows = new Set(), flds = new Set(), pls = new Set(), sts = new Set();
   if (o.t === "rows") o.rows.forEach(x => rows.add(x.id)); if (o.t === "fadd") flds.add(o.field); if (o.t === "pl_add") pls.add(o.pipeline); if (o.t === "ps_add") sts.add(o.stage);
-  for (let grew = true; grew;) { grew = false; for (const x of ops) { const add = (set, id) => { if (!set.has(id)) { set.add(id); grew = true; } };
+  for (let grew = true; grew;) { grew = false; for (const { op: x } of rest) { const add = (set, id) => { if (!set.has(id)) { set.add(id); grew = true; } };
       if (x.t === "rows" && x.rows.some(y => rows.has(y.parent) || (x.pipe && rows.has(x.pipe.record)))) x.rows.forEach(y => add(rows, y.id));
       if (x.t === "ps_add" && pls.has(x.pipeline)) add(sts, x.stage); } }
-  ops = ops.filter(x => !(x.t === "rows" && x.rows.every(y => rows.has(y.id))) && !(x.record && rows.has(x.record)) && !(x.t === "move" && (rows.has(x.parent) || rows.has(x.before)))
-    && !(x.field && flds.has(x.field)) && !(x.t === "ps_add" && (pls.has(x.pipeline) || sts.has(x.stage))) && !((x.t === "ps_set" || x.t === "dep") && (sts.has(x.stage) || sts.has(x.depends_on))));
-  for (const x of ops) if (x.t === "rows") for (const y of x.rows) if (rows.has(y.before)) y.before = null;
-  const gone = S.draft.ops.length - ops.length; S.draft.ops = ops; if (!ops.length) S.draft.note = null; if (S.sel && !S.tree.some(r => r.id === S.sel.r && !rows.has(r.id))) S.sel = null;
-  saveDraft(); rebuild(); render(); toast(gone > 1 ? `Taken back with ${gone - 1} change${gone > 2 ? "s" : ""} that depended on it — Ctrl+Z brings them back` : "Taken back — Ctrl+Z brings it back"); }
+  const dep = x => (x.t === "rows" && x.rows.every(y => rows.has(y.id))) || (x.record && rows.has(x.record)) || (x.t === "move" && (rows.has(x.parent) || rows.has(x.before)))
+    || (x.field && flds.has(x.field)) || (x.t === "ps_add" && (pls.has(x.pipeline) || sts.has(x.stage))) || ((x.t === "ps_set" || x.t === "dep") && (sts.has(x.stage) || sts.has(x.depends_on)));
+  const g = uid(); const off = [{ op:o, at:i, g, root:true }, ...rest.filter(x => dep(x.op)).map(x => ({ op:x.op, at:x.at, g }))];
+  draftPush(); const outAt = new Set(off.map(x => x.at)); S.draft.ops = S.draft.ops.filter((_, at) => !outAt.has(at)); (S.draft.parked ||= []).push(...off);
+  if (!S.draft.ops.length) S.draft.note = null; if (S.sel && rows.has(S.sel.r)) S.sel = null;
+  saveDraft(); rebuild(); render(); toast(off.length > 1 ? `Switched off with ${off.length - 1} change${off.length > 2 ? "s" : ""} that depend on it — ↷ brings them back` : "Switched off — ↷ brings it back"); }
+function unparkOp(g){ const back = (S.draft.parked || []).filter(x => x.g === g).sort((a, b) => a.at - b.at); if (!back.length) return; draftPush();
+  S.draft.parked = S.draft.parked.filter(x => x.g !== g); for (const x of back) S.draft.ops.splice(Math.min(x.at, S.draft.ops.length), 0, x.op);
+  saveDraft(); rebuild(); render(); toast(back.length > 1 ? `Back on, with ${back.length - 1} more` : "Back on"); }
 function toggleChanges(){ const el = document.querySelector(".chg");
   if (!S.showChanges) { S.showChanges = true; S.chgState = "enter"; render();
     return requestAnimationFrame(() => requestAnimationFrame(() => { S.chgState = "open"; document.querySelector(".chg")?.classList.add("open"); })); }
   S.chgState = "leave"; if (!el) { S.showChanges = false; return render(); } el.classList.remove("open");
   document.querySelectorAll('[data-act="changes"].on').forEach(b => b.classList.remove("on"));
   setTimeout(() => { if (S.chgState === "leave") { S.showChanges = false; S.chgState = null; render(); } }, 270); }
-function changesPanel(){ const ops = S.draft.ops; const items = ops.map((o, i) => ({ o, i, ...opInfo(o) })).reverse();
-  return `<aside class="chg ${S.chgState === "open" ? "open" : ""}"><div class="chgh"><b>Changes in the draft</b><span class="n">${ops.length}</span><span class="sp"></span><button class="ib" data-act="changes" title="Close">✕</button></div>
-    <div class="chgl">${items.length ? items.map(x => `<div class="chgi" data-op="${x.i}" title="Show it"><span class="ck">${esc(x.k)}</span><div class="ct"><b>${esc(x.t || "")}</b>${x.d ? `<span>${esc(x.d)}</span>` : ""}</div><button class="ib" data-drop="${x.i}" title="Take back this change">✕</button></div>`).join("")
+function changesPanel(){ const ops = S.draft.ops, parked = S.draft.parked || []; const list = ops.map((o, i) => ({ o, i }));
+  for (const p of parked.slice().sort((a, b) => a.at - b.at)) list.splice(Math.min(p.at, list.length), 0, { o: p.op, g: p.g, off:true });
+  const info = o => { try { return opInfo(o); } catch (_) { return { k:o.t, t:"", d:"" }; } };
+  const items = list.map(x => ({ ...x, ...info(x.o) })).reverse();
+  return `<aside class="chg ${S.chgState === "open" ? "open" : ""}"><div class="chgh"><b>Changes in the draft</b><span class="n">${ops.length}</span>${parked.length ? `<span class="n off">${parked.length} off</span>` : ""}<span class="sp"></span><button class="ib" data-act="changes" title="Close">✕</button></div>
+    <div class="chgl">${items.length ? items.map(x => x.off
+        ? `<div class="chgi off"><span class="ck">${esc(x.k)}</span><div class="ct"><b>${esc(x.t || "")}</b>${x.d ? `<span>${esc(x.d)}</span>` : ""}</div><button class="ib" data-restore="${x.g}" title="Bring it back">↷</button></div>`
+        : `<div class="chgi" data-op="${x.i}" title="Show it"><span class="ck">${esc(x.k)}</span><div class="ct"><b>${esc(x.t || "")}</b>${x.d ? `<span>${esc(x.d)}</span>` : ""}</div><button class="ib" data-drop="${x.i}" title="Switch this change off — it stays in the list">↶</button></div>`).join("")
       : `<div class="empty" style="padding:22px 14px">Nothing in the draft. Every change you make shows up here until you press Apply.</div>`}</div>
-    ${items.length ? `<div class="chgf">Newest first · ✕ takes back one change · ${esc(keyHint("apply"))} applies all</div>` : ""}</aside>`; }
+    ${items.length ? `<div class="chgf">Newest first · ↶ switches a change off, ↷ brings it back · ${esc(keyHint("apply"))} applies what is on</div>` : ""}</aside>`; }
 async function showOp(i){ const o = S.draft.ops[i]; if (!o) return; const g = opInfo(o).go || []; if (g[0] && S.sheet !== g[0]) await goSheet(g[0]);
   const id = g[1]; if (!id || !S.row[id]) return; let x = S.row[S.row[id].parent_id]; while (x) { S.collapsed.delete(x.id); x = S.row[x.parent_id]; }
   if (S.sheet === "tracker") { const f = o.t === "cell" && columns().some(c => c.id === o.field) ? o.field : S.sel?.f || columns()[0].id; select(id, f, true, o.t !== "cell"); }
@@ -1305,7 +1319,8 @@ function sheetHistory(){
 /* ---------------- events ---------------- */
 document.addEventListener("mousedown", e => { if (!e.target.closest(".menu")) closeMenu(); });
 $app.addEventListener("click", async e => {
-  const t = e.target; const dropB = t.closest("[data-drop]"); if (dropB) return dropOp(+dropB.dataset.drop);
+  const t = e.target; const dropB = t.closest("[data-drop]"); if (dropB) return parkOp(+dropB.dataset.drop);
+  const backB = t.closest("[data-restore]"); if (backB) return unparkOp(backB.dataset.restore);
   const opI = t.closest(".chgi"); if (opI) return showOp(+opI.dataset.op);
   const mb = t.closest("[data-menu]"); if (mb) { const bx = mb.getBoundingClientRect(); return mainMenu(mb.dataset.menu, bx.left, bx.bottom + 1); }
   const b = t.closest("[data-sheet],[data-act]");
