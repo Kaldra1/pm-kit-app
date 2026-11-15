@@ -100,6 +100,14 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .srow .sn:hover,.srow .sdl:hover{border-color:var(--rule)}.srow .sn:focus,.srow .sdl:focus{outline:2px solid var(--mark);background:#fff}
 .srow .sd{font-family:var(--font-mono);font-size:11.5px;color:var(--text-2)}.srow .sd.late{color:#b5483a;font-weight:600}.srow .sh{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sadd{padding:6px 0 8px}
+.chg{position:fixed;right:0;top:104px;bottom:62px;width:360px;max-width:92vw;background:#fff;border-left:1px solid var(--frame);box-shadow:-8px 0 24px rgba(20,40,70,.12);z-index:40;display:flex;flex-direction:column}
+.chgh{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--rule);font-size:13px}.chgh .n{font-family:var(--font-mono);font-size:11px;background:#fff1cc;color:var(--honey);border-radius:9px;padding:1px 7px}
+.chgl{flex:1;overflow:auto}.chgi{display:flex;align-items:flex-start;gap:8px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--rule-2);cursor:pointer}.chgi:hover{background:var(--band)}
+.chgi .ck{flex:none;width:62px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--honey);padding-top:2px}
+.chgi .ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;font-size:12.5px}.chgi .ct b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chgi .ct span{color:var(--muted);font-size:12px;word-break:break-word}
+.chgi .ib{flex:none;width:24px;height:24px;opacity:.55}.chgi:hover .ib{opacity:1}.chgi .ib:hover{color:#a8432f;border-color:#a8432f}
+.chgf{padding:8px 12px;border-top:1px solid var(--rule);font-size:11.5px;color:var(--muted)}
+.tbtn.on{background:var(--band-2)}
 .keyhelp{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:4px 26px}
 .kcol .sec{margin-top:6px}.krow{display:flex;justify-content:space-between;gap:12px;padding:3px 0;font-size:12.5px;border-bottom:1px solid var(--rule-2)}
 .kk{white-space:nowrap;color:var(--muted)}kbd{font-family:var(--font-mono);font-size:11px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--label-bg);color:var(--ink)}
@@ -488,6 +496,7 @@ function render(){
     ${PREF.autoApply ? `<span class="saved" title="Settings → General">saving at once</span>` : ""}<span class="who">${esc(S.user.email)}</span><button class="hbtn" data-act="prefs" title="Settings (${keyHint("settings")})">⚙ Settings</button><button class="hbtn" data-act="out">Sign out</button></header>
     <div class="mrow">${["Edit","Insert","View","Plan","Project"].map(m => `<button data-menu="${m.toLowerCase()}">${m}</button>`).join("")}</div>
     ${body}
+    ${S.showChanges && S.project ? changesPanel() : ""}
     <nav class="tabs">${SHEETS.map(([k, n]) => `<button class="tab" data-sheet="${k}" ${S.sheet === k ? 'aria-current="page"' : ""}>${n}</button>`).join("")}<span class="soon">General info · your own tables — later</span></nav>`;
   const m2 = document.querySelector(".main");
   if (m2 && keep) { m2.scrollTop = keep[0]; m2.scrollLeft = keep[1]; }
@@ -645,6 +654,7 @@ const SHEET_KEYS = SHEETS.map(([k, n], i) => ({ id:"sheet_" + k, group:"Sheets",
 const CMDS = [
   { id:"apply", group:"Draft", name:"Apply the draft", scope:"any", def:[M + "+Enter"], run: applyByKey },
   { id:"discard", group:"Draft", name:"Discard the draft", scope:"page", def:[], run: () => discardDraft(), note:"No key on purpose — set one only if you want it" },
+  { id:"changes", group:"Draft", name:"Show or hide the list of changes", scope:"page", def:[], run: () => { S.showChanges = !S.showChanges; render(); } },
   { id:"undo", group:"Draft", name:"Undo", scope:"page", def:[M + "+Z"], run: undo },
   { id:"redo", group:"Draft", name:"Redo", scope:"page", def: IS_MAC ? ["Meta+Shift+Z", "Meta+Y"] : ["Ctrl+Y", "Ctrl+Shift+Z"], run: redo },
   { id:"newrow", group:"Rows", name:"New row of the same level below", scope:"rows", def:["Shift+="], run: () => { const r = S.row[S.sel?.r]; r ? addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null) : addRow(null, enabledLevels()[0], null); } },
@@ -884,7 +894,8 @@ function deleteRow(r, bulk){ if (r._del) return; const ids = new Set(under(r.id)
   toast(`${ids.size} row${ids.size > 1 ? "s" : ""} marked for deletion — Apply to delete, Ctrl+Z to keep`); }
 function restoreRow(r){ let x = r; while (x) { if (S.draft.ops.some(o => o.t === "del" && o.record === x.id)) break; x = S.row[x.parent_id]; } if (!x) return;
   draftPush(); S.draft.ops = S.draft.ops.filter(o => !(o.t === "del" && o.record === x.id)); saveDraft(); rebuild(); render(); }
-function moveRow(src, parent, before){ draftPush(); S.draft.ops.push({ t:"move", record:src.id, parent: parent || null, before: before || null }); saveDraft(); rebuild(); render(); }
+function moveRow(src, parent, before){ draftPush();   // the last move of a row says where it ends up, so earlier moves of the same row are dropped
+  S.draft.ops = S.draft.ops.filter(o => !(o.t === "move" && o.record === src.id)); S.draft.ops.push({ t:"move", record:src.id, parent: parent || null, before: before || null }); saveDraft(); rebuild(); render(); }
 function confirmBox(title, text, okLabel, fn){ closeModal(); const v = document.createElement("div"); v.className = "veil";
   v.innerHTML = `<div class="modal" style="width:480px"><div class="mhead"><span class="t">${esc(title)}</span></div><div class="mbody"><p style="margin:0">${esc(text)}</p></div>
     <div class="mfoot"><button class="tbtn" data-x="cancel">Cancel</button><button class="tbtn pri" data-x="ok">${esc(okLabel)}</button></div></div>`;
@@ -1126,8 +1137,55 @@ function barMenu(id, x, y){ const r = S.row[id], s = S.segEff[id]; if (!r || !s)
 
 function clearFilters(){ S.flt = {}; S.hideDone = false; S.search = ""; saveTV(); render(); }
 function draftBar(){ const n = S.draft.ops.length;
-  return `<button class="tbtn ico" data-act="undo" title="Undo (Ctrl+Z)" ${S.draft.undo.length ? "" : "disabled"}>↶</button><button class="tbtn ico" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button><span class="tsep"></span>
-    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database (${keyHint("apply")})" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
+  return `<button class="tbtn ico" data-act="undo" title="Undo (${keyHint("undo")})" ${S.draft.undo.length ? "" : "disabled"}>↶</button><button class="tbtn ico" data-act="redo" title="Redo (${keyHint("redo")})" ${S.draft.redo.length ? "" : "disabled"}>↷</button><span class="tsep"></span>
+    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database (${keyHint("apply")})" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn ${S.showChanges ? "on" : ""}" data-act="changes" title="See every change in the draft and take back any one of them${keyHint("changes") ? " (" + keyHint("changes") + ")" : ""}">☰ Changes${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
+/* ---- the Changes panel: every change in the draft, newest first; ✕ takes back just that one ---- */
+function fmtVal(f, v){ if (v == null || v === "") return "—"; if (!f) return String(v); if (f.type === "person") return memberName(v) || "?"; if (f.type === "checkbox") return v ? "✓" : "✗";
+  if (f.type === "link") return v.caption || v.url || "link"; if (["duration","number","money"].includes(f.type)) return num(v) + (f.type === "duration" ? " h" : ""); return String(v); }
+function opInfo(o){ const fld = id => S.allFields.find(f => f.id === id) || S.raw.fields.find(f => f.id === id); const row = id => S.row[id]?.title || S.base.find(r => r.id === id)?.title || "a row";
+  const stage = id => S.stages.find(x => x.id === id)?.name || S.raw.stages.find(x => x.id === id)?.name || "a stage";
+  switch (o.t) {
+    case "cell": { const f = fld(o.field); return { k:"Edit", t: row(o.record), d: `${f?.name || "?"}: ${fmtVal(f, o.base)} → ${fmtVal(f, o.value)}`, go:["tracker", o.record] }; }
+    case "seg": return { k:"Plan", t: row(o.record), d: `${fmtDay(o.start)} – ${fmtDay(o.end, true)} · ${num(o.hours)} h${o.assignee ? " · " + memberName(o.assignee) : ""}`, go:["gantt", o.record] };
+    case "unplan": return { k:"Plan", t: row(o.record), d:"taken off the plan", go:["gantt", o.record] };
+    case "del": { const n = S.tree.filter(x => isUnder(x, o.record)).length; return { k:"Delete", t: row(o.record), d: n > 1 ? `with ${n - 1} row${n > 2 ? "s" : ""} inside` : "", go:["tracker", o.record] }; }
+    case "move": return { k:"Move", t: row(o.record), d: o.parent ? "into " + row(o.parent) : "to the top level", go:["tracker", o.record] };
+    case "rows": { const top = o.rows.filter(x => !o.rows.some(y => y.id === x.parent)); const ti = byRole("title"); const name = top.map(x => x.data?.[ti?.id] || "row").join(", ");
+      if (o.pipe) return { k:"Pipeline", t: row(o.pipe.record), d: `${o.rows.length} stages added`, go:["tracker", o.pipe.record] };
+      return { k: /\(copy\)$/.test(name) ? "Clone" : "Add", t: name, d: o.rows.length > top.length ? `with ${o.rows.length - top.length} row${o.rows.length - top.length > 1 ? "s" : ""} inside` : "", go:["tracker", top[0]?.id] }; }
+    case "fadd": return { k:"Column", t: o.name, d:"new column", go:["tracker"] };
+    case "fren": return { k:"Column", t: o.name, d:"renamed from " + (S.raw.fields.find(f => f.id === o.field)?.name || "?"), go:["tracker"] };
+    case "fdel": return { k:"Column", t: fld(o.field)?.name || "?", d:"deleted", go:["tracker"] };
+    case "fopt": return { k:"Options", t: fld(o.field)?.name || "?", d: o.options.map(x => x.name).join(" · "), go:["tracker"] };
+    case "fmove": return { k:"Column", t: fld(o.field)?.name || "?", d:"moved", go:["tracker"] };
+    case "fremove": return { k:"Column", t: fld(o.field)?.name || "?", d: o.on ? "taken out of the table" : "brought back", go:["tracker"] };
+    case "lvl": { const l = S.raw.levels.find(x => x.id === o.level); return { k:"Level", t: o.name || l?.name || "?", d: [o.name != null && l && o.name !== l.name ? "renamed from " + l.name : "", o.enabled != null ? (o.enabled ? "switched on" : "switched off") : ""].filter(Boolean).join(", "), go:["tracker"] }; }
+    case "pl_add": return { k:"Pipeline", t: o.name, d:"new pipeline", go:["pipelines"] };
+    case "ps_add": return { k:"Pipeline", t: o.name, d:"new stage" + (o.hours != null ? " · " + num(o.hours) + " h" : ""), go:["pipelines"] };
+    case "ps_set": return { k:"Pipeline", t: stage(o.stage), d: `${({ name:"name", default_hours:"hours", gap_type:"review after", gap_hours:"review hours" })[o.key] || o.key}: ${o.value ?? "—"}`, go:["pipelines"] };
+    case "dep": return { k:"Pipeline", t: stage(o.stage), d: (o.on ? "now waits for " : "no longer waits for ") + stage(o.depends_on), go:["pipelines"] };
+    case "revert": return { k:"Take back", t: o.summary || "a saved entry", d:"from History", go:["history"] };
+    default: return { k:o.t, t:"", d:"" }; } }
+/* take back one change, and whatever only makes sense with it (edits to a row it added, a column it added…) */
+function dropOp(i){ const o = S.draft.ops[i]; if (!o) return; draftPush(); let ops = S.draft.ops.filter((_, k) => k !== i); const rows = new Set(), flds = new Set(), pls = new Set(), sts = new Set();
+  if (o.t === "rows") o.rows.forEach(x => rows.add(x.id)); if (o.t === "fadd") flds.add(o.field); if (o.t === "pl_add") pls.add(o.pipeline); if (o.t === "ps_add") sts.add(o.stage);
+  for (let grew = true; grew;) { grew = false; for (const x of ops) { const add = (set, id) => { if (!set.has(id)) { set.add(id); grew = true; } };
+      if (x.t === "rows" && x.rows.some(y => rows.has(y.parent) || (x.pipe && rows.has(x.pipe.record)))) x.rows.forEach(y => add(rows, y.id));
+      if (x.t === "ps_add" && pls.has(x.pipeline)) add(sts, x.stage); } }
+  ops = ops.filter(x => !(x.t === "rows" && x.rows.every(y => rows.has(y.id))) && !(x.record && rows.has(x.record)) && !(x.t === "move" && (rows.has(x.parent) || rows.has(x.before)))
+    && !(x.field && flds.has(x.field)) && !(x.t === "ps_add" && (pls.has(x.pipeline) || sts.has(x.stage))) && !((x.t === "ps_set" || x.t === "dep") && (sts.has(x.stage) || sts.has(x.depends_on))));
+  for (const x of ops) if (x.t === "rows") for (const y of x.rows) if (rows.has(y.before)) y.before = null;
+  const gone = S.draft.ops.length - ops.length; S.draft.ops = ops; if (!ops.length) S.draft.note = null; if (S.sel && !S.tree.some(r => r.id === S.sel.r && !rows.has(r.id))) S.sel = null;
+  saveDraft(); rebuild(); render(); toast(gone > 1 ? `Taken back with ${gone - 1} change${gone > 2 ? "s" : ""} that depended on it — Ctrl+Z brings them back` : "Taken back — Ctrl+Z brings it back"); }
+function changesPanel(){ const ops = S.draft.ops; const items = ops.map((o, i) => ({ o, i, ...opInfo(o) })).reverse();
+  return `<aside class="chg"><div class="chgh"><b>Changes in the draft</b><span class="n">${ops.length}</span><span class="sp"></span><button class="ib" data-act="changes" title="Close">✕</button></div>
+    <div class="chgl">${items.length ? items.map(x => `<div class="chgi" data-op="${x.i}" title="Show it"><span class="ck">${esc(x.k)}</span><div class="ct"><b>${esc(x.t || "")}</b>${x.d ? `<span>${esc(x.d)}</span>` : ""}</div><button class="ib" data-drop="${x.i}" title="Take back this change">✕</button></div>`).join("")
+      : `<div class="empty" style="padding:22px 14px">Nothing in the draft. Every change you make shows up here until you press Apply.</div>`}</div>
+    ${items.length ? `<div class="chgf">Newest first · ✕ takes back one change · ${esc(keyHint("apply"))} applies all</div>` : ""}</aside>`; }
+async function showOp(i){ const o = S.draft.ops[i]; if (!o) return; const g = opInfo(o).go || []; if (g[0] && S.sheet !== g[0]) await goSheet(g[0]);
+  const id = g[1]; if (!id || !S.row[id]) return; let x = S.row[S.row[id].parent_id]; while (x) { S.collapsed.delete(x.id); x = S.row[x.parent_id]; }
+  if (S.sheet === "tracker") { const f = o.t === "cell" && columns().some(c => c.id === o.field) ? o.field : S.sel?.f || columns()[0].id; select(id, f, true, o.t !== "cell"); }
+  else { render(); document.querySelector(`[data-bar="${id}"]`)?.scrollIntoView({ block:"center", inline:"center" }); } }
 const stepName = () => STEPS.find(x => x[0] === S.step)[1];
 function setStep(h){ S.step = h; try { localStorage.setItem("pmkit.step", h); } catch (_) {} render(); }
 function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && columns().find(c => c.id === S.sel.f); const lv = r && levelOf(r), cl = r && childLevel(r), top = enabledLevels()[0]; const onT = S.sheet === "tracker"; const go = sh => async () => { S.sheet = sh; try { if (sh === "history") await loadHistory(); } catch (e) { fail(e); } render(); };
@@ -1225,7 +1283,9 @@ function sheetHistory(){
 /* ---------------- events ---------------- */
 document.addEventListener("mousedown", e => { if (!e.target.closest(".menu")) closeMenu(); });
 $app.addEventListener("click", async e => {
-  const t = e.target; const mb = t.closest("[data-menu]"); if (mb) { const bx = mb.getBoundingClientRect(); return mainMenu(mb.dataset.menu, bx.left, bx.bottom + 1); }
+  const t = e.target; const dropB = t.closest("[data-drop]"); if (dropB) return dropOp(+dropB.dataset.drop);
+  const opI = t.closest(".chgi"); if (opI) return showOp(+opI.dataset.op);
+  const mb = t.closest("[data-menu]"); if (mb) { const bx = mb.getBoundingClientRect(); return mainMenu(mb.dataset.menu, bx.left, bx.bottom + 1); }
   const b = t.closest("[data-sheet],[data-act]");
   if (b?.dataset.sheet) { S.sheet = b.dataset.sheet; S.editing = false; closeMenu();
     try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadTree(); } catch (err) { fail(err); } return render(); }
@@ -1242,6 +1302,7 @@ $app.addEventListener("click", async e => {
     if (a === "redo") return redo();
     if (a === "apply") return applyDraft();
     if (a === "discard") return discardDraft();
+    if (a === "changes") { S.showChanges = !S.showChanges; return render(); }
     if (a === "autoplan") { const box = b.getBoundingClientRect(); return openMenu(box.left, box.bottom + 2, [{ head:"Step: " + STEPS.find(x => x[0] === S.step)[1] }, { label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) },
       "-", { label:"Remove everything from the plan", danger:true, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }]); }
     if (a === "cols") { const box = b.getBoundingClientRect(); return openColumns(box.right - 250, box.bottom + 2); }
