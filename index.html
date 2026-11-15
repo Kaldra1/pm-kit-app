@@ -225,6 +225,15 @@ td:first-child.editing{position:sticky}
 .orow input[type=text]{flex:1;height:28px;border:1px solid var(--rule);border-radius:3px;padding:0 8px}
 .orow input[type=color]{width:30px;height:28px;border:1px solid var(--rule);border-radius:3px;padding:1px;background:#fff}
 .orow label{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.orow .ck,.ohead .ck{width:38px;justify-content:center;text-align:center}
+.orow .tint,.ohead .tint{width:148px;display:flex;align-items:center;gap:5px}
+.orow .tint i{width:14px;height:14px;border-radius:3px;border:1px solid var(--rule);flex:none}
+.orow .tint select{flex:1;height:26px;border:1px solid var(--rule);border-radius:3px;background:#fff;font-size:12px}
+.ohead{display:flex;align-items:center;gap:6px;font:600 10.5px var(--font-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 0 4px}
+.ohead .g{flex:1;text-align:right;padding-right:4px;text-transform:none;letter-spacing:0;font-weight:500}
+.grid tr.t-red td{background:#fbe3e0} .grid tr.t-dark td{background:#d9dde3} .grid tr.t-amber td{background:#fbf0d6}
+.grid tr.t-green td{background:#e1f2e7} .grid tr.t-blue td{background:#e2ecf9} .grid tr.t-violet td{background:#ece5f8}
+.grid .man{margin-left:4px;font-size:11px;color:var(--muted);cursor:help}
 .orow .n{width:20px;text-align:right;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3)}
 .ib{width:26px;height:26px;border:1px solid var(--rule);background:#fff;border-radius:3px;cursor:pointer;color:var(--muted)}
 .ib:hover{background:var(--band-2);color:var(--ink)} .ib:disabled{opacity:.35;cursor:default}
@@ -332,6 +341,14 @@ const enabledLevels = () => S.levels.filter(l => l.enabled);
 const levelOf = r => S.levels.find(l => l.id === r.level_id);
 function childLevel(r){ const cur = levelOf(r); return cur ? enabledLevels().find(l => l.position > cur.position) : null; }
 const meta = (f, v) => (f?.config?.meta && f.config.meta[v]) || {};
+/* row colours for statuses: a short fixed palette; grey also fades the text */
+const TINTS = [["", "No colour", ""], ["grey", "Grey · faded", "#eef0f3"], ["red", "Red", "#fbe3e0"], ["dark", "Dark", "#d9dde3"], ["amber", "Amber", "#fbf0d6"], ["green", "Green", "#e1f2e7"], ["blue", "Blue", "#e2ecf9"], ["violet", "Violet", "#ece5f8"]];
+/* how each status behaves: all = the parent takes it when every row inside has it; any = when at least one does; row = row colour.
+   Older lists without these marks get sensible ones from their names. */
+function stRules(f){ const opts = f?.config?.options || [], m = f?.config?.meta || {}; const marked = opts.some(o => "all" in (m[o] || {}) || "any" in (m[o] || {}) || "row" in (m[o] || {}));
+  const R = opts.map((name, i) => { const x = m[name] || {}; return marked ? { name, i, all: !!x.all, any: !!x.any, row: x.row || "" }
+    : { name, i, all: !!x.done || /^(brief|pending|ready)/i.test(name), any: /^(blocked|paused)/i.test(name), row: x.dim ? "grey" : /^blocked/i.test(name) ? "red" : /^paused/i.test(name) ? "dark" : "" }; });
+  const fb = R.find(x => !x.all && !x.any); return { list: R, by: Object.fromEntries(R.map(x => [x.name, x])), fallback: fb?.name || null, fbIdx: fb ? fb.i : -1 }; }
 const memberName = id => S.members.find(m => m.id === id)?.display_name || "";
 function closeMenu(){ document.querySelectorAll(".menu").forEach(e => e.remove()); }
 function closeModal(){ document.querySelectorAll(".veil").forEach(e => { e.classList.replace("veil", "veil-out"); setTimeout(() => e.remove(), 140); }); }
@@ -437,7 +454,7 @@ function deriveSchema(){ const R = S.raw, ops = S.draft?.project === S.project?.
     else if (!f && ["fren","fdel","fopt","fmove","fremove"].includes(o.t)) continue;
     else if (o.t === "fren") { f.name = o.name; S.fDraft.add(f.id); }
     else if (o.t === "fdel") fl = fl.filter(x => x.id !== o.field);
-    else if (o.t === "fopt") { f.config = { ...f.config, options: o.options.map(x => x.name), meta: Object.fromEntries(o.options.map(x => [x.name, { color:x.color, ...(x.dim ? { dim:true } : {}), ...(x.done ? { done:true } : {}) }])) }; S.fDraft.add(f.id); }
+    else if (o.t === "fopt") { f.config = { ...f.config, options: o.options.map(x => x.name), meta: Object.fromEntries(o.options.map(x => [x.name, { color:x.color, ...(x.all ? { all:true } : {}), ...(x.any ? { any:true } : {}), ...(x.row ? { row:x.row } : {}) }])) }; S.fDraft.add(f.id); }
     else if (o.t === "fmove") { if (f.role !== "title") place(o.field, o.before); }
     else if (o.t === "fremove") o.on ? removed.add(o.field) : removed.delete(o.field);
     else if (o.t === "pl_add") { pls.push({ id:o.pipeline, name:o.name, position: 999 }); S.plDraft.add(o.pipeline); }
@@ -460,6 +477,16 @@ function draftCell(rec, f, val){ draftPush(); const base = S.base.find(r => r.id
   if (JSON.stringify(base) !== JSON.stringify(val ?? null)) S.draft.ops.push({ t:"cell", record:rec, field:f.id, value: val ?? null, base });
   saveDraft(); rebuild(); }
 /* what the sheets show = database state + the draft on top */
+/* the status of a row with rows inside follows them, unless someone set it by hand (✎):
+   1) any row inside in an "any" status → the first such status in the list; 2) all rows inside in the same "all" status → that one;
+   3) otherwise → the first status with neither mark (In Progress) */
+function autoStatus(){ const st = byRole("status"); if (!st) return; const R = stRules(st), k = st.id;
+  for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i]; r._stAuto = r._stMan = false; const kids = S.tree.filter(c => c.parent_id === r.id && !c._del); if (!kids.length) continue;
+    if (r.data[k] != null && r.data[k] !== "") { r._stMan = true; continue; }
+    const vs = kids.map(c => c.data[k]).filter(v => v != null && v !== ""); if (!vs.length) continue;
+    const anyHit = R.list.find(x => x.any && vs.includes(x.name)); let v;
+    if (anyHit) v = anyHit.name; else if (vs.length === kids.length && vs.every(x => x === vs[0]) && R.by[vs[0]]?.all) v = vs[0]; else v = R.fallback || vs[0];
+    r.data[k] = v; r._stAuto = true; } }
 function rebuild(){ deriveSchema();
   const est = byRole("estimate"), sp = byRole("time_spent"), ti = byRole("title"), al = byRole("approved_lead"), ac = byRole("approved_client");
   const byRec = {}; for (const o of S.draft.ops) if (o.t === "cell") (byRec[o.record] ||= []).push(o);
@@ -477,6 +504,7 @@ function rebuild(){ deriveSchema();
   for (const o of S.draft.ops) if (o.t === "fopt") for (const x of o.options) if (x.was && x.was !== x.name) for (const r of S.tree) if (r.data[o.field] === x.was) r.data[o.field] = x.name;
   for (const r of S.tree) for (const o of byRec[r.id] || []) { if (o.value == null) delete r.data[o.field]; else r.data[o.field] = o.value; (r._dr ||= new Set()).add(o.field);
     if (est && o.field === est.id) { let x = r; while (x) { for (const a of [al, ac]) if (a && x.data[a.id] === true && !(byRec[x.id] || []).some(c => c.field === a.id)) { x.data[a.id] = false; (x._dr ||= new Set()).add(a.id); } x = S.row[x.parent_id]; } } }
+  autoStatus();
   for (const r of S.tree) { if (ti && r.data[ti.id] != null) r.title = r.data[ti.id]; r.estimate_h = r.is_leaf && !r._del && est && r.data[est.id] != null ? +r.data[est.id] : null; r.spent_h = r.is_leaf && !r._del && sp && r.data[sp.id] != null ? +r.data[sp.id] : null; r.est_tracked = 0; r.n_leaf = 0; r.n_done = 0; }
   for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i], p = S.row[r.parent_id]; if (!p || r._del) continue;
     if (r.estimate_h != null) p.estimate_h = (p.estimate_h || 0) + r.estimate_h; if (r.spent_h != null) p.spent_h = (p.spent_h || 0) + r.spent_h; }
@@ -585,7 +613,7 @@ function cellHtml(r, f){ const v = r.data?.[f.id];
   if (f.virtual) { const o = overtrack(r); return o == null ? "" : `<span class="${o > 0.005 ? "over" : o < -0.005 ? "under" : ""}">${(o > 0 ? "+" : "") + Math.round(o * 100)}%</span>`; }
   if (isRollup(r, f)) return num(f.role === "estimate" ? r.estimate_h : r.spent_h);
   switch (f.type) {
-    case "select": return v ? `<span class="chip" style="--c:${esc(meta(f, v).color || "#5980a6")}">${esc(v)}</span>` : "";
+    case "select": return v ? `<span class="chip" style="--c:${esc(meta(f, v).color || "#5980a6")}" ${f.role === "status" && r._stAuto ? `title="Automatic: follows the rows inside"` : ""}>${esc(v)}</span>${f.role === "status" && r._stMan ? `<span class="man" title="Set by hand. Right-click › Use the automatic status">✎</span>` : ""}` : "";
     case "person": return esc(memberName(v));
     case "checkbox": return `<span class="box ${v ? "on" : ""}"></span>`;
     case "link": return v?.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener" tabindex="-1">${esc(v.caption || v.url)}</a>` : "";
@@ -604,8 +632,8 @@ function sheetTracker(){
   const kids = new Set(S.tree.map(r => r.parent_id).filter(Boolean)); const top = enabledLevels()[0];
   const selRow = S.sel && S.row[S.sel.r]; const selF = S.sel && cols.find(f => f.id === S.sel.f);
   let body = "";
-  for (const r of rows) { const dim = st && meta(st, r.data?.[st.id]).dim;
-    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${S.sel?.row && (S.sel.r === r.id || S.multi?.has(r.id)) ? "rsel" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
+  const SR = st && stRules(st); for (const r of rows) { const tint = SR?.by[r.data?.[st.id]]?.row || ""; const dim = tint === "grey";
+    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : tint ? "t-" + tint : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${S.sel?.row && (S.sel.r === r.id || S.multi?.has(r.id)) ? "rsel" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
       <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="${S.sort ? "Clear the sort to move rows by hand" : "Drag to move"}">⋮⋮</span>
         <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title ?? "")}</span></div></td>
       ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
@@ -953,6 +981,7 @@ function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.t
   if (r._del) { items.push({ label:"Restore row", run: () => restoreRow(r) }); return openMenu(x, y, items); }
   if (kids) items.push({ label: S.collapsed.has(r.id) ? "Expand" : "Collapse", hint: keyHint(S.collapsed.has(r.id) ? "expand" : "collapse"), run: () => { S.collapsed.has(r.id) ? S.collapsed.delete(r.id) : S.collapsed.add(r.id); render(); } });
   items.push({ label:"Collapse one level", hint: keyHint("foldtable"), run: () => foldTable(false) }, { label:"Expand one level", hint: keyHint("unfoldtable"), disabled: !S.collapsed.size, run: () => foldTable(true) }, "-");
+  { const st = byRole("status"); if (st && r._stMan) items.push({ label:"Use the automatic status", hint:"✎ → auto", run: () => setCell(r.id, st, null) }, "-"); }
   if (lv) items.push({ label:"Insert above", hint: lv.name, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Insert below", hint: lv.name, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) });
   if (cl) items.push({ label:`Add ${cl.name}`, hint:"in " + (r.title || ""), run: () => addRow(r.id, cl, null) });
   if (lv) items.push("-", { label: kids ? "Clone with everything inside" : "Clone", run: () => cloneRow(r) });
@@ -1045,22 +1074,23 @@ function discardDraft(){ if (!S.draft.ops.length && !S.draft.parked?.length) ret
 function openSettings(fieldId){ if (fieldId === "levels") return openStructure(); closeModal(); let tab = fieldId || byRole("status")?.id || "levels"; let draft = null;
   const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v);
   const lists = () => S.fields.filter(f => f.type === "select");
-  const mk = f => (f.config?.options || []).map(o => ({ name:o, was:o, color: meta(f, o).color || "#5980a6", dim: !!meta(f, o).dim, done: !!meta(f, o).done }));
+  const mk = f => { const R = stRules(f); return (f.config?.options || []).map(o => ({ name:o, was:o, color: meta(f, o).color || "#5980a6", all: R.by[o].all, any: R.by[o].any, row: R.by[o].row })); };
   const paint = () => { const f = lists().find(x => x.id === tab); if (f && !draft) draft = mk(f);
     v.innerHTML = `<div class="modal"><div class="mhead"><span class="t">Workflow &amp; options</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div>
       <div class="mtabs">${lists().map(l => `<button data-tab="${l.id}" class="${tab === l.id ? "on" : ""}">${l.role === "status" ? "Status workflow" : esc(l.name)}</button>`).join("")}</div>
-      <div class="mbody">${f ? draft.map((o, i) => `<div class="orow" data-i="${i}"><span class="n">${i + 1}</span><button class="ib" data-x="up" ${i ? "" : "disabled"}>▲</button><button class="ib" data-x="down" ${i < draft.length - 1 ? "" : "disabled"}>▼</button>
+      <div class="mbody">${f ? (f.role === "status" ? `<div class="ohead"><span class="g">Parent takes it when</span><span class="ck">all</span><span class="ck">any</span><span class="tint">Row colour</span><span style="width:24px"></span></div>` : "") + draft.map((o, i) => `<div class="orow" data-i="${i}"><span class="n">${i + 1}</span><button class="ib" data-x="up" ${i ? "" : "disabled"}>▲</button><button class="ib" data-x="down" ${i < draft.length - 1 ? "" : "disabled"}>▼</button>
             <input type="color" value="${esc(o.color)}" data-k="color"><input type="text" value="${esc(o.name)}" data-k="name" placeholder="Name">
-            ${f.role === "status" ? `<label title="Work in this status is finished: the plan skips it and Done counts it"><input type="checkbox" data-k="done" ${o.done ? "checked" : ""}> work finished</label>` : ""}<label><input type="checkbox" data-k="dim" ${o.dim ? "checked" : ""}> dims the row</label><button class="ib" data-x="del" title="Remove">✕</button></div>`).join("") +
+            ${f.role === "status" ? `<label class="ck" title="The parent row takes this status when every row inside has it"><input type="checkbox" data-k="all" ${o.all ? "checked" : ""}></label><label class="ck" title="The parent row takes this status when at least one row inside has it"><input type="checkbox" data-k="any" ${o.any ? "checked" : ""}></label>
+            <span class="tint"><i style="background:${(TINTS.find(t => t[0] === o.row) || TINTS[0])[2] || "#fff"}"></i><select data-k="row" title="Colour of the whole row">${TINTS.map(t => `<option value="${t[0]}" ${t[0] === (o.row || "") ? "selected" : ""}>${t[1]}</option>`).join("")}</select></span>` : ""}<button class="ib" data-x="del" title="Remove">✕</button></div>`).join("") +
           `<div style="margin-top:8px"><button class="tbtn" data-x="add">+ Add ${f.role === "status" ? "status" : "option"}</button></div>
-          <p class="note">${f.role === "status" ? "<b>The order is the workflow.</b> Add stages your project needs (for example Art Director Review) and remove the ones it does not. " : ""}Renaming updates every row that uses the option. An option that rows still use cannot be removed until those rows are changed. “Work finished” tells the plan and the Done column that nothing is left to do. “Dims the row” greys the row out so it stops pulling attention.</p>`
+          <p class="note">${f.role === "status" ? "<b>The order is the workflow.</b> Add stages your project needs (for example Art Director Review) and remove the ones it does not. " : ""}Renaming updates every row that uses the option. An option that rows still use cannot be removed until those rows are changed.${f.role === "status" ? `</p><p class="note"><b>Parent status.</b> A row with rows inside follows them: if <b>any</b> row inside has an “any” status, the parent takes it (the higher in the list wins); if <b>all</b> rows inside share an “all” status, the parent takes that; otherwise the parent is <b>${esc(draft.find(o => !o.all && !o.any)?.name || "the first unmarked status")}</b> — the first status with neither mark. Set a parent by hand to override it (✎); right-click › Use the automatic status to go back.</p><p class="note"><b>Finished work</b> — the plan skips it, Done counts it — is an “all” status that comes after ${esc(draft.find(o => !o.all && !o.any)?.name || "that one")}.` : ""}</p>`
         : `<table class="plain"><thead><tr><th style="width:36px">#</th><th>Name</th><th style="width:80px">Rows</th><th style="width:90px">State</th><th style="width:90px"></th></tr></thead><tbody>${S.levels.map((l, i) => { const n = S.tree.filter(r => r.level === l.name).length;
             return `<tr><td>${i + 1}</td><td><input data-lvl="${l.id}" value="${esc(l.name)}"></td><td>${n}</td><td>${l.enabled ? `<span class="tag">visible</span>` : `<span class="tag off">hidden</span>`}</td>
             <td><button class="tbtn" data-x="lvl" data-id="${l.id}" data-on="${l.enabled ? 0 : 1}" ${l.enabled && n ? "disabled title='Has rows'" : ""}>${l.enabled ? "Hide" : "Show"}</button></td></tr>`; }).join("")}</tbody></table>
           <p class="note"><b>All six levels always exist</b>; a new project shows three. Switch on Epic or Milestone to group batches, or Part to split a stage between people. A level that already has rows cannot be hidden.</p>`}</div>
       <div class="mfoot"><button class="tbtn" data-x="close">Close</button>${f ? `<button class="tbtn pri" data-x="save">Save ${f.role === "status" ? "workflow" : "options"}</button>` : ""}</div></div>`; };
-  paint();
-  v.addEventListener("input", e => { const row = e.target.closest(".orow"); if (!row || !e.target.dataset.k) return; const o = draft[+row.dataset.i]; const k = e.target.dataset.k; o[k] = k === "dim" || k === "done" ? e.target.checked : e.target.value; });
+  paint(); const paintNote = () => paint();
+  v.addEventListener("input", e => { const row = e.target.closest(".orow"); if (!row || !e.target.dataset.k) return; const o = draft[+row.dataset.i]; const k = e.target.dataset.k; o[k] = k === "all" || k === "any" ? e.target.checked : e.target.value; if (k === "row") { const t = TINTS.find(z => z[0] === o.row) || TINTS[0]; const sw = row.querySelector(".tint i"); if (sw) sw.style.background = t[2] || "#fff"; } if (k === "all" || k === "any") paintNote(); });
   v.addEventListener("change", e => { if (e.target.dataset.lvl) { const name = e.target.value.trim(); if (!name) return toast("Level name cannot be empty", true);
     pushOps([{ t:"lvl", level:e.target.dataset.lvl, name }]); paint(); } });
   v.addEventListener("click", e => { if (e.target === v) return closeModal(); const b = e.target.closest("[data-x],[data-tab]"); if (!b) return;
@@ -1070,10 +1100,10 @@ function openSettings(fieldId){ if (fieldId === "levels") return openStructure()
     if (x === "up") { [draft[i - 1], draft[i]] = [draft[i], draft[i - 1]]; return paint(); }
     if (x === "down") { [draft[i + 1], draft[i]] = [draft[i], draft[i + 1]]; return paint(); }
     if (x === "del") { draft.splice(i, 1); return paint(); }
-    if (x === "add") { draft.push({ name:"", color:"#5980a6", dim:false, done:false }); paint(); const ins = v.querySelectorAll(".orow input[type=text]"); return ins[ins.length - 1]?.focus(); }
+    if (x === "add") { draft.push({ name:"", color:"#5980a6", all:false, any:false, row:"" }); paint(); const ins = v.querySelectorAll(".orow input[type=text]"); return ins[ins.length - 1]?.focus(); }
     if (x === "lvl") { pushOps([{ t:"lvl", level:b.dataset.id, enabled: b.dataset.on === "1" }]); return paint(); }
     if (x === "save") { if (draft.some(o => !o.name.trim())) return toast("Every option needs a name", true);
-      const payload = draft.map(o => ({ name:o.name.trim(), color:o.color, dim:o.dim, done:!!o.done, ...(o.was ? { was:o.was } : {}) })); const id = tab;
+      const payload = draft.map(o => ({ name:o.name.trim(), color:o.color, ...(o.all ? { all:true } : {}), ...(o.any ? { any:true } : {}), ...(o.row ? { row:o.row } : {}), ...(o.was ? { was:o.was } : {}) })); const id = tab;
       if (new Set(payload.map(o => o.name)).size !== payload.length) return toast("Option names must be unique", true);
       const gone = (lists().find(x => x.id === id)?.config?.options || []).filter(o => !payload.some(p => p.was === o)); const used = gone.filter(o => S.tree.some(r => !r._del && r.data[id] === o));
       if (used.length) return toast(`“${used[0]}” is still used by rows — change them first`, true);
@@ -1129,8 +1159,8 @@ const todayWh = () => { const n = new Date(); return whOfDate(Date.UTC(n.getFull
 const fmtDay = (wh, isEnd) => new Date(EPOCH + calOfWd(Math.max(0, Math.floor((isEnd ? wh - 0.001 : wh) / HPD + 1e-9))) * DAY).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"2-digit", timeZone:"UTC" });
 const fmtWh = (wh, isEnd) => new Date(EPOCH + calOfWd(Math.max(0, Math.floor((isEnd ? wh - 0.001 : wh) / HPD + 1e-9))) * DAY).toLocaleDateString("en-GB", { day:"2-digit", month:"short", timeZone:"UTC" });
 const asgOf = r => { const f = byRole("assignee"); return (f && r.data?.[f.id]) || null; };
-function isDone(r){ const st = byRole("status"); const v = st && r.data?.[st.id]; if (!v) return false; const m = st.config?.meta || {};
-  return Object.values(m).some(x => x.done) ? !!m[v]?.done : (!!m[v]?.dim || /^approved/i.test(v)); }
+function isDone(r){ const st = byRole("status"); const v = st && r.data?.[st.id]; if (!v) return false; const R = stRules(st), x = R.by[v];
+  return !!x && x.all && x.i > R.fbIdx; }
 const isUnder = (r, id) => { let x = r; while (x) { if (x.id === id) return true; x = S.row[x.parent_id]; } return false; };
 
 /* the calendar strip both plan sheets draw on */
