@@ -644,6 +644,14 @@ const picked = () => S.multi?.size > 1 ? [...S.multi].filter(id => S.row[id]) : 
 function enterCell(){ if (!S.sel) return; const cols = columns(); let f = cols.find(c => c.id === S.sel.f); if (!f || f.role === "title") f = cols[1] || cols[0]; select(S.sel.r, f.id); }
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /* Ctrl+← / Ctrl+→ (Option on a Mac): collapse and expand; with Shift — everything inside */
+/* Ctrl+Alt+← / → (⌃⌥ on a Mac): the whole table at once — view only, nothing goes to the draft */
+function foldTable(open){ closeMenu();
+  if (open) { if (!S.collapsed.size) return toast("Everything is already expanded"); S.collapsed.clear(); render(); return toast(`Expanded everything · ${keyHint("foldtable")} collapses it back`); }
+  const groups = S.tree.filter(x => S.tree.some(k => k.parent_id === x.id)); if (!groups.length) return;
+  groups.forEach(x => S.collapsed.add(x.id));
+  let r = S.row[S.sel?.r]; while (r && r.parent_id && S.row[r.parent_id]) r = S.row[r.parent_id];
+  if (r) select(r.id, S.sel.f, true, true); else render();
+  toast(`Collapsed everything · ${keyHint("unfoldtable")} expands it back`); }
 function foldSel(open, deep){ const r = S.row[S.sel?.r]; if (!r) return; const kids = id => S.tree.some(x => x.parent_id === id);
   const inside = () => S.tree.filter(x => x.id !== r.id && isUnder(x, r.id) && kids(x.id)).map(x => x.id);
   if (open) { S.collapsed.delete(r.id); if (deep) inside().forEach(id => S.collapsed.delete(id)); return select(r.id, S.sel.f, true, true); }
@@ -689,6 +697,8 @@ const CMDS = [
   { id:"expand", group:"Tree", name:"Expand the row", scope:"grid", def:[FOLD + "+Right"], run: () => foldSel(true, false) },
   { id:"collapseall", group:"Tree", name:"Collapse everything inside", scope:"grid", def:[FOLD + "+Shift+Left"], run: () => foldSel(false, true) },
   { id:"expandall", group:"Tree", name:"Expand everything inside", scope:"grid", def:[FOLD + "+Shift+Right"], run: () => foldSel(true, true) },
+  { id:"foldtable", group:"Tree", name:"Collapse the whole table", scope:"tracker", def:["Ctrl+Alt+Left"], run: () => foldTable(false) },
+  { id:"unfoldtable", group:"Tree", name:"Expand the whole table", scope:"tracker", def:["Ctrl+Alt+Right"], run: () => foldTable(true) },
   { id:"first", group:"Move around", name:"First row", scope:"grid", def: IS_MAC ? ["Meta+Up"] : ["Ctrl+Home"], run: () => { const v = visibleRows(); if (v.length) select(v[0].id, S.sel?.f || columns()[0].id, true, true); } },
   { id:"last", group:"Move around", name:"Last row", scope:"grid", def: IS_MAC ? ["Meta+Down"] : ["Ctrl+End"], run: () => { const v = visibleRows(); if (v.length) select(v[v.length - 1].id, S.sel?.f || columns()[0].id, true, true); } },
   { id:"search", group:"Move around", name:"Search the table", scope:"any", def:[M + "+F"], run: () => { const go = () => { const i = document.getElementById("search"); if (i) { i.focus(); i.select(); } }; if (S.sheet !== "tracker") goSheet("tracker").then(go); else go(); } },
@@ -925,7 +935,8 @@ function confirmBox(title, text, okLabel, fn){ closeModal(); const v = document.
 function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.tree.some(k => k.parent_id === r.id);
   const items = [{ head: (r.level || "") + " · " + (r.title || "") }];
   if (r._del) { items.push({ label:"Restore row", run: () => restoreRow(r) }); return openMenu(x, y, items); }
-  if (kids) items.push({ label: S.collapsed.has(r.id) ? "Expand" : "Collapse", run: () => { S.collapsed.has(r.id) ? S.collapsed.delete(r.id) : S.collapsed.add(r.id); render(); } }, "-");
+  if (kids) items.push({ label: S.collapsed.has(r.id) ? "Expand" : "Collapse", hint: keyHint(S.collapsed.has(r.id) ? "expand" : "collapse"), run: () => { S.collapsed.has(r.id) ? S.collapsed.delete(r.id) : S.collapsed.add(r.id); render(); } });
+  items.push({ label:"Collapse all", hint: keyHint("foldtable"), run: () => foldTable(false) }, { label:"Expand all", hint: keyHint("unfoldtable"), disabled: !S.collapsed.size, run: () => foldTable(true) }, "-");
   if (lv) items.push({ label:"Insert above", hint: lv.name, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Insert below", hint: lv.name, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) });
   if (cl) items.push({ label:`Add ${cl.name}`, hint:"in " + (r.title || ""), run: () => addRow(r.id, cl, null) });
   if (lv) items.push("-", { label: kids ? "Clone with everything inside" : "Clone", run: () => cloneRow(r) });
@@ -1233,7 +1244,7 @@ function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && col
     insert: [...enabledLevels().map(L => { const sp = insertSpot(L); return { label: L.name, hint: sp.why || sp.hint, disabled: !onT || !!sp.why, run: () => addRow(sp.parent, L, sp.before) }; }), "-",
       { label:"Row above", hint: lv?.name || "", disabled: !onT || !r, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Row below", hint: lv?.name || "", disabled: !onT || !r, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) }, "-",
       (() => { const rf = f && !f.virtual ? f : null; const i = rf ? S.fields.indexOf(rf) : -1; return [{ label:"Column left", hint: rf ? "of " + rf.name : "select a cell", disabled: !onT || !rf || rf.role === "title", run: () => addField(rf.id) }, { label:"Column right", hint: rf ? "of " + rf.name : "at the end", disabled: !onT, run: () => addField(rf ? S.fields[i + 1]?.id || null : null) }]; })()].flat(),
-    view: [{ label:"Collapse all", run: () => { S.tree.filter(x => x.depth >= 1 && !x.is_leaf).forEach(x => S.collapsed.add(x.id)); render(); } }, { label:"Expand all", run: () => { S.collapsed.clear(); render(); } }, "-",
+    view: [{ label:"Collapse all", hint: keyHint("foldtable"), disabled: !onT, run: () => foldTable(false) }, { label:"Expand all", hint: keyHint("unfoldtable"), disabled: !onT || !S.collapsed.size, run: () => foldTable(true) }, "-",
       { label:"Clear search and filters", disabled: !filtering(), run: clearFilters }, { label:"Clear sort", disabled: !S.sort, run: () => { S.sort = null; saveTV(); render(); } },
       { label:"Show hidden columns", disabled: !S.hiddenFields?.length && !S.vhide.size, run: () => { S.vhide.clear(); saveTV(); S.hiddenFields.length ? act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) : render(); } }, "-",
       { head:"Table font" }, ...FONTS.map(f => ({ label:f[0], hint: VIEW.font === f[0] ? "✓" : "", run: () => { VIEW.font = f[0]; applyView(true); render(); } })),
