@@ -447,7 +447,14 @@ function loadDraft(){ if (S.draft.project !== S.project.id) { S.draft = { ops:[]
     keep.push(o); }
   S.draft.ops = keep; }
 /* EVERY ACTION GOES TO THE DRAFT: put changes in, show them at once, save on Apply */
-function pushOps(ops, msg){ if (!ops.length) return; draftPush(); S.draft.ops.push(...ops); saveDraft(); rebuild(); render(); if (msg) toast(msg); }
+/* a row that gets its first rows inside hands its status over to them: the hand-set value is cleared in the same step, so it follows the rows inside */
+function freeParents(ops){ const st = byRole("status"); if (!st) return ops; const extra = [];
+  for (const o of ops) if (o.t === "rows") for (const x of o.rows) { const p = x.parent && S.row[x.parent]; if (!p || extra.some(e => e.record === p.id)) continue;
+    const hadKids = S.tree.some(c => c.parent_id === p.id && !c._del); const raw = p._stMan || (!hadKids && p.data?.[st.id] != null);
+    if (!hadKids && raw) { const base = S.base.find(r => r.id === p.id)?.data?.[st.id] ?? null; S.draft.ops = S.draft.ops.filter(c => !(c.t === "cell" && c.record === p.id && c.field === st.id));
+      if (base != null) extra.push({ t:"cell", record:p.id, field:st.id, value:null, base }); } }
+  return [...ops, ...extra]; }
+function pushOps(ops, msg){ if (!ops.length) return; draftPush(); ops = freeParents(ops); S.draft.ops.push(...ops); saveDraft(); rebuild(); render(); if (msg) toast(msg); }
 const uid = () => crypto.randomUUID();
 /* what the table, columns, levels and pipelines look like = database + the draft on top */
 function deriveSchema(){ const R = S.raw, ops = S.draft?.project === S.project?.id ? S.draft.ops : [];
