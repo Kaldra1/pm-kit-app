@@ -998,12 +998,24 @@ function confirmBox(title, text, okLabel, fn){ closeModal(); const v = document.
   document.body.appendChild(v); v.querySelector("[data-x=ok]").focus();
   v.addEventListener("click", e => { const x = e.target.dataset?.x; if (e.target === v || x === "cancel") return closeModal(); if (x === "ok") { closeModal(); fn(); } });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
+/* hand-set (✎) or automatic status for rows with rows inside — one row or a group, one draft step */
+function statusMode(ids, manual){ const st = byRole("status"); if (!st) return; const rows = ids.map(id => S.row[id]).filter(r => r && !r._del && S.tree.some(c => c.parent_id === r.id && !c._del) && (manual ? r._stAuto : r._stMan));
+  if (!rows.length) return; draftPush();
+  for (const r of rows) { const base = S.base.find(b => b.id === r.id)?.data?.[st.id] ?? null, val = manual ? r.data[st.id] : null;
+    S.draft.ops = S.draft.ops.filter(o => !(o.t === "cell" && o.record === r.id && o.field === st.id));
+    if (JSON.stringify(base) !== JSON.stringify(val)) S.draft.ops.push({ t:"cell", record:r.id, field:st.id, value:val, base }); }
+  saveDraft(); rebuild(); render(); toast(manual ? `${rows.length > 1 ? rows.length + " rows keep" : "The row keeps"} the status by hand (✎) — change it as you like` : `${rows.length > 1 ? rows.length + " rows follow" : "The row follows"} the rows inside again`); }
+const statusItems = ids => { const rs = ids.map(id => S.row[id]).filter(r => r && !r._del && S.tree.some(c => c.parent_id === r.id && !c._del)); if (!byRole("status") || !rs.length) return [];
+  const man = rs.filter(r => r._stMan).length, aut = rs.filter(r => r._stAuto).length, n = c => ids.length > 1 ? ` · ${c}` : "";
+  return [...(aut ? [{ label:"Set the status by hand", hint:"auto → ✎" + n(aut), run: () => statusMode(ids, true) }] : []), ...(man ? [{ label:"Use the automatic status", hint:"✎ → auto" + n(man), run: () => statusMode(ids, false) }] : [])]; };
+function groupMenu(ids, x, y){ const items = [{ head: ids.length + " rows" }, ...statusItems(ids)];
+  if (items.length > 1) items.push("-"); items.push({ label:`Delete ${ids.length} rows`, hint:"to the draft", danger:true, run: () => deleteMany(ids) }); openMenu(x, y, items); }
 function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.tree.some(k => k.parent_id === r.id);
   const items = [{ head: (r.level || "") + " · " + (r.title || "") }];
   if (r._del) { items.push({ label:"Restore row", run: () => restoreRow(r) }); return openMenu(x, y, items); }
   if (kids) items.push({ label: S.collapsed.has(r.id) ? "Expand" : "Collapse", hint: keyHint(S.collapsed.has(r.id) ? "expand" : "collapse"), run: () => { S.collapsed.has(r.id) ? S.collapsed.delete(r.id) : S.collapsed.add(r.id); render(); } });
   items.push({ label:"Collapse one level", hint: keyHint("foldtable"), run: () => foldTable(false) }, { label:"Expand one level", hint: keyHint("unfoldtable"), disabled: !S.collapsed.size, run: () => foldTable(true) }, "-");
-  { const st = byRole("status"); if (st && r._stMan) items.push({ label:"Use the automatic status", hint:"✎ → auto", run: () => setCell(r.id, st, null) }, "-"); }
+  { const si = statusItems([r.id]); if (si.length) items.push(...si, "-"); }
   if (lv) items.push({ label:"Insert above", hint: lv.name, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Insert below", hint: lv.name, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) });
   if (cl) items.push({ label:`Add ${cl.name}`, hint:"in " + (r.title || ""), run: () => addRow(r.id, cl, null) });
   if (lv) items.push("-", { label: kids ? "Clone with everything inside" : "Clone", run: () => cloneRow(r) });
@@ -1458,7 +1470,9 @@ $app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]
   S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
   if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
-  if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.multi = null; S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id, row:true }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
+  if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); const inGroup = S.multi?.size > 1 && S.multi.has(tr.dataset.id);
+    if (!inGroup) S.multi = null; S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id, row:true }; render();
+    return inGroup ? groupMenu([...S.multi], e.clientX, e.clientY) : rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
   if (th) { const f = columns().find(x => x.id === th.dataset.f); if (f) { e.preventDefault(); colMenu(f, e.clientX, e.clientY); } } });
 $app.addEventListener("keydown", e => {
   if (e.target.id === "cellbar") { e.stopPropagation();
