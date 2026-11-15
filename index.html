@@ -100,8 +100,24 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .srow .sn:hover,.srow .sdl:hover{border-color:var(--rule)}.srow .sn:focus,.srow .sdl:focus{outline:2px solid var(--mark);background:#fff}
 .srow .sd{font-family:var(--font-mono);font-size:11.5px;color:var(--text-2)}.srow .sd.late{color:#b5483a;font-weight:600}.srow .sh{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sadd{padding:6px 0 8px}
-.chg{position:fixed;right:0;top:104px;bottom:62px;width:360px;max-width:92vw;background:#fff;border-left:1px solid var(--frame);box-shadow:-8px 0 24px rgba(20,40,70,.12);z-index:40;display:flex;flex-direction:column}
+.chg{position:fixed;right:0;top:104px;bottom:62px;width:360px;max-width:92vw;background:#fff;border-left:1px solid var(--frame);box-shadow:-8px 0 24px rgba(20,40,70,0);z-index:40;display:flex;flex-direction:column;
+  transform:translateX(102%);transition:transform .26s cubic-bezier(.2,.8,.2,1),box-shadow .26s ease}
+.chg.open{transform:none;box-shadow:-8px 0 24px rgba(20,40,70,.12)}
+/* motion: everything appears and leaves smoothly; people who asked their system for less motion get none */
+@keyframes pmFadeIn{from{opacity:0}} @keyframes pmFadeOut{to{opacity:0}}
+@keyframes pmPop{from{opacity:0;transform:translateY(10px) scale(.985)}} @keyframes pmDrop{from{opacity:0;transform:translateY(-4px)}}
+@keyframes pmToastIn{from{opacity:0;transform:translate(-50%,10px)}} @keyframes pmToastOut{to{opacity:0;transform:translate(-50%,6px)}}
+.veil{animation:pmFadeIn .14s ease-out}.veil>.modal{animation:pmPop .2s cubic-bezier(.2,.8,.2,1)}
+.veil-out{position:fixed;inset:0;z-index:50;background:rgba(23,50,77,.32);display:flex;align-items:center;justify-content:center;padding:20px;animation:pmFadeOut .14s ease-in forwards;pointer-events:none}
+.menu{animation:pmDrop .12s ease-out}
+.toast{animation:pmToastIn .2s cubic-bezier(.2,.8,.2,1)}
+.toast-out.bad{background:var(--danger)}
+.toast-out{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);max-width:min(560px,92vw);background:var(--ink);color:#fff;padding:9px 14px;border-radius:3px;font-size:12.5px;z-index:70;animation:pmToastOut .2s ease-in forwards;pointer-events:none}
+.tbtn,.ib,.hbtn,.chgi{transition:background-color .12s ease,color .12s ease,border-color .12s ease}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .chgh{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--rule);font-size:13px}.chgh .n{font-family:var(--font-mono);font-size:11px;background:#fff1cc;color:var(--honey);border-radius:9px;padding:1px 7px}
+.chgh .sp,.hkbar .sp{flex:1}
+.chgh{padding-right:10px!important}.chgh .ib{width:24px;height:24px}
 .chgl{flex:1;overflow:auto}.chgi{display:flex;align-items:flex-start;gap:8px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--rule-2);cursor:pointer}.chgi:hover{background:var(--band)}
 .chgi .ck{flex:none;width:62px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--honey);padding-top:2px}
 .chgi .ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;font-size:12.5px}.chgi .ct b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chgi .ct span{color:var(--muted);font-size:12px;word-break:break-word}
@@ -304,7 +320,7 @@ function viewBar(){ return `<div class="sp"></div><div class="vw"><button data-a
 
 /* ---------------- small helpers ---------------- */
 let toastTimer;
-function toast(msg, bad){ document.querySelectorAll(".toast").forEach(e => e.remove()); const d = document.createElement("div"); d.className = "toast" + (bad ? " bad" : ""); d.textContent = msg; document.body.appendChild(d); clearTimeout(toastTimer); toastTimer = setTimeout(() => d.remove(), bad ? 6000 : 2400); }
+function toast(msg, bad){ document.querySelectorAll(".toast").forEach(e => e.remove()); const d = document.createElement("div"); d.className = "toast" + (bad ? " bad" : ""); d.textContent = msg; document.body.appendChild(d); clearTimeout(toastTimer); toastTimer = setTimeout(() => { d.classList.replace("toast", "toast-out"); setTimeout(() => d.remove(), 200); }, bad ? 6000 : 2400); }
 function fail(e){ console.error(e); toast(e?.message || String(e), true); }
 async function q(p){ const { data, error } = await p; if (error) throw error; return data; }
 const num = v => v == null || v === "" ? "" : String(+(+v).toFixed(2));
@@ -315,7 +331,7 @@ function childLevel(r){ const cur = levelOf(r); return cur ? enabledLevels().fin
 const meta = (f, v) => (f?.config?.meta && f.config.meta[v]) || {};
 const memberName = id => S.members.find(m => m.id === id)?.display_name || "";
 function closeMenu(){ document.querySelectorAll(".menu").forEach(e => e.remove()); }
-function closeModal(){ document.querySelectorAll(".veil").forEach(e => e.remove()); }
+function closeModal(){ document.querySelectorAll(".veil").forEach(e => { e.classList.replace("veil", "veil-out"); setTimeout(() => e.remove(), 140); }); }
 
 /* run a change: show "Saving…", reload what changed, re-render */
 async function act(fn, { schema = false, ok = null } = {}){
@@ -654,7 +670,7 @@ const SHEET_KEYS = SHEETS.map(([k, n], i) => ({ id:"sheet_" + k, group:"Sheets",
 const CMDS = [
   { id:"apply", group:"Draft", name:"Apply the draft", scope:"any", def:[M + "+Enter"], run: applyByKey },
   { id:"discard", group:"Draft", name:"Discard the draft", scope:"page", def:[], run: () => discardDraft(), note:"No key on purpose — set one only if you want it" },
-  { id:"changes", group:"Draft", name:"Show or hide the list of changes", scope:"page", def:[], run: () => { S.showChanges = !S.showChanges; render(); } },
+  { id:"changes", group:"Draft", name:"Show or hide the list of changes", scope:"page", def:[], run: toggleChanges },
   { id:"undo", group:"Draft", name:"Undo", scope:"page", def:[M + "+Z"], run: undo },
   { id:"redo", group:"Draft", name:"Redo", scope:"page", def: IS_MAC ? ["Meta+Shift+Z", "Meta+Y"] : ["Ctrl+Y", "Ctrl+Shift+Z"], run: redo },
   { id:"newrow", group:"Rows", name:"New row of the same level below", scope:"rows", def:["Shift+="], run: () => { const r = S.row[S.sel?.r]; r ? addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null) : addRow(null, enabledLevels()[0], null); } },
@@ -1177,8 +1193,14 @@ function dropOp(i){ const o = S.draft.ops[i]; if (!o) return; draftPush(); let o
   for (const x of ops) if (x.t === "rows") for (const y of x.rows) if (rows.has(y.before)) y.before = null;
   const gone = S.draft.ops.length - ops.length; S.draft.ops = ops; if (!ops.length) S.draft.note = null; if (S.sel && !S.tree.some(r => r.id === S.sel.r && !rows.has(r.id))) S.sel = null;
   saveDraft(); rebuild(); render(); toast(gone > 1 ? `Taken back with ${gone - 1} change${gone > 2 ? "s" : ""} that depended on it — Ctrl+Z brings them back` : "Taken back — Ctrl+Z brings it back"); }
+function toggleChanges(){ const el = document.querySelector(".chg");
+  if (!S.showChanges) { S.showChanges = true; S.chgState = "enter"; render();
+    return requestAnimationFrame(() => requestAnimationFrame(() => { S.chgState = "open"; document.querySelector(".chg")?.classList.add("open"); })); }
+  S.chgState = "leave"; if (!el) { S.showChanges = false; return render(); } el.classList.remove("open");
+  document.querySelectorAll('[data-act="changes"].on').forEach(b => b.classList.remove("on"));
+  setTimeout(() => { if (S.chgState === "leave") { S.showChanges = false; S.chgState = null; render(); } }, 270); }
 function changesPanel(){ const ops = S.draft.ops; const items = ops.map((o, i) => ({ o, i, ...opInfo(o) })).reverse();
-  return `<aside class="chg"><div class="chgh"><b>Changes in the draft</b><span class="n">${ops.length}</span><span class="sp"></span><button class="ib" data-act="changes" title="Close">✕</button></div>
+  return `<aside class="chg ${S.chgState === "open" ? "open" : ""}"><div class="chgh"><b>Changes in the draft</b><span class="n">${ops.length}</span><span class="sp"></span><button class="ib" data-act="changes" title="Close">✕</button></div>
     <div class="chgl">${items.length ? items.map(x => `<div class="chgi" data-op="${x.i}" title="Show it"><span class="ck">${esc(x.k)}</span><div class="ct"><b>${esc(x.t || "")}</b>${x.d ? `<span>${esc(x.d)}</span>` : ""}</div><button class="ib" data-drop="${x.i}" title="Take back this change">✕</button></div>`).join("")
       : `<div class="empty" style="padding:22px 14px">Nothing in the draft. Every change you make shows up here until you press Apply.</div>`}</div>
     ${items.length ? `<div class="chgf">Newest first · ✕ takes back one change · ${esc(keyHint("apply"))} applies all</div>` : ""}</aside>`; }
@@ -1302,7 +1324,7 @@ $app.addEventListener("click", async e => {
     if (a === "redo") return redo();
     if (a === "apply") return applyDraft();
     if (a === "discard") return discardDraft();
-    if (a === "changes") { S.showChanges = !S.showChanges; return render(); }
+    if (a === "changes") return toggleChanges();
     if (a === "autoplan") { const box = b.getBoundingClientRect(); return openMenu(box.left, box.bottom + 2, [{ head:"Step: " + STEPS.find(x => x[0] === S.step)[1] }, { label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) },
       "-", { label:"Remove everything from the plan", danger:true, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }]); }
     if (a === "cols") { const box = b.getBoundingClientRect(); return openColumns(box.right - 250, box.bottom + 2); }
