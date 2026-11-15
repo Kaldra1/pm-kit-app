@@ -197,6 +197,7 @@ td:first-child.editing{position:sticky}
 .stat .vw.seg{gap:0}
 .stat .vw.seg button{width:auto;padding:0 9px;border-radius:0;font:600 10.5px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);transition:background .15s,color .15s}
 .stat .vw.seg button:first-child{border-radius:3px 0 0 3px} .stat .vw.seg button:last-child{border-radius:0 3px 3px 0;border-left:0}
+.stat .vw.seg button.lock{margin-left:4px;border-radius:3px!important;border-left:1px solid var(--rule)!important;padding:0 6px;font-size:11px;filter:grayscale(1);opacity:.6} .stat .vw.seg button.lock.on{background:#fff;color:var(--ink-2);border-color:var(--ink-2)!important;filter:none;opacity:1}
 .stat .vw.seg button.on{background:var(--ink-2);color:#fff;border-color:var(--ink-2)}
 .stat .vw button:hover{background:var(--band-2)} .stat .vw button:disabled{opacity:.4;cursor:default}
 .stat .vw input[type=range]{width:110px;accent-color:var(--ink-2)}
@@ -245,6 +246,14 @@ td:first-child.editing{position:sticky}
 .grid td.dd::after{content:"▾";position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted-3);opacity:.35;pointer-events:none;transition:opacity .12s,color .12s}
 .grid tr:hover td.dd::after{opacity:.9} .grid td.dd.sel::after{opacity:1;color:var(--ink-2)}
 .grid td.dd.editing::after{display:none}
+.grid td.csel{background:#e6f0fa!important;box-shadow:inset 0 0 0 1px #9cc0e6}
+.stat .vw.pick{font:600 10.5px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.blv{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 12px;margin:0 0 6px;border:1px solid var(--rule);border-radius:4px;background:#fff;cursor:pointer;font:inherit;transition:background .15s,border-color .15s}
+.blv:hover,.blv:focus{background:var(--band-2);border-color:var(--ink-2);outline:none} .blv span{font-family:var(--font-mono);color:var(--muted)}
+.blist{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow:auto}
+.brow{display:grid;grid-template-columns:22px 150px 1fr;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;border:1px solid transparent;transition:background .15s,border-color .15s;cursor:pointer}
+.brow.on{background:#eef4fb;border-color:#cfe0f3} .brow .bn{font-size:13px} .brow:not(.on) .bn{color:var(--muted)}
+.brow select,.brow input:not([type=checkbox]){height:30px;border:1px solid var(--rule);border-radius:3px;padding:0 8px;background:#fff;font:inherit;font-size:13px;min-width:0}
 .grid .man{margin-left:4px;font-size:11px;color:var(--muted);cursor:help}
 .orow .n{width:20px;text-align:right;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3)}
 .ib{width:26px;height:26px;border:1px solid var(--rule);background:#fff;border-radius:3px;cursor:pointer;color:var(--muted)}
@@ -338,7 +347,7 @@ function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zo
   if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
 applyView(false);
 const zf = () => VIEW.zoom / 100;
-function viewBar(){ if (S.sel) S.modePref = S.sel.row ? "row" : "cell"; const cell = S.modePref === "cell"; return `${S.sheet !== "tracker" ? "" : `<div class="vw seg" title="What clicks and arrows work with · ${esc(keyHint("selmode"))} switches"><button data-act="mode-row" class="${cell ? "" : "on"}">Row</button><button data-act="mode-cell" class="${cell ? "on" : ""}">Cell</button></div>`}<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
+function viewBar(){ if (S.sel) S.modePref = S.sel.row ? "row" : "cell"; const cell = S.modePref === "cell"; return `${S.sheet !== "tracker" ? "" : `<div class="vw seg" title="What clicks and arrows work with · ${esc(keyHint("selmode"))} switches"><button data-act="mode-row" class="${cell ? "" : "on"}">Row</button><button data-act="mode-cell" class="${cell ? "on" : ""}">Cell</button><button data-act="mode-lock" class="lock ${PREF.lockMode ? "on" : ""}" title="${PREF.lockMode ? "Locked: the mode changes only here or with " + esc(keyHint("selmode")) + ". Click to unlock" : "Lock the mode: clicks, Esc and arrows will not switch it"}">${PREF.lockMode ? "🔒" : "🔓"}</button></div>${(() => { if (S.csel?.size > 1) { const fs = new Set(pickedCells().map(c => c.f)); const one = fs.size === 1 ? columns().find(f => fs.has(f.id)) : null; return `<div class="vw pick">${S.csel.size} cells${one ? " · " + esc(one.name) : ""}</div>`; } if (S.multi?.size > 1) return `<div class="vw pick">${S.multi.size} rows</div>`; return ""; })()}`}<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
     <button data-act="fsdown" title="Smaller text" ${VIEW.fs <= 10 ? "disabled" : ""}>A−</button><span class="val" style="min-width:20px;text-align:center" title="Table text size">${VIEW.fs}</span><button data-act="fsup" title="Bigger text" ${VIEW.fs >= 20 ? "disabled" : ""}>A+</button></div>
     <div class="vw"><button data-act="zoomout" title="Zoom out">−</button><input type="range" id="vzoom" min="50" max="200" step="5" value="${VIEW.zoom}" title="Zoom"><button data-act="zoomin" title="Zoom in">+</button><span class="val" id="vzoomval">${VIEW.zoom}%</span></div>`; }
 
@@ -553,7 +562,7 @@ async function loadHistory(){
 
 /* ---------------- shell ---------------- */
 const SHEETS = [["tracker","Tracker"],["gantt","Gantt"],["workload","Workload"],["pipelines","Pipelines"],["history","History"]];
-function render(){
+function render(){ if (PREF.lockMode && S.sel && !S.editing && !S.cellOnce) S.sel.row = PREF.lockMode === "row";
   if (!S.user) return renderLogin();
   const main = document.querySelector(".main"); const keep = main ? [main.scrollTop, main.scrollLeft] : null;
   const body = !S.project ? `<div class="main"><div class="empty">No projects are visible to this account yet.</div></div>`
@@ -645,6 +654,7 @@ function cellClass(r, f){ const c = [];
   if (["estimate","approved_lead","approved_client"].includes(f.role)) { const a = byRole("approved_lead"), b = byRole("approved_client"); if (a && b && r.data?.[a.id] === true && r.data?.[b.id] === true) c.push("ok2"); }
   if ((f.type === "select" || f.type === "person") && f.mode !== "read" && !r._del) c.push("dd");
   if (r._dr?.has(f.id)) c.push("dr");
+  if (S.csel?.has(ck(r.id, f.id))) c.push("csel");
   if (S.sel && !S.sel.row && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
 const wst = f => f.width ? ` style="width:${f.width}px;min-width:${f.width}px;max-width:${f.width}px"` : "";
 function sheetTracker(){
@@ -679,7 +689,7 @@ function sheetTracker(){
 }
 
 /* selection + editing */
-function select(r, f, scroll = true, row = false, keepMulti = false){ S.sel = { r, f, row }; S.modePref = row ? "row" : "cell"; S.editing = false; if (!keepMulti) { S.multi = null; S.anchor = r; } render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
+function select(r, f, scroll = true, row = false, keepMulti = false){ if (!keepMulti) { S.csel = null; S.canchor = null; } S.sel = { r, f, row }; S.modePref = row ? "row" : "cell"; S.editing = false; if (!keepMulti) { S.multi = null; S.anchor = r; } render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
 /* keyboard, rows first (as in Jira Structure and the treegrid pattern): ↑↓ move by rows, → steps into a cell, ← from the first cell back to the row */
 function moveRowSel(dr){ const rows = visibleRows(); if (!rows.length) return; let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : -1;
   ri = ri < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, ri + dr)); select(rows[ri].id, S.sel?.f || columns()[0].id, true, true); }
@@ -694,7 +704,7 @@ function enterCell(){ if (!S.sel) return; const cols = columns(); let f = cols.f
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /* Ctrl+← / Ctrl+→ (Option on a Mac): collapse and expand; with Shift — everything inside */
 /* Row or Cell: what clicks and arrows work with. Switch: the Row | Cell control at the bottom, or Shift+Space */
-function setSelMode(cell){ if (cell == null) cell = S.sel ? !!S.sel.row : S.modePref !== "cell"; S.modePref = cell ? "cell" : "row";
+function setSelMode(cell){ if (cell == null) cell = S.sel ? !!S.sel.row : S.modePref !== "cell"; S.modePref = cell ? "cell" : "row"; if (PREF.lockMode) { PREF.lockMode = S.modePref; savePref(); }
   if (!S.sel) { render(); return toast(cell ? "Clicks will pick cells" : "Clicks will pick rows"); }
   if (cell && S.sel.row) { S.multi = null; return enterCell(); }
   if (!cell && !S.sel.row) return select(S.sel.r, S.sel.f, false, true); render(); }
@@ -766,6 +776,7 @@ const CMDS = [
   { id:"expand", group:"Tree", name:"Expand the row", scope:"grid", def:[FOLD + "+Right"], run: () => foldSel(true, false) },
   { id:"collapseall", group:"Tree", name:"Collapse everything inside", scope:"grid", def:[FOLD + "+Shift+Left"], run: () => foldSel(false, true) },
   { id:"expandall", group:"Tree", name:"Expand everything inside", scope:"grid", def:[FOLD + "+Shift+Right"], run: () => foldSel(true, true) },
+  { id:"bulkedit", group:"Rows", name:"Bulk edit the picked rows", scope:"tracker", def:[], run: () => { const ids = S.csel?.size > 1 ? [...new Set(pickedCells().map(c => c.r))] : picked(); if (ids.length) openBulk(ids); else toast("Pick rows first: Shift, Ctrl or Ctrl+A"); } },
   { id:"selmode", group:"Move around", name:"Switch between row and cell", scope:"tracker", def:["Shift+Space"], run: () => setSelMode() },
   { id:"foldtable", group:"Tree", name:"Hide the deepest open level, whole table", scope:"tracker", def:["Ctrl+Alt+Left"], run: () => foldTable(false) },
   { id:"unfoldtable", group:"Tree", name:"Show one more level, whole table", scope:"tracker", def:["Ctrl+Alt+Right"], run: () => foldTable(true) },
@@ -1002,6 +1013,92 @@ function confirmBox(title, text, okLabel, fn){ closeModal(); const v = document.
   document.body.appendChild(v); v.querySelector("[data-x=ok]").focus();
   v.addEventListener("click", e => { const x = e.target.dataset?.x; if (e.target === v || x === "cancel") return closeModal(); if (x === "ok") { closeModal(); fn(); } });
   v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
+/* ---------- several cells (Cell mode): Shift takes a block, Ctrl adds one cell ---------- */
+const ck = (r, f) => r + "|" + f;
+function cellRect(r, f){ const rows = visibleRows().map(x => x.id), cols = columns().map(x => x.id); const a = S.canchor || { r: S.sel?.r, f: S.sel?.f };
+  const r0 = rows.indexOf(a.r), r1 = rows.indexOf(r), c0 = cols.indexOf(a.f), c1 = cols.indexOf(f); if (r0 < 0 || r1 < 0 || c0 < 0 || c1 < 0) return;
+  S.canchor = a; S.csel = new Set(); for (let i = Math.min(r0, r1); i <= Math.max(r0, r1); i++) for (let j = Math.min(c0, c1); j <= Math.max(c0, c1); j++) S.csel.add(ck(rows[i], cols[j])); }
+function extendCells(dr, dc){ if (!S.sel) return; const rows = visibleRows().map(x => x.id), cols = columns().map(x => x.id); if (!S.csel) S.canchor = { r: S.sel.r, f: S.sel.f };
+  const i = Math.max(0, Math.min(rows.length - 1, rows.indexOf(S.sel.r) + dr)), j = Math.max(0, Math.min(cols.length - 1, cols.indexOf(S.sel.f) + dc));
+  cellRect(rows[i], cols[j]); S.sel = { r: rows[i], f: cols[j], row:false }; render(); }
+const pickedCells = () => S.csel?.size > 1 ? [...S.csel].map(k => { const [r, f] = k.split("|"); return { r, f }; }).filter(c => S.row[c.r] && columns().some(x => x.id === c.f)) : S.sel && !S.sel.row ? [{ r: S.sel.r, f: S.sel.f }] : [];
+/* can this cell take a value from the person? computed, read-only and deleted cells cannot */
+function canSet(r, f){ if (!r || r._del || !f || f.mode === "read") return false; if (f.kind === "start") return !!r.is_leaf; if (f.virtual || isRollup(r, f)) return false;
+  return !["thumbnail","attachment"].includes(f.type); }
+function cellOps(list){ const out = []; for (const { r, f, v } of list) { const base = S.base.find(b => b.id === r.id)?.data?.[f.id] ?? null;
+    S.draft.ops = S.draft.ops.filter(o => !(o.t === "cell" && o.record === r.id && o.field === f.id)); if (JSON.stringify(base) !== JSON.stringify(v ?? null)) out.push({ t:"cell", record:r.id, field:f.id, value: v ?? null, base }); } return out; }
+function startOps(rows, day){ const ops = []; const ms = day ? Date.parse(day + "T00:00:00Z") : null; const start = day ? whOfDate(ms) : null;
+  for (const r of rows) { const g = S.segEff[r.id];
+    if (!day) { if (g) ops.push({ t:"unplan", record:r.id, version: segVersion(r.id) }); continue; }
+    const hours = g ? g.hours : +r.estimate_h || 0; if (!hours) continue; ops.push({ t:"seg", record:r.id, start, end: start + (g ? g.end - g.start : hours), hours, assignee: g ? g.assignee : asgOf(r), version: segVersion(r.id) }); }
+  return ops; }
+function clearCells(cells){ const all = cells.map(c => ({ r: S.row[c.r], f: columns().find(x => x.id === c.f) })); const ok = all.filter(c => canSet(c.r, c.f) && c.f.role !== "title" && c.f.kind !== "start");
+  const skip = all.length - ok.length; if (!ok.length) return toast(`Nothing to clear — ${skip > 1 ? "these cells are" : "this cell is"} computed or read-only`);
+  draftPush(); const ops = cellOps(ok.map(c => ({ r: c.r, f: c.f, v: c.f.type === "checkbox" ? false : null }))); S.draft.ops.push(...ops); saveDraft(); rebuild(); render();
+  toast(`${ok.length} of ${all.length} cleared${skip ? ` · ${skip} computed or read-only` : ""} — Ctrl+Z brings them back`); }
+function cellsMenu(cells, x, y){ const rowIds = [...new Set(cells.map(c => c.r))], fids = [...new Set(cells.map(c => c.f))]; const one = fids.length === 1 ? columns().find(f => f.id === fids[0]) : null;
+  const items = [{ head: `${cells.length} cells${one ? " · " + one.name : ""}` }, { label:`Clear ${cells.length} cells`, hint: keyHint("delrows") || "Delete", run: () => clearCells(cells) },
+    { label:"Bulk edit…", hint: one ? one.name : `${rowIds.length} rows`, run: () => openBulk(rowIds, { field: one?.id }) }, "-",
+    { label:`Delete ${rowIds.length} row${rowIds.length > 1 ? "s" : ""}`, hint:"to the draft", danger:true, run: () => deleteMany(rowIds) }];
+  openMenu(x, y, items); }
+
+/* ---------- Bulk edit: like Jira's Bulk change, without the workflow. 1) which level, 2) which columns and what value ---------- */
+function bulkFields(rows){ const leaf = rows.every(r => r.is_leaf), out = [];
+  for (const f of columns()) { if (f.role === "title" || f.mode === "read") continue;
+    if (f.kind === "start") { if (leaf) out.push(f); continue; } if (f.virtual) continue;
+    if (["thumbnail","attachment","link"].includes(f.type)) continue; if ((f.role === "estimate" || f.role === "time_spent") && !leaf) continue; out.push(f); }
+  return out; }
+function bulkInput(f, rows){ const st = f.role === "status" && rows.some(r => S.tree.some(c => c.parent_id === r.id && !c._del));
+  if (f.type === "select") return `<select data-v="${f.id}"><option value="">— empty —</option>${st ? `<option value="__auto">Automatic (follows the rows inside)</option>` : ""}${(f.config?.options || []).map(o => `<option>${esc(o)}</option>`).join("")}</select>`;
+  if (f.type === "person") return `<select data-v="${f.id}"><option value="">— nobody —</option>${S.members.map(m => `<option value="${m.id}">${esc(m.display_name)}</option>`).join("")}</select>`;
+  if (f.type === "checkbox") return `<select data-v="${f.id}"><option value="1">Yes</option><option value="">No</option></select>`;
+  if (["number","money","duration"].includes(f.type)) return `<input data-v="${f.id}" inputmode="decimal" placeholder="empty = clear">`;
+  if (f.type === "date" || f.kind === "start") return `<input type="date" data-v="${f.id}">`;
+  return `<input data-v="${f.id}" placeholder="empty = clear">`; }
+function openBulk(ids, opt = {}){ closeMenu(); closeModal(); const rows0 = ids.map(id => S.row[id]).filter(r => r && !r._del); if (!rows0.length) return;
+  const groups = []; for (const r of rows0) { const k = r.level_id || r.level; let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, name: r.level || "Rows", rows: [] }); g.rows.push(r); }
+  groups.sort((a, b) => (S.levels.findIndex(l => l.id === a.k)) - (S.levels.findIndex(l => l.id === b.k)));
+  let g = groups.length === 1 ? groups[0] : opt.level ? groups.find(x => x.k === opt.level) : null;
+  if (!g && opt.field && groups.length > 1) { const rf = ids.map(id => S.row[id]); g = null; }
+  const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v); const on = new Set(opt.field ? [opt.field] : []);
+  const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+  const paint = () => {
+    if (!g) { v.innerHTML = `<div class="modal" style="width:460px"><div class="mhead"><span class="t">Bulk edit · ${rows0.length} rows</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div><div class="mbody">
+        <p class="note" style="margin:0 0 10px">The rows you picked sit on different levels. Which ones do you want to change?</p>
+        ${groups.map((x, i) => `<button class="blv" data-g="${i}"><b>${esc(x.name)}</b><span>${x.rows.length}</span></button>`).join("")}</div>
+        <div class="mfoot"><button class="tbtn" data-x="close">Cancel</button></div></div>`; v.querySelector(".blv")?.focus(); return; }
+    const fs = bulkFields(g.rows); const n = [...on].filter(id => fs.some(f => f.id === id)).length;
+    v.innerHTML = `<div class="modal" style="width:620px"><div class="mhead"><span class="t">Bulk edit · ${plural(g.rows.length, esc(g.name))}</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div><div class="mbody">
+      ${groups.length > 1 ? `<button class="lnk" data-x="back" style="margin-bottom:8px">‹ Other level</button>` : ""}
+      <p class="note" style="margin:0 0 10px">Tick the columns to change and give each one value — it goes to every picked ${esc(g.name.toLowerCase())}. Ticked and empty clears the column. Computed columns are not here.</p>
+      <div class="blist">${fs.map(f => `<label class="brow ${on.has(f.id) ? "on" : ""}"><input type="checkbox" data-on="${f.id}" ${on.has(f.id) ? "checked" : ""}><span class="bn">${esc(f.name)}</span>${bulkInput(f, g.rows)}</label>`).join("") || `<div class="empty">Nothing on this level can be changed in bulk.</div>`}</div></div>
+      <div class="mfoot"><button class="tbtn" data-x="close">Cancel</button><button class="tbtn pri" data-x="go" ${n ? "" : "disabled"}>${n ? `Change ${plural(n, "column")} on ${plural(g.rows.length, esc(g.name))}` : "Tick a column"}</button></div></div>`;
+    for (const f of fs) { const el = v.querySelector(`[data-v="${f.id}"]`); if (el && vals[f.id] != null) el.value = vals[f.id]; }
+    const first = opt.field && v.querySelector(`[data-v="${opt.field}"]`); (first || v.querySelector(".brow input[type=checkbox]"))?.focus(); opt.field = null; };
+  const vals = {};
+  paint();
+  v.addEventListener("click", e => { if (e.target === v) return closeModal(); const b = e.target.closest("[data-x],[data-g]"); if (!b) return;
+    if (b.dataset.g) { g = groups[+b.dataset.g]; return paint(); }
+    const x = b.dataset.x; if (x === "close") return closeModal(); if (x === "back") { g = null; return paint(); }
+    if (x === "go") { const fs = bulkFields(g.rows).filter(f => on.has(f.id)); if (!fs.length) return; closeModal(); bulkApply(g.rows, fs.map(f => [f, vals[f.id] ?? (f.type === "checkbox" ? "1" : "")]), g.name); } });
+  v.addEventListener("change", e => { const id = e.target.dataset.on; if (id) { e.target.checked ? on.add(id) : on.delete(id); return paint(); } });
+  v.addEventListener("input", e => { const id = e.target.dataset.v; if (!id) return; vals[id] = e.target.value; if (!on.has(id)) { on.add(id); paint(); const el = v.querySelector(`[data-v="${id}"]`); if (el) { el.focus(); if (el.setSelectionRange && el.type !== "date") el.setSelectionRange(el.value.length, el.value.length); } } });
+  v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) v.querySelector("[data-x=go]")?.click(); }); }
+function bulkApply(rows, pairs, levelName){ const cells = [], plan = []; let skipped = 0, bad = null;
+  for (const [f, raw] of pairs) {
+    if (f.kind === "start") { plan.push(...startOps(rows, raw || null)); if (raw) skipped += rows.filter(r => !S.segEff[r.id] && !(+r.estimate_h > 0)).length; continue; }
+    let val = raw === "" ? null : raw;
+    if (val != null && ["number","money","duration"].includes(f.type)) { val = Number(String(val).replace(",", ".")); if (Number.isNaN(val)) { bad = f.name; break; } }
+    if (f.type === "checkbox") val = raw === "1";
+    for (const r of rows) { if (!canSet(r, f)) { skipped++; continue; } const parent = S.tree.some(c => c.parent_id === r.id && !c._del);
+      if (f.role === "status" && raw === "__auto") { if (parent) cells.push({ r, f, v: null }); else skipped++; continue; }
+      cells.push({ r, f, v: val }); } }
+  if (bad) return toast(`“${bad}” needs a number`, true);
+  draftPush(); const ops = cellOps(cells); S.draft.ops.push(...ops);
+  if (plan.length) { const ids = new Set(plan.map(o => o.record)); S.draft.ops = S.draft.ops.filter(o => !((o.t === "seg" || o.t === "unplan") && ids.has(o.record))).concat(plan); }
+  saveDraft(); rebuild(); render();
+  const n = ops.length + plan.length; toast(n ? `Bulk edit: ${n} change${n > 1 ? "s" : ""} on ${rows.length} ${levelName.toLowerCase()}${rows.length > 1 ? "s" : ""}${skipped ? ` · ${skipped} skipped (no estimate or not editable)` : ""} — in the draft, Ctrl+Z takes it back` : "Nothing changed — the rows already have these values"); }
+
 /* hand-set (✎) or automatic status for rows with rows inside — one row or a group, one draft step */
 function statusMode(ids, manual){ const st = byRole("status"); if (!st) return; const rows = ids.map(id => S.row[id]).filter(r => r && !r._del && S.tree.some(c => c.parent_id === r.id && !c._del) && (manual ? r._stAuto : r._stMan));
   if (!rows.length) return; draftPush();
@@ -1012,7 +1109,7 @@ function statusMode(ids, manual){ const st = byRole("status"); if (!st) return; 
 const statusItems = ids => { const rs = ids.map(id => S.row[id]).filter(r => r && !r._del && S.tree.some(c => c.parent_id === r.id && !c._del)); if (!byRole("status") || !rs.length) return [];
   const man = rs.filter(r => r._stMan).length, aut = rs.filter(r => r._stAuto).length, n = c => ids.length > 1 ? ` · ${c}` : "";
   return [...(aut ? [{ label:"Set status manually", hint:"auto → ✎" + n(aut), run: () => statusMode(ids, true) }] : []), ...(man ? [{ label:"Set status automatically", hint:"✎ → auto" + n(man), run: () => statusMode(ids, false) }] : [])]; };
-function groupMenu(ids, x, y){ const items = [{ head: ids.length + " rows" }, ...statusItems(ids)];
+function groupMenu(ids, x, y){ const items = [{ head: ids.length + " rows" }, { label:`Bulk edit ${ids.length} rows…`, hint: keyHint("bulkedit"), run: () => openBulk(ids) }, ...statusItems(ids)];
   if (items.length > 1) items.push("-"); items.push({ label:`Delete ${ids.length} rows`, hint:"to the draft", danger:true, run: () => deleteMany(ids) }); openMenu(x, y, items); }
 function rowMenu(r, x, y){ const cl = childLevel(r), lv = levelOf(r), kids = S.tree.some(k => k.parent_id === r.id);
   const items = [{ head: (r.level || "") + " · " + (r.title || "") }];
@@ -1322,6 +1419,7 @@ function setStep(h){ S.step = h; try { localStorage.setItem("pmkit.step", h); } 
 function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && columns().find(c => c.id === S.sel.f); const lv = r && levelOf(r), cl = r && childLevel(r), top = enabledLevels()[0]; const onT = S.sheet === "tracker"; const go = sh => async () => { S.sheet = sh; try { if (sh === "history") await loadHistory(); } catch (e) { fail(e); } render(); };
   const M = {
     edit: [{ label:"Undo", hint: keyHint("undo"), disabled:!S.draft.undo.length, run: undo }, { label:"Redo", hint: keyHint("redo"), disabled:!S.draft.redo.length, run: redo }, "-",
+      { label:"Bulk edit…", hint: (() => { const n = S.csel?.size > 1 ? new Set(pickedCells().map(c => c.r)).size : picked().length; return n ? n + " row" + (n > 1 ? "s" : "") : "pick rows"; })(), disabled: !onT || !(S.multi?.size > 1 || S.csel?.size > 1 || S.sel), run: () => CMDS.find(c => c.id === "bulkedit").run() }, "-",
       { label:"Apply the draft", hint: keyHint("apply"), disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
       { label:"Clear the cell", hint:"Delete", disabled: !onT || !r || !f || f.virtual || f.role === "title" || isRollup(r, f), run: () => setCell(r.id, f, f.type === "checkbox" ? false : null) },
       { label:"Delete the row", disabled: !onT || !r || r._del, danger:true, run: () => deleteRow(r) }, "-", { label:"Saved changes: open History", run: go("history") }],
@@ -1429,6 +1527,7 @@ $app.addEventListener("click", async e => {
     if (a === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
     if (a === "expand") { S.collapsed.clear(); return render(); }
     if (a === "mode-row" || a === "mode-cell") return setSelMode(a === "mode-cell");
+    if (a === "mode-lock") { PREF.lockMode = PREF.lockMode ? null : (S.sel ? (S.sel.row ? "row" : "cell") : S.modePref || "row"); savePref(); render(); return toast(PREF.lockMode ? `${PREF.lockMode === "cell" ? "Cell" : "Row"} mode locked — it changes only here or with ${keyHint("selmode")}` : "Mode unlocked — it follows your clicks again"); }
     if (a === "fsdown" || a === "fsup") { VIEW.fs += a === "fsup" ? 1 : -1; applyView(true); return render(); }
     if (a === "zoomout" || a === "zoomin") { VIEW.zoom += a === "zoomin" ? 10 : -10; applyView(true); return render(); }
     if (a === "undo") return undo();
@@ -1457,12 +1556,16 @@ $app.addEventListener("click", async e => {
   const td = t.closest("td[data-f]"); const tr = t.closest("tr[data-id]");
   if (td && tr && !t.closest("a")) { const same = S.sel && !S.sel.row && S.sel.r === tr.dataset.id && S.sel.f === td.dataset.f; const f = columns().find(x => x.id === td.dataset.f);
     if (S.editing && same) return; const box = !!t.closest(".box");
-    if (!box && (e.shiftKey || (IS_MAC ? e.metaKey : e.ctrlKey))) { const id = tr.dataset.id; S.editing = false;
+    if (!box && (e.shiftKey || (IS_MAC ? e.metaKey : e.ctrlKey)) && S.sel && !S.sel.row && !t.closest(".grip")) { const k = ck(tr.dataset.id, td.dataset.f); S.editing = false; S.multi = null;
+      if (e.shiftKey) cellRect(tr.dataset.id, td.dataset.f); else { if (!S.csel) { S.csel = new Set([ck(S.sel.r, S.sel.f)]); } S.csel.has(k) && S.csel.size > 1 ? S.csel.delete(k) : S.csel.add(k); S.canchor = { r: tr.dataset.id, f: td.dataset.f }; }
+      S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; return render(); }
+    if (!box && (e.shiftKey || (IS_MAC ? e.metaKey : e.ctrlKey))) { const id = tr.dataset.id; S.editing = false; S.csel = null; S.canchor = null;
       if (e.shiftKey && S.sel) rangeTo(id); else { S.multi ||= new Set(S.sel ? [S.sel.r] : []); S.multi.has(id) && S.multi.size > 1 ? S.multi.delete(id) : S.multi.add(id); S.anchor = id; }
       S.sel = { r: id, f: td.dataset.f, row:true }; return render(); }
     if (!box) { S.multi = null; S.anchor = tr.dataset.id; }
+    if (S.csel && !box) { S.csel = null; S.canchor = null; }
     const now = Date.now(), dbl = !box && LASTCLICK.r === tr.dataset.id && LASTCLICK.f === td.dataset.f && now - LASTCLICK.t < 450; LASTCLICK = dbl ? { t:0 } : { r: tr.dataset.id, f: td.dataset.f, t: now };
-    if (dbl) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render(); return startEdit(); }
+    if (dbl) { S.csel = null; S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; S.cellOnce = true; render(); startEdit(); S.cellOnce = false; return; }
     // the mode sticks: a picked row → a click picks another row; a picked cell → a click picks another cell; the ⋮⋮ handle always picks the row
     const rowMode = (!S.sel ? S.modePref !== "cell" : S.sel.row) || !!t.closest(".grip");
     if (!box && rowMode && !(S.sel && S.sel.row === false ? false : S.sel && S.sel.r === tr.dataset.id && !t.closest(".grip"))) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
@@ -1474,6 +1577,7 @@ $app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]
   S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
   if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
+  if (tr && S.csel?.size > 1 && S.csel.has(ck(tr.dataset.id, e.target.closest("td[data-f]")?.dataset.f))) { e.preventDefault(); return cellsMenu(pickedCells(), e.clientX, e.clientY); }
   if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); const inGroup = S.multi?.size > 1 && S.multi.has(tr.dataset.id);
     if (!inGroup) S.multi = null; S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id, row:true }; render();
     return inGroup ? groupMenu([...S.multi], e.clientX, e.clientY) : rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
@@ -1484,7 +1588,9 @@ $app.addEventListener("keydown", e => {
       if (["number","money","duration"].includes(f.type)) { v = v === "" ? null : Number(v.replace(",", ".")); if (Number.isNaN(v)) return toast("This cell needs a number", true); } else if (v === "") v = null; e.target.blur(); return setCell(r.id, f, v); }
     if (e.key === "Escape") { e.target.blur(); render(); } return; }
   if (S.sheet !== "tracker" || S.editing || !e.target.classList.contains("main")) return; const k = e.key;
+  if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && S.sel && !S.sel.row && k.startsWith("Arrow")) { e.preventDefault(); return extendCells(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0); }
   if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (k === "ArrowDown" || k === "ArrowUp")) { e.preventDefault(); return extendSel(k === "ArrowDown" ? 1 : -1); }
+  if (S.csel?.size > 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { if (k === "Delete" || k === "Backspace") { e.preventDefault(); return clearCells(pickedCells()); } if (k === "Escape") { e.preventDefault(); S.csel = null; S.canchor = null; return render(); } }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (!S.sel || S.sel.row) {   // row mode
     if (k === "ArrowDown") { e.preventDefault(); return moveRowSel(1); } if (k === "ArrowUp") { e.preventDefault(); return moveRowSel(-1); }
