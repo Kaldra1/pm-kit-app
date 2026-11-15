@@ -112,6 +112,7 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .grid tr.dim td{color:var(--muted-3);background:#f6f8fa;font-weight:400}
 .grid tr.dim .chip{opacity:.55} .grid tr.dim a{color:var(--muted-3)}
 .grid td.sel{outline:2px solid var(--mark);outline-offset:-2px;z-index:1;position:relative}
+.grid tr.rsel td{background:#e6f0fa!important;box-shadow:inset 0 2px 0 var(--mark),inset 0 -2px 0 var(--mark)}.grid tr.rsel td:first-child{box-shadow:inset 3px 0 0 var(--mark),inset 0 2px 0 var(--mark),inset 0 -2px 0 var(--mark)}
 .grid td:first-child.sel{position:sticky;z-index:2}
 .grid td.num{text-align:right;font-variant-numeric:tabular-nums}
 .grid td.sum{color:var(--muted)}
@@ -557,7 +558,7 @@ function cellClass(r, f){ const c = [];
   if (isRollup(r, f) || (f.virtual && !(f.kind === "start" && r.is_leaf))) c.push("sum");
   if (["estimate","approved_lead","approved_client"].includes(f.role)) { const a = byRole("approved_lead"), b = byRole("approved_client"); if (a && b && r.data?.[a.id] === true && r.data?.[b.id] === true) c.push("ok2"); }
   if (r._dr?.has(f.id)) c.push("dr");
-  if (S.sel && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
+  if (S.sel && !S.sel.row && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
 const wst = f => f.width ? ` style="width:${f.width}px;min-width:${f.width}px;max-width:${f.width}px"` : "";
 function sheetTracker(){
   const cols = columns(); const title = cols[0]; const rest = cols.slice(1); const rows = visibleRows(); const st = byRole("status");
@@ -565,7 +566,7 @@ function sheetTracker(){
   const selRow = S.sel && S.row[S.sel.r]; const selF = S.sel && cols.find(f => f.id === S.sel.f);
   let body = "";
   for (const r of rows) { const dim = st && meta(st, r.data?.[st.id]).dim;
-    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
+    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${S.sel?.row && S.sel.r === r.id ? "rsel" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
       <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="${S.sort ? "Clear the sort to move rows by hand" : "Drag to move"}">⋮⋮</span>
         <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title ?? "")}</span></div></td>
       ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
@@ -581,8 +582,8 @@ function sheetTracker(){
       ${S.sort ? `<span class="fnote">Sorted by ${esc(cols.find(c => c.id === S.sort.f)?.name || "")} ${S.sort.dir > 0 ? "↑" : "↓"} <button class="lnk" data-act="sclear" title="Back to the order of the project">clear</button></span>` : ""}
       ${filtering() ? `<span class="fnote"><b>${rows.length} of ${S.tree.length}</b> rows</span><button class="tbtn" data-act="fclear">✕ Clear filters</button>` : ""}
       <span class="sp"></span>${(() => { const all = colList(S.allFields.filter(f => !S.removedFields.includes(f))); const n = cols.length; return `<button class="tbtn fbtn ${n < all.length ? "on" : ""}" data-act="cols" title="Show, hide and add columns">Columns <b>${n < all.length ? n + " of " + all.length : "all"}</b> ▾</button>`; })()}</div>
-    <div class="cb"><div class="ref">${selRow && selF ? esc(selRow.title) + " · " + esc(selF.name) : "Select a cell"}</div>
-      <input id="cellbar" value="${esc(selVal)}" ${direct ? "" : "readonly"} autocomplete="off" placeholder="${selRow ? "" : "Arrows move, Enter edits, right-click for more"}">
+    <div class="cb"><div class="ref">${selRow && selF ? esc(selRow.title) + " · " + (S.sel.row ? "row" : esc(selF.name)) : "Select a row"}</div>
+      <input id="cellbar" value="${S.sel?.row ? "" : esc(selVal)}" ${direct && !S.sel?.row ? "" : "readonly"} autocomplete="off" placeholder="${!selRow ? "↑↓ rows · → into the cells · Enter edits · right-click for more" : S.sel.row ? `→ or Enter steps into the cells · ${IS_MAC ? "⌥" : "Ctrl+"}← → collapse / expand` : ""}">
       <span class="hint">${selRow && selF ? (selF.virtual ? "computed" : isRollup(selRow, selF) ? "sum of rows below" : "") : ""}</span></div>
     <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""} ${S.flt[f.id]?.size ? "flt" : ""} ${S.fDraft?.has(f.id) ? "fdr" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", h" : ""}</span>${S.sort?.f === f.id ? `<span class="hmk">${S.sort.dir > 0 ? "↑" : "↓"}</span>` : ""}${S.flt[f.id]?.size ? `<span class="hmk" title="Filtered">▼</span>` : ""}<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1" title="Sort, filter, move, hide">⋮</button></div>${f.virtual ? "" : `<span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
       <tbody>${body || `<tr><td colspan="${cols.length}"><div class="empty">${filtering() ? "Nothing matches the search or filters." : `Nothing here yet. Start with “+ ${esc(top?.name || "Row")}”.`}</div></td></tr>`}</tbody></table></div>
@@ -591,7 +592,29 @@ function sheetTracker(){
 }
 
 /* selection + editing */
-function select(r, f, scroll = true){ S.sel = { r, f }; S.editing = false; render(); if (scroll) document.querySelector("td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
+function select(r, f, scroll = true, row = false){ S.sel = { r, f, row }; S.editing = false; render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
+/* keyboard, rows first (as in Jira Structure and the treegrid pattern): ↑↓ move by rows, → steps into a cell, ← from the first cell back to the row */
+function moveRowSel(dr){ const rows = visibleRows(); if (!rows.length) return; let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : -1;
+  ri = ri < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, ri + dr)); select(rows[ri].id, S.sel?.f || columns()[0].id, true, true); }
+function enterCell(){ if (!S.sel) return; const cols = columns(); let f = cols.find(c => c.id === S.sel.f); if (!f || f.role === "title") f = cols[1] || cols[0]; select(S.sel.r, f.id); }
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/* Ctrl+← / Ctrl+→ (Option on a Mac): collapse and expand; with Shift — everything inside */
+function foldSel(open, deep){ const r = S.row[S.sel?.r]; if (!r) return; const kids = id => S.tree.some(x => x.parent_id === id);
+  const inside = () => S.tree.filter(x => x.id !== r.id && isUnder(x, r.id) && kids(x.id)).map(x => x.id);
+  if (open) { S.collapsed.delete(r.id); if (deep) inside().forEach(id => S.collapsed.delete(id)); return select(r.id, S.sel.f, true, true); }
+  if (deep) { inside().forEach(id => S.collapsed.add(id)); if (kids(r.id)) S.collapsed.add(r.id); return select(r.id, S.sel.f, true, true); }
+  if (kids(r.id) && !S.collapsed.has(r.id)) { S.collapsed.add(r.id); return select(r.id, S.sel.f, true, true); }
+  const p = S.row[r.parent_id]; select(p ? p.id : r.id, S.sel.f, true, true); }
+/* Ctrl+Enter (⌘Enter): close the cell being edited, then Apply */
+async function applyByKey(){ const a = document.activeElement;
+  if (a?.id === "cellbar" && !a.readOnly && S.sel) a.dispatchEvent(new KeyboardEvent("keydown", { key:"Enter", bubbles:true }));
+  else if (a && a.matches?.("input,select,textarea") && a.id !== "search") a.blur();
+  await new Promise(r => setTimeout(r, 40));
+  if (document.querySelector(".veil")) return;   // a question popped up (e.g. the estimate of a planned stage) — answer it first
+  closeMenu(); if (!S.draft.ops.length) return toast("Nothing to apply — the draft is empty"); applyDraft(); }
+document.addEventListener("keydown", e => { if (e.key !== "Enter" || !(IS_MAC ? e.metaKey : e.ctrlKey) || e.shiftKey || e.altKey) return;
+  if (document.querySelector(".veil form")) return;   // a dialog with a form: Enter belongs to it
+  e.preventDefault(); e.stopPropagation(); if (document.querySelector(".veil")) { document.activeElement?.blur?.(); closeModal(); } applyByKey(); }, true);
 function moveSel(dr, dc){ const rows = visibleRows(), cols = columns(); if (!rows.length) return;
   let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : 0, ci = S.sel ? cols.findIndex(x => x.id === S.sel.f) : 0; if (ri < 0) ri = 0; if (ci < 0) ci = 0;
   ri = Math.max(0, Math.min(rows.length - 1, ri + dr)); ci = Math.max(0, Math.min(cols.length - 1, ci + dc)); select(rows[ri].id, cols[ci].id); }
@@ -969,13 +992,13 @@ function barMenu(id, x, y){ const r = S.row[id], s = S.segEff[id]; if (!r || !s)
 function clearFilters(){ S.flt = {}; S.hideDone = false; S.search = ""; saveTV(); render(); }
 function draftBar(){ const n = S.draft.ops.length;
   return `<button class="tbtn ico" data-act="undo" title="Undo (Ctrl+Z)" ${S.draft.undo.length ? "" : "disabled"}>↶</button><button class="tbtn ico" data-act="redo" title="Redo (Ctrl+Y)" ${S.draft.redo.length ? "" : "disabled"}>↷</button><span class="tsep"></span>
-    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
+    <button class="tbtn ${n ? "pri" : ""}" data-act="apply" title="Save the draft to the database (${IS_MAC ? "⌘" : "Ctrl+"}Enter)" ${n ? "" : "disabled"}>✓ Apply${n ? " · " + n : ""}</button><button class="tbtn" data-act="discard" title="Throw the draft away" ${n ? "" : "disabled"}>✕ Discard</button><span class="tsep"></span>`; }
 const stepName = () => STEPS.find(x => x[0] === S.step)[1];
 function setStep(h){ S.step = h; try { localStorage.setItem("pmkit.step", h); } catch (_) {} render(); }
 function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && columns().find(c => c.id === S.sel.f); const lv = r && levelOf(r), cl = r && childLevel(r), top = enabledLevels()[0]; const onT = S.sheet === "tracker"; const go = sh => async () => { S.sheet = sh; try { if (sh === "history") await loadHistory(); } catch (e) { fail(e); } render(); };
   const M = {
     edit: [{ label:"Undo", hint:"Ctrl+Z", disabled:!S.draft.undo.length, run: undo }, { label:"Redo", hint:"Ctrl+Y", disabled:!S.draft.redo.length, run: redo }, "-",
-      { label:"Apply the draft", disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
+      { label:"Apply the draft", hint: IS_MAC ? "⌘Enter" : "Ctrl+Enter", disabled:!S.draft.ops.length, run: applyDraft }, { label:"Discard the draft", disabled:!S.draft.ops.length, run: discardDraft }, "-",
       { label:"Clear the cell", hint:"Delete", disabled: !onT || !r || !f || f.virtual || f.role === "title" || isRollup(r, f), run: () => setCell(r.id, f, f.type === "checkbox" ? false : null) },
       { label:"Delete the row", disabled: !onT || !r || r._del, danger:true, run: () => deleteRow(r) }, "-", { label:"Saved changes: open History", run: go("history") }],
     insert: [...enabledLevels().map(L => { const sp = insertSpot(L); return { label: L.name, hint: sp.why || sp.hint, disabled: !onT || !!sp.why, run: () => addRow(sp.parent, L, sp.before) }; }), "-",
@@ -1102,14 +1125,17 @@ $app.addEventListener("click", async e => {
   }
   if (S.sheet !== "tracker") return;
   const td = t.closest("td[data-f]"); const tr = t.closest("tr[data-id]");
-  if (td && tr && !t.closest("a")) { const same = S.sel && S.sel.r === tr.dataset.id && S.sel.f === td.dataset.f; const f = columns().find(x => x.id === td.dataset.f);
-    if (S.editing && same) return; S.sel = { r: tr.dataset.id, f: td.dataset.f }; S.editing = false; render();
+  if (td && tr && !t.closest("a")) { const same = S.sel && !S.sel.row && S.sel.r === tr.dataset.id && S.sel.f === td.dataset.f; const f = columns().find(x => x.id === td.dataset.f);
+    if (S.editing && same) return; const box = !!t.closest(".box");
+    if (!box && !(S.sel && S.sel.r === tr.dataset.id)) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
+    S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render();
     if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)))) startEdit(); }
 });
-$app.addEventListener("dblclick", e => { if (S.sheet === "tracker" && e.target.closest("td[data-f]") && !S.editing) startEdit(); });
+$app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]"), tr = e.target.closest("tr[data-id]"); if (S.sheet !== "tracker" || !td || !tr || S.editing) return;
+  S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
   if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
-  if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
+  if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id, row:true }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
   if (th) { const f = columns().find(x => x.id === th.dataset.f); if (f) { e.preventDefault(); colMenu(f, e.clientX, e.clientY); } } });
 $app.addEventListener("keydown", e => {
   if (e.target.id === "cellbar") { e.stopPropagation();
@@ -1119,17 +1145,25 @@ $app.addEventListener("keydown", e => {
   if (S.sheet !== "tracker" || S.editing || !e.target.classList.contains("main")) return; const k = e.key;
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "y") { e.preventDefault(); return redo(); }
+  if ((k === "ArrowLeft" || k === "ArrowRight") && (IS_MAC ? e.altKey && !e.metaKey && !e.ctrlKey : e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); return foldSel(k === "ArrowRight", e.shiftKey); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!S.sel || S.sel.row) {   // row mode
+    if (k === "ArrowDown") { e.preventDefault(); return moveRowSel(1); } if (k === "ArrowUp") { e.preventDefault(); return moveRowSel(-1); }
+    if (!S.sel) return;
+    if (k === "ArrowRight" || k === "Enter" || k === "F2") { e.preventDefault(); return enterCell(); }
+    if (k === "ArrowLeft" || k === "Tab") { e.preventDefault(); return; }
+    if (k === "Escape") return closeMenu();
+    return; }
   if (k === "ArrowDown") { e.preventDefault(); return moveSel(1, 0); } if (k === "ArrowUp") { e.preventDefault(); return moveSel(-1, 0); }
-  if (k === "ArrowRight") { e.preventDefault(); return moveSel(0, 1); } if (k === "ArrowLeft") { e.preventDefault(); return moveSel(0, -1); }
+  if (k === "ArrowRight") { e.preventDefault(); return moveSel(0, 1); }
+  if (k === "ArrowLeft") { e.preventDefault(); return columns().findIndex(x => x.id === S.sel.f) <= 0 ? select(S.sel.r, S.sel.f, true, true) : moveSel(0, -1); }
   if (k === "Tab") { e.preventDefault(); return moveSel(0, e.shiftKey ? -1 : 1); }
-  if (!S.sel) return;
   if (k === "Enter" || k === "F2") { e.preventDefault(); return startEdit(); }
   if (k === " ") { const f = columns().find(x => x.id === S.sel.f); if (f?.type === "checkbox") { e.preventDefault(); return startEdit(); } }
   if (k === "Delete" || k === "Backspace") { const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); e.preventDefault();
     if (r && f?.kind === "start" && r.is_leaf && S.segEff[r.id]) return setStart(r, "");
     if (!r || !f || f.virtual || isRollup(r, f) || f.role === "title") return; return setCell(r.id, f, f.type === "checkbox" ? false : null); }
-  if (k === "Escape") return closeMenu();
+  if (k === "Escape") { if (document.querySelector(".menu")) return closeMenu(); return select(S.sel.r, S.sel.f, false, true); }
   if (k.length === 1) { const f = columns().find(x => x.id === S.sel.f); if (f && !f.virtual && ["text","number","money","duration"].includes(f.type)) { e.preventDefault(); return startEdit(k); } }
 });
 $app.addEventListener("input", e => { if (e.target.id === "vzoom") { VIEW.zoom = +e.target.value; applyView(true); const v = document.getElementById("vzoomval"); if (v) v.textContent = VIEW.zoom + "%"; return; }
