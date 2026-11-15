@@ -149,6 +149,10 @@ table.hk td{vertical-align:middle}table.hk tr.rec td{background:#fff8e6}.recn{co
 .grid tr.dim .chip{opacity:.55} .grid tr.dim a{color:var(--muted-3)}
 .grid td.sel{outline:2px solid var(--mark);outline-offset:-2px;z-index:1;position:relative}
 .grid tr.rsel td{background:#e6f0fa!important;box-shadow:inset 0 2px 0 var(--mark),inset 0 -2px 0 var(--mark)}.grid tr.rsel td:first-child{box-shadow:inset 3px 0 0 var(--mark),inset 0 2px 0 var(--mark),inset 0 -2px 0 var(--mark)}
+/* a run of picked rows is one block: no line between neighbours, only around the whole run */
+.grid tr.rsel + tr.rsel td{box-shadow:inset 0 -2px 0 var(--mark)} .grid tr.rsel + tr.rsel td:first-child{box-shadow:inset 3px 0 0 var(--mark),inset 0 -2px 0 var(--mark)}
+.grid tr.rsel:has(+ tr.rsel) td{box-shadow:inset 0 2px 0 var(--mark)} .grid tr.rsel:has(+ tr.rsel) td:first-child{box-shadow:inset 3px 0 0 var(--mark),inset 0 2px 0 var(--mark)}
+.grid tr.rsel + tr.rsel:has(+ tr.rsel) td{box-shadow:none} .grid tr.rsel + tr.rsel:has(+ tr.rsel) td:first-child{box-shadow:inset 3px 0 0 var(--mark)}
 .grid td:first-child.sel{position:sticky;z-index:2}
 .grid td.num{text-align:right;font-variant-numeric:tabular-nums}
 .grid td.sum{color:var(--muted)}
