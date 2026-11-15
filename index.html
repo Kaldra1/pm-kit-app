@@ -566,7 +566,7 @@ function sheetTracker(){
   const selRow = S.sel && S.row[S.sel.r]; const selF = S.sel && cols.find(f => f.id === S.sel.f);
   let body = "";
   for (const r of rows) { const dim = st && meta(st, r.data?.[st.id]).dim;
-    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${S.sel?.row && S.sel.r === r.id ? "rsel" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
+    body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${S.sel?.row && (S.sel.r === r.id || S.multi?.has(r.id)) ? "rsel" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
       <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="${S.sort ? "Clear the sort to move rows by hand" : "Drag to move"}">⋮⋮</span>
         <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title ?? "")}</span></div></td>
       ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
@@ -582,7 +582,7 @@ function sheetTracker(){
       ${S.sort ? `<span class="fnote">Sorted by ${esc(cols.find(c => c.id === S.sort.f)?.name || "")} ${S.sort.dir > 0 ? "↑" : "↓"} <button class="lnk" data-act="sclear" title="Back to the order of the project">clear</button></span>` : ""}
       ${filtering() ? `<span class="fnote"><b>${rows.length} of ${S.tree.length}</b> rows</span><button class="tbtn" data-act="fclear">✕ Clear filters</button>` : ""}
       <span class="sp"></span>${(() => { const all = colList(S.allFields.filter(f => !S.removedFields.includes(f))); const n = cols.length; return `<button class="tbtn fbtn ${n < all.length ? "on" : ""}" data-act="cols" title="Show, hide and add columns">Columns <b>${n < all.length ? n + " of " + all.length : "all"}</b> ▾</button>`; })()}</div>
-    <div class="cb"><div class="ref">${selRow && selF ? esc(selRow.title) + " · " + (S.sel.row ? "row" : esc(selF.name)) : "Select a row"}</div>
+    <div class="cb"><div class="ref">${S.multi?.size > 1 ? `<b>${S.multi.size} rows</b> selected` : selRow && selF ? esc(selRow.title) + " · " + (S.sel.row ? "row" : esc(selF.name)) : "Select a row"}</div>
       <input id="cellbar" value="${S.sel?.row ? "" : esc(selVal)}" ${direct && !S.sel?.row ? "" : "readonly"} autocomplete="off" placeholder="${!selRow ? "↑↓ rows · → into the cells · Enter edits · right-click for more" : S.sel.row ? `→ or Enter steps into the cells · ${IS_MAC ? "⌥" : "Ctrl+"}← → collapse / expand` : ""}">
       <span class="hint">${selRow && selF ? (selF.virtual ? "computed" : isRollup(selRow, selF) ? "sum of rows below" : "") : ""}</span></div>
     <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""} ${S.flt[f.id]?.size ? "flt" : ""} ${S.fDraft?.has(f.id) ? "fdr" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", h" : ""}</span>${S.sort?.f === f.id ? `<span class="hmk">${S.sort.dir > 0 ? "↑" : "↓"}</span>` : ""}${S.flt[f.id]?.size ? `<span class="hmk" title="Filtered">▼</span>` : ""}<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1" title="Sort, filter, move, hide">⋮</button></div>${f.virtual ? "" : `<span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
@@ -592,10 +592,17 @@ function sheetTracker(){
 }
 
 /* selection + editing */
-function select(r, f, scroll = true, row = false){ S.sel = { r, f, row }; S.editing = false; render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
+function select(r, f, scroll = true, row = false, keepMulti = false){ S.sel = { r, f, row }; S.editing = false; if (!keepMulti) { S.multi = null; S.anchor = r; } render(); if (scroll) document.querySelector(row ? "tr.rsel" : "td.sel")?.scrollIntoView({ block:"nearest", inline:"nearest" }); }
 /* keyboard, rows first (as in Jira Structure and the treegrid pattern): ↑↓ move by rows, → steps into a cell, ← from the first cell back to the row */
 function moveRowSel(dr){ const rows = visibleRows(); if (!rows.length) return; let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : -1;
   ri = ri < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, ri + dr)); select(rows[ri].id, S.sel?.f || columns()[0].id, true, true); }
+/* several rows: Shift+click / Shift+↑↓ take a range, Ctrl+click (⌘ on a Mac) adds or removes one row, Ctrl+A takes all — as in Jira Structure */
+function rangeTo(id){ const ids = visibleRows().map(r => r.id); const a = ids.indexOf(S.anchor ?? S.sel?.r), b = ids.indexOf(id); if (a < 0 || b < 0) return;
+  S.multi = new Set(ids.slice(Math.min(a, b), Math.max(a, b) + 1)); }
+function extendSel(dr){ const rows = visibleRows(); if (!rows.length) return; if (!S.sel) return moveRowSel(dr);
+  if (!S.multi) S.anchor = S.sel.r; let i = rows.findIndex(x => x.id === S.sel.r); i = Math.max(0, Math.min(rows.length - 1, i + dr)); const id = rows[i].id;
+  rangeTo(id); select(id, S.sel.f, true, true, true); }
+const picked = () => S.multi?.size > 1 ? [...S.multi].filter(id => S.row[id]) : S.sel ? [S.sel.r] : [];
 function enterCell(){ if (!S.sel) return; const cols = columns(); let f = cols.find(c => c.id === S.sel.f); if (!f || f.role === "title") f = cols[1] || cols[0]; select(S.sel.r, f.id); }
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /* Ctrl+← / Ctrl+→ (Option on a Mac): collapse and expand; with Shift — everything inside */
@@ -1127,6 +1134,10 @@ $app.addEventListener("click", async e => {
   const td = t.closest("td[data-f]"); const tr = t.closest("tr[data-id]");
   if (td && tr && !t.closest("a")) { const same = S.sel && !S.sel.row && S.sel.r === tr.dataset.id && S.sel.f === td.dataset.f; const f = columns().find(x => x.id === td.dataset.f);
     if (S.editing && same) return; const box = !!t.closest(".box");
+    if (!box && (e.shiftKey || (IS_MAC ? e.metaKey : e.ctrlKey))) { const id = tr.dataset.id; S.editing = false;
+      if (e.shiftKey && S.sel) rangeTo(id); else { S.multi ||= new Set(S.sel ? [S.sel.r] : []); S.multi.has(id) && S.multi.size > 1 ? S.multi.delete(id) : S.multi.add(id); S.anchor = id; }
+      S.sel = { r: id, f: td.dataset.f, row:true }; return render(); }
+    if (!box) { S.multi = null; S.anchor = tr.dataset.id; }
     if (!box && !(S.sel && S.sel.r === tr.dataset.id)) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
     S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render();
     if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)))) startEdit(); }
@@ -1135,7 +1146,7 @@ $app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]
   S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
   if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
-  if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id, row:true }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
+  if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); S.multi = null; S.sel = { r: tr.dataset.id, f: td?.dataset.f || S.fields[0].id, row:true }; render(); return rowMenu(S.row[tr.dataset.id], e.clientX, e.clientY); }
   if (th) { const f = columns().find(x => x.id === th.dataset.f); if (f) { e.preventDefault(); colMenu(f, e.clientX, e.clientY); } } });
 $app.addEventListener("keydown", e => {
   if (e.target.id === "cellbar") { e.stopPropagation();
@@ -1145,6 +1156,9 @@ $app.addEventListener("keydown", e => {
   if (S.sheet !== "tracker" || S.editing || !e.target.classList.contains("main")) return; const k = e.key;
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "y") { e.preventDefault(); return redo(); }
+  if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (k === "ArrowDown" || k === "ArrowUp")) { e.preventDefault(); return extendSel(k === "ArrowDown" ? 1 : -1); }
+  if ((IS_MAC ? e.metaKey : e.ctrlKey) && !e.shiftKey && !e.altKey && k.toLowerCase() === "a") { e.preventDefault(); const ids = visibleRows().map(r => r.id); if (!ids.length) return;
+    S.multi = new Set(ids); S.anchor = ids[0]; S.sel = { r: S.sel?.r && S.multi.has(S.sel.r) ? S.sel.r : ids[0], f: S.sel?.f || columns()[0].id, row:true }; return render(); }
   if ((k === "ArrowLeft" || k === "ArrowRight") && (IS_MAC ? e.altKey && !e.metaKey && !e.ctrlKey : e.ctrlKey && !e.altKey && !e.metaKey)) { e.preventDefault(); return foldSel(k === "ArrowRight", e.shiftKey); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (!S.sel || S.sel.row) {   // row mode
@@ -1152,7 +1166,7 @@ $app.addEventListener("keydown", e => {
     if (!S.sel) return;
     if (k === "ArrowRight" || k === "Enter" || k === "F2") { e.preventDefault(); return enterCell(); }
     if (k === "ArrowLeft" || k === "Tab") { e.preventDefault(); return; }
-    if (k === "Escape") return closeMenu();
+    if (k === "Escape") { if (document.querySelector(".menu")) return closeMenu(); if (S.multi) { S.multi = null; S.anchor = S.sel.r; return render(); } return; }
     return; }
   if (k === "ArrowDown") { e.preventDefault(); return moveSel(1, 0); } if (k === "ArrowUp") { e.preventDefault(); return moveSel(-1, 0); }
   if (k === "ArrowRight") { e.preventDefault(); return moveSel(0, 1); }
@@ -1201,6 +1215,7 @@ $app.addEventListener("mousedown", e => { const h = e.target.closest?.("[data-rz
   const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); if (Math.abs(w - w0) < 2) return render();
     act(() => q(sb.from("view_field").update({ width: w }).eq("view_id", S.view.id).eq("field_id", id)), { schema:true }); };
   document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); });
+$app.addEventListener("mousedown", e => { if ((e.shiftKey || e.ctrlKey || e.metaKey) && e.target.closest?.(".grid tbody td")) { e.preventDefault(); document.querySelector(".main")?.focus({ preventScroll:true }); } });
 /* drag rows and columns */
 const clearDrop = () => document.querySelectorAll(".dropT,.dropB,.dropIn,.dropL,.dropR").forEach(x => x.classList.remove("dropT", "dropB", "dropIn", "dropL", "dropR"));
 $app.addEventListener("dragstart", e => { if (e.target.closest?.("[data-rz]")) return e.preventDefault(); const g = e.target.closest?.(".grip"); const th = e.target.closest?.("th[data-f]");
