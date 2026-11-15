@@ -233,6 +233,10 @@ td:first-child.editing{position:sticky}
 .ohead .g{flex:1;text-align:right;padding-right:4px;text-transform:none;letter-spacing:0;font-weight:500}
 .grid tr.t-red td{background:#fbe3e0} .grid tr.t-dark td{background:#d9dde3} .grid tr.t-amber td{background:#fbf0d6}
 .grid tr.t-green td{background:#e1f2e7} .grid tr.t-blue td{background:#e2ecf9} .grid tr.t-violet td{background:#ece5f8}
+.grid td.dd{position:relative;padding-right:18px}
+.grid td.dd::after{content:"▾";position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted-3);opacity:.35;pointer-events:none;transition:opacity .12s,color .12s}
+.grid tr:hover td.dd::after{opacity:.9} .grid td.dd.sel::after{opacity:1;color:var(--ink-2)}
+.grid td.dd.editing::after{display:none}
 .grid .man{margin-left:4px;font-size:11px;color:var(--muted);cursor:help}
 .orow .n{width:20px;text-align:right;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3)}
 .ib{width:26px;height:26px;border:1px solid var(--rule);background:#fff;border-radius:3px;cursor:pointer;color:var(--muted)}
@@ -624,6 +628,7 @@ function cellClass(r, f){ const c = [];
   if (f.kind === "start" || f.kind === "end") { c.push("dtc"); if (S.segDraft?.has(r.id)) c.push("dr"); }
   if (isRollup(r, f) || (f.virtual && !(f.kind === "start" && r.is_leaf))) c.push("sum");
   if (["estimate","approved_lead","approved_client"].includes(f.role)) { const a = byRole("approved_lead"), b = byRole("approved_client"); if (a && b && r.data?.[a.id] === true && r.data?.[b.id] === true) c.push("ok2"); }
+  if ((f.type === "select" || f.type === "person") && f.mode !== "read" && !r._del) c.push("dd");
   if (r._dr?.has(f.id)) c.push("dr");
   if (S.sel && !S.sel.row && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
 const wst = f => f.width ? ` style="width:${f.width}px;min-width:${f.width}px;max-width:${f.width}px"` : "";
@@ -867,7 +872,7 @@ function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = colu
   if (f.type === "person") return openOptions(td, r, f, S.members.map(m => ({ value:m.id, label:m.display_name })));
   if (f.type === "link") return openLink(td, r, f);
   if (f.type === "thumbnail" || f.type === "attachment") return toast("Files are not in this prototype yet");
-  S.editing = true; td.classList.add("editing");
+  { const w = td.getBoundingClientRect().width / zf(); td.style.boxSizing = "border-box"; td.style.width = td.style.minWidth = td.style.maxWidth = w + "px"; } S.editing = true; td.classList.add("editing");
   const isNum = ["number","money","duration"].includes(f.type); const cur = r.data?.[f.id];
   td.innerHTML = `<input class="edit" type="${f.type === "date" ? "date" : "text"}" ${isNum ? 'inputmode="decimal"' : ""} value="${esc(seed != null ? seed : cur ?? "")}" style="${isNum ? "text-align:right;font-family:var(--font-mono)" : f.role === "title" ? `padding-left:${r.depth * 18 + 42}px` : ""}">`;
   const inp = td.firstChild; inp.focus(); if (seed == null) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
@@ -904,7 +909,7 @@ function openLink(td, r, f){ closeMenu(); const b = td.getBoundingClientRect(); 
 
 /* rows: add, delete, move */
 /* Start date of a work item: typing a day moves it in the plan (to the draft); the end follows from the estimate */
-function editStart(td, r){ S.editing = true; td.classList.add("editing"); td.innerHTML = `<input class="edit" type="date" value="${r.start_wh != null ? isoOfWh(r.start_wh).slice(0, 10) : ""}">`;
+function editStart(td, r){ { const w = td.getBoundingClientRect().width / zf(); td.style.boxSizing = "border-box"; td.style.width = td.style.minWidth = td.style.maxWidth = w + "px"; } S.editing = true; td.classList.add("editing"); td.innerHTML = `<input class="edit" type="date" value="${r.start_wh != null ? isoOfWh(r.start_wh).slice(0, 10) : ""}">`;
   const inp = td.firstChild; inp.focus(); let done = false;
   const commit = dr => { if (done) return; done = true; S.editing = false; setStart(r, inp.value); if (dr) moveSel(dr, 0); };
   inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); commit(1); } else if (e.key === "Escape") { done = true; S.editing = false; render(); } });
@@ -1422,10 +1427,13 @@ $app.addEventListener("click", async e => {
       if (e.shiftKey && S.sel) rangeTo(id); else { S.multi ||= new Set(S.sel ? [S.sel.r] : []); S.multi.has(id) && S.multi.size > 1 ? S.multi.delete(id) : S.multi.add(id); S.anchor = id; }
       S.sel = { r: id, f: td.dataset.f, row:true }; return render(); }
     if (!box) { S.multi = null; S.anchor = tr.dataset.id; }
+    const now = Date.now(), dbl = !box && LASTCLICK.r === tr.dataset.id && LASTCLICK.f === td.dataset.f && now - LASTCLICK.t < 450; LASTCLICK = dbl ? { t:0 } : { r: tr.dataset.id, f: td.dataset.f, t: now };
+    if (dbl) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render(); return startEdit(); }
     if (!box && !(S.sel && S.sel.r === tr.dataset.id)) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
     S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render();
     if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)))) startEdit(); }
 });
+let LASTCLICK = { t:0 };
 $app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]"), tr = e.target.closest("tr[data-id]"); if (S.sheet !== "tracker" || !td || !tr || S.editing) return;
   S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
