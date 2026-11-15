@@ -137,12 +137,13 @@ table.grid{border-collapse:separate;border-spacing:0;min-width:100%}
 .hkbar{display:flex;gap:8px;margin-bottom:8px}.hkbar input{height:30px;border:1px solid var(--frame);border-radius:3px;padding:0 9px;width:280px}
 table.hk td{vertical-align:middle}table.hk tr.rec td{background:#fff8e6}.recn{color:var(--honey);font-weight:600}
 .grid th.dropL{box-shadow:inset 3px 0 0 var(--mark)} .grid th.dropR{box-shadow:inset -3px 0 0 var(--mark)}
-.grid th.virt{color:var(--muted-3)}
+.grid th.virt{}
 .grid th{position:sticky}
 .rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:6}
 .rz:hover,.rz.on{background:var(--mark);opacity:.5}
 .grid td{height:calc(var(--fs) * 2.15);font-family:var(--font-table);font-size:var(--fs);padding:0 8px;border-bottom:1px solid var(--rule-2);border-right:1px solid var(--rule-3);white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis;cursor:cell;background:#fff}
-.grid td:first-child{position:sticky;left:0;z-index:2;max-width:none;border-right:1px solid var(--frame);min-width:300px}
+.grid td:first-child{position:sticky;left:0;z-index:2;max-width:none;border-right:1px solid var(--frame);min-width:120px}
+.grid td:first-child .tc{min-width:0} .grid td:first-child .ttl{overflow:hidden;text-overflow:clip;white-space:nowrap}
 .grid tr.d0 td{background:var(--band-2);font-weight:600;color:var(--ink)}
 .grid tr.d1 td{font-weight:500}
 .grid tr.dim td{color:var(--muted-3);background:#f6f8fa;font-weight:400}
@@ -254,6 +255,30 @@ td:first-child.editing{position:sticky}
 .brow{display:grid;grid-template-columns:22px 150px 1fr;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;border:1px solid transparent;transition:background .15s,border-color .15s;cursor:pointer}
 .brow.on{background:#eef4fb;border-color:#cfe0f3} .brow .bn{font-size:13px} .brow:not(.on) .bn{color:var(--muted)}
 .brow select,.brow input:not([type=checkbox]){height:30px;border:1px solid var(--rule);border-radius:3px;padding:0 8px;background:#fff;font:inherit;font-size:13px;min-width:0}
+/* the row's own colour, used by the fade at the right edge of a too-narrow cell */
+.grid tr{--rb:#fff} .grid tr.dim{--rb:#f6f8fa} .grid tr.t-red{--rb:#fbe3e0} .grid tr.t-dark{--rb:#d9dde3} .grid tr.t-amber{--rb:#fbf0d6} .grid tr.t-green{--rb:#e1f2e7} .grid tr.t-blue{--rb:#e2ecf9} .grid tr.t-violet{--rb:#ece5f8}
+.grid tr.nw{--rb:#fbf6e6} .grid tr.rsel{--rb:#e6f0fa} .grid td.csel{--rb:#e6f0fa}
+.grid td.ov{text-overflow:clip} .grid td.ov:not(:first-child){position:relative}
+.grid td.ov::before{content:"";position:absolute;top:0;bottom:0;right:0;width:34px;background:linear-gradient(to right,transparent,var(--rb) 75%);pointer-events:none;z-index:1}
+.grid td.dd::after{z-index:2}
+.grid .box.addlnk{display:inline-flex;width:auto;height:auto;padding:1px 7px;border:1px dashed var(--rule);border-radius:3px;font-size:11px;color:var(--muted-3);background:transparent;cursor:pointer;opacity:0;transition:opacity .15s}
+.grid tr:hover .box.addlnk,.grid td.sel .box.addlnk{opacity:1} .grid .box.addlnk:hover{color:var(--ink-2);border-color:var(--ink-2)}
+.grid .wlc{cursor:pointer;border-bottom:1px dotted var(--muted-3)}
+/* row tools: pinned to the right edge of the window, slides open */
+.grid th.rt,.grid td.rt{position:sticky;right:0;z-index:3;width:18px;min-width:18px;max-width:18px;padding:0;border-left:1px solid var(--frame);transition:width .22s ease,min-width .22s ease,max-width .22s ease;text-align:center;overflow:hidden}
+.grid td.rt{background:var(--rb)} .grid th.rt{z-index:6}
+.grid.rto th.rt,.grid.rto td.rt{width:112px;min-width:112px;max-width:112px}
+.grid th.rt button{border:0;background:transparent;cursor:pointer;color:var(--muted);font-size:13px;width:100%;height:100%}
+.grid td.rt .rtb{display:inline-flex;gap:2px;opacity:0;transition:opacity .15s} .grid.rto tr:hover td.rt .rtb,.grid.rto tr.rsel td.rt .rtb{opacity:1}
+.grid:not(.rto) td.rt .rtb{display:none}
+.grid td.rt button{width:24px;height:22px;border:1px solid var(--rule);border-radius:3px;background:#fff;cursor:pointer;font-size:12px;color:var(--ink-2);padding:0}
+.grid td.rt button:hover{background:var(--band-2)} .grid td.rt button[data-act=rt-del]:hover{color:#b5483a;border-color:#b5483a}
+.warnbar{display:flex;align-items:center;gap:12px;padding:6px 14px;background:#fff7e3;border-top:1px solid #ecd9a6;font-size:12px;color:#6b5414;animation:slidein .22s ease}
+.warnbar>b{white-space:nowrap} .warnbar .note{white-space:nowrap;margin:0} .warnbar .lnk{color:#6b5414;text-decoration:underline dotted;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px} .warnbar .sp{flex:1}
+@keyframes slidein{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.wlf{display:grid;grid-template-columns:136px 140px 76px minmax(160px,1fr) auto;gap:6px;margin:0 0 12px}.wlf input,.wlf select{height:30px;border:1px solid var(--rule);border-radius:3px;padding:0 8px;font:inherit;font-size:13px;min-width:0}
+.wlt td,.wlt th{padding:6px 8px;font-size:13px} .wlt tr.nw td{background:#fbf6e6} .wlt tfoot td{border-top:1px solid var(--frame)}
+.orow.pp input[type=text]{flex:1} .orow.pp.nw{background:#fbf6e6;border-radius:4px}
 .grid .man{margin-left:4px;font-size:11px;color:var(--muted);cursor:help}
 .orow .n{width:20px;text-align:right;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-3)}
 .ib{width:26px;height:26px;border:1px solid var(--rule);background:#fff;border-radius:3px;cursor:pointer;color:var(--muted)}
@@ -347,7 +372,7 @@ function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zo
   if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
 applyView(false);
 const zf = () => VIEW.zoom / 100;
-function viewBar(){ if (S.sel) S.modePref = S.sel.row ? "row" : "cell"; const cell = S.modePref === "cell"; return `${S.sheet !== "tracker" ? "" : `<div class="vw seg" title="What clicks and arrows work with · ${esc(keyHint("selmode"))} switches"><button data-act="mode-row" class="${cell ? "" : "on"}">Row</button><button data-act="mode-cell" class="${cell ? "on" : ""}">Cell</button><button data-act="mode-lock" class="lock ${PREF.lockMode ? "on" : ""}" title="${PREF.lockMode ? "Locked: the mode changes only here or with " + esc(keyHint("selmode")) + ". Click to unlock" : "Lock the mode: clicks, Esc and arrows will not switch it"}">${PREF.lockMode ? "🔒" : "🔓"}</button></div>${(() => { if (S.csel?.size > 1) { const fs = new Set(pickedCells().map(c => c.f)); const one = fs.size === 1 ? columns().find(f => fs.has(f.id)) : null; return `<div class="vw pick">${S.csel.size} cells${one ? " · " + esc(one.name) : ""}</div>`; } if (S.multi?.size > 1) return `<div class="vw pick">${S.multi.size} rows</div>`; return ""; })()}`}<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
+function viewBar(){ if (S.sel) S.modePref = S.sel.row ? "row" : "cell"; const cell = S.modePref === "cell"; return `${S.sheet !== "tracker" ? "" : `<div class="vw seg" title="What clicks and arrows work with · ${esc(keyHint("selmode"))} switches"><button data-act="mode-row" class="${cell ? "" : "on"}">Row</button><button data-act="mode-cell" class="${cell ? "on" : ""}">Cell</button><button data-act="mode-lock" class="lock ${PREF.lockMode ? "on" : ""}" title="${PREF.lockMode ? "Locked: the mode changes only here or with " + esc(keyHint("selmode")) + ". Click to unlock" : "Lock the mode: clicks, Esc and arrows will not switch it"}">${PREF.lockMode ? "🔒" : "🔓"}</button></div><div class="vw seg" title="Estimate and Spent in hours or in days (a day = 8 h)"><button data-act="units-h" class="${UNITS() === "h" ? "on" : ""}">Hours</button><button data-act="units-d" class="${UNITS() === "d" ? "on" : ""}">Days</button></div>${(() => { if (S.csel?.size > 1) { const fs = new Set(pickedCells().map(c => c.f)); const one = fs.size === 1 ? columns().find(f => fs.has(f.id)) : null; return `<div class="vw pick">${S.csel.size} cells${one ? " · " + esc(one.name) : ""}</div>`; } if (S.multi?.size > 1) return `<div class="vw pick">${S.multi.size} rows</div>`; return ""; })()}`}<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
     <button data-act="fsdown" title="Smaller text" ${VIEW.fs <= 10 ? "disabled" : ""}>A−</button><span class="val" style="min-width:20px;text-align:center" title="Table text size">${VIEW.fs}</span><button data-act="fsup" title="Bigger text" ${VIEW.fs >= 20 ? "disabled" : ""}>A+</button></div>
     <div class="vw"><button data-act="zoomout" title="Zoom out">−</button><input type="range" id="vzoom" min="50" max="200" step="5" value="${VIEW.zoom}" title="Zoom"><button data-act="zoomin" title="Zoom in">+</button><span class="val" id="vzoomval">${VIEW.zoom}%</span></div>`; }
 
@@ -370,7 +395,15 @@ function stRules(f){ const opts = f?.config?.options || [], m = f?.config?.meta 
   const R = opts.map((name, i) => { const x = m[name] || {}; return marked ? { name, i, all: !!x.all, any: !!x.any, row: x.row || "" }
     : { name, i, all: !!x.done || /^(brief|pending|ready)/i.test(name), any: /^(blocked|paused)/i.test(name), row: x.dim ? "grey" : /^blocked/i.test(name) ? "red" : /^paused/i.test(name) ? "dark" : "" }; });
   const fb = R.find(x => !x.all && !x.any); return { list: R, by: Object.fromEntries(R.map(x => [x.name, x])), fallback: fb?.name || null, fbIdx: fb ? fb.i : -1 }; }
-const memberName = id => S.members.find(m => m.id === id)?.display_name || "";
+const memberName = id => (S.allMembers || S.members).find(m => m.id === id)?.display_name || "";
+/* hours or days in Estimate / Spent: a view choice of this browser; a day = 8 working hours */
+const UNITS = () => PREF.units === "d" ? "d" : "h";
+const toU = h => h == null || h === "" ? h : UNITS() === "d" ? +h / 8 : +h;
+const fromU = v => v == null ? v : UNITS() === "d" ? +v * 8 : +v;
+const numU = h => num(toU(h));
+/* project settings with the draft on top (pset) */
+function pset(key){ let v = S.project?.settings?.[key]; for (const o of S.draft?.ops || []) if (o.t === "pset" && o.key === key) v = o.value; return v; }
+const spentLog = () => (pset("spent_mode") ?? "log") === "log";
 function closeMenu(){ document.querySelectorAll(".menu").forEach(e => e.remove()); }
 function closeModal(){ document.querySelectorAll(".veil").forEach(e => { e.classList.replace("veil", "veil-out"); setTimeout(() => e.remove(), 140); }); }
 
@@ -406,7 +439,7 @@ function renderLogin(msg){
 
 /* ---------------- data ---------------- */
 async function loadProjects(){
-  S.projects = await q(sb.from("project").select("id,org_id,name,code").is("archived_at", null).order("created_at"));
+  S.projects = await q(sb.from("project").select("id,org_id,name,code,settings").is("archived_at", null).order("created_at"));
   if (!S.project || !S.projects.find(p => p.id === S.project.id)) S.project = S.projects[0] || null;
   if (S.project) await loadProject();
 }
@@ -418,10 +451,10 @@ async function loadProject(){
     q(sb.from("tree_level").select("*").eq("table_id", S.tbl.id).order("position")),
     q(sb.from("field").select("*").eq("table_id", S.tbl.id).is("deleted_at", null).order("position")),
     q(sb.from("view_field").select("*").eq("view_id", S.view.id).order("position")),
-    q(sb.from("project_member").select("id,display_name,access_role").eq("project_id", p.id).is("removed_at", null).order("display_name")),
+    q(sb.from("project_member").select("id,display_name,access_role,lead_id,removed_at").eq("project_id", p.id).order("display_name")),
     q(sb.from("pipeline").select("*").eq("project_id", p.id).is("archived_at", null).order("position").order("name")),
   ]);
-  S.members = members;
+  S.membersBase = members; S.project = { ...S.project, ...(S.projects.find(x => x.id === p.id) || {}) }; deriveMembers();
   const ids = pipelines.map(x => x.id);
   const stages = ids.length ? await q(sb.from("pipeline_stage").select("*").in("pipeline_id", ids).order("position")) : [];
   const sids = stages.map(s => s.id);
@@ -436,10 +469,12 @@ async function loadTree(){
   await loadPlanData(); loadDraft(); rebuild();
 }
 async function loadPlanData(){
-  const ids = S.base.map(r => r.id); const deps = [], segs = [];
+  const ids = S.base.map(r => r.id); const deps = [], segs = [], wls = [];
   for (let i = 0; i < ids.length; i += 80) { const part = ids.slice(i, i + 80);
     deps.push(...await q(sb.from("record_dep").select("record_id,depends_on_id").in("record_id", part)));
-    segs.push(...await q(sb.from("segment").select("id,record_id,kind,gap_type,hours,start_at,end_at,assignee_id,version").in("record_id", part))); }
+    segs.push(...await q(sb.from("segment").select("id,record_id,kind,gap_type,hours,start_at,end_at,assignee_id,version").in("record_id", part)));
+    wls.push(...await q(sb.from("worklog").select("id,record_id,member_id,day,hours,note").in("record_id", part))); }
+  S.wlBase = wls.map(w => ({ ...w, hours: +w.hours }));
   S.depsBase = {}; for (const d of deps) (S.depsBase[d.record_id] ||= []).push(d.depends_on_id);
   S.gapBase = {}; S.segs = {}; S.segAll = {};
   for (const g of segs) { if (g.kind === "gap") { S.gapBase[g.record_id] = { hours: +g.hours || 0, type: g.gap_type }; continue; }
@@ -470,7 +505,12 @@ function freeParents(ops){ const st = byRole("status"); if (!st) return ops; con
 function pushOps(ops, msg){ if (!ops.length) return; draftPush(); ops = freeParents(ops); S.draft.ops.push(...ops); saveDraft(); rebuild(); render(); if (msg) toast(msg); }
 const uid = () => crypto.randomUUID();
 /* what the table, columns, levels and pipelines look like = database + the draft on top */
-function deriveSchema(){ const R = S.raw, ops = S.draft?.project === S.project?.id ? S.draft.ops : [];
+/* people with the draft on top: added, renamed, given a lead, removed */
+function deriveMembers(){ const all = (S.membersBase || []).map(m => ({ ...m })); for (const o of S.draft?.ops || []) { if (o.t !== "member") continue;
+    if (o.add) { all.push({ id:o.id, display_name:o.name, access_role:o.role || "artist", lead_id:o.lead || null, removed_at:null, _new:true }); continue; }
+    const m = all.find(x => x.id === o.id); if (!m) continue; if (o.name) m.display_name = o.name; if ("lead" in o) m.lead_id = o.lead || null; if (o.remove) m.removed_at = "draft"; }
+  S.allMembers = all; S.members = S.allMembers.filter(m => !m.removed_at); }
+function deriveSchema(){ deriveMembers(); const R = S.raw, ops = S.draft?.project === S.project?.id ? S.draft.ops : [];
   const lv = R.levels.map(l => ({ ...l })); let fl = R.fields.map(f => ({ ...f })); const vfm = Object.fromEntries(R.vf.map(v => [v.field_id, v]));
   const order = R.fields.slice().sort((a, b) => (vfm[a.id]?.position ?? 999) - (vfm[b.id]?.position ?? 999)).map(f => f.id);
   const place = (id, before) => { const i = order.indexOf(id); if (i >= 0) order.splice(i, 1); const k = before ? order.indexOf(before) : -1; if (k < 0) order.push(id); else order.splice(k, 0, id); };
@@ -517,6 +557,11 @@ function autoStatus(){ const st = byRole("status"); if (!st) return; const R = s
     if (anyKids.length) { const ids = new Set(anyKids.map(c => c.id)); const ups = id => { const seen = new Set(), st2 = [...(S.depsOf[id] || [])]; while (st2.length) { const d = st2.pop(); if (seen.has(d)) continue; seen.add(d); st2.push(...(S.depsOf[d] || [])); } return seen; };
       const first = anyKids.filter(c => ![...ups(c.id)].some(d => ids.has(d) && d !== c.id)); v = R.list.find(x => x.any && first.some(c => c.data[k] === x.name)).name; } else if (vs.length === kids.length && vs.every(x => x === vs[0]) && R.by[vs[0]]?.all) v = vs[0]; else v = R.fallback || vs[0];
     r.data[k] = v; r._stAuto = true; } }
+/* the work log with the draft on top; in log mode Spent of a work item = the sum of its entries */
+function workLog(){ const del = new Set(S.draft.ops.filter(o => o.t === "wl_del").map(o => o.id));
+  S.wl = [...(S.wlBase || []).filter(w => !del.has(w.id)), ...S.draft.ops.filter(o => o.t === "wl").map(o => ({ id:o.id, record_id:o.record, member_id:o.member, day:o.day, hours:+o.hours, note:o.note || null, _new:true }))];
+  const sp = byRole("time_spent"); if (!sp || !spentLog()) return; const sum = {}; for (const w of S.wl) sum[w.record_id] = (sum[w.record_id] || 0) + w.hours;
+  for (const r of S.tree) if (!S.tree.some(c => c.parent_id === r.id && !c._del)) { if (sum[r.id] != null) r.data[sp.id] = Math.round(sum[r.id] * 100) / 100; else delete r.data[sp.id]; } }
 function rebuild(){ deriveSchema();
   const est = byRole("estimate"), sp = byRole("time_spent"), ti = byRole("title"), al = byRole("approved_lead"), ac = byRole("approved_client");
   const byRec = {}; for (const o of S.draft.ops) if (o.t === "cell") (byRec[o.record] ||= []).push(o);
@@ -534,7 +579,7 @@ function rebuild(){ deriveSchema();
   for (const o of S.draft.ops) if (o.t === "fopt") for (const x of o.options) if (x.was && x.was !== x.name) for (const r of S.tree) if (r.data[o.field] === x.was) r.data[o.field] = x.name;
   for (const r of S.tree) for (const o of byRec[r.id] || []) { if (o.value == null) delete r.data[o.field]; else r.data[o.field] = o.value; (r._dr ||= new Set()).add(o.field);
     if (est && o.field === est.id) { let x = r; while (x) { for (const a of [al, ac]) if (a && x.data[a.id] === true && !(byRec[x.id] || []).some(c => c.field === a.id)) { x.data[a.id] = false; (x._dr ||= new Set()).add(a.id); } x = S.row[x.parent_id]; } } }
-  autoStatus();
+  autoStatus(); workLog();
   for (const r of S.tree) { if (ti && r.data[ti.id] != null) r.title = r.data[ti.id]; r.estimate_h = r.is_leaf && !r._del && est && r.data[est.id] != null ? +r.data[est.id] : null; r.spent_h = r.is_leaf && !r._del && sp && r.data[sp.id] != null ? +r.data[sp.id] : null; r.est_tracked = 0; r.n_leaf = 0; r.n_done = 0; }
   for (let i = S.tree.length - 1; i >= 0; i--) { const r = S.tree[i], p = S.row[r.parent_id]; if (!p || r._del) continue;
     if (r.estimate_h != null) p.estimate_h = (p.estimate_h || 0) + r.estimate_h; if (r.spent_h != null) p.spent_h = (p.spent_h || 0) + r.spent_h; }
@@ -550,9 +595,9 @@ function rebuild(){ deriveSchema();
 }
 /* the viewer's own filter, sort and hidden computed columns: kept in this browser per sheet */
 const tvKey = () => "pmkit.tv." + S.view?.id;
-function saveTV(){ try { localStorage.setItem(tvKey(), JSON.stringify({ sort:S.sort, hideDone:S.hideDone, vhide:[...S.vhide], flt:Object.fromEntries(Object.entries(S.flt).filter(e => e[1].size).map(([k, v]) => [k, [...v]])) })); } catch (_) {} }
+function saveTV(){ try { localStorage.setItem(tvKey(), JSON.stringify({ sort:S.sort, hideDone:S.hideDone, vhide:[...S.vhide], vwidth:S.vwidth || {}, flt:Object.fromEntries(Object.entries(S.flt).filter(e => e[1].size).map(([k, v]) => [k, [...v]])) })); } catch (_) {} }
 function loadTV(){ S.sort = null; S.hideDone = false; S.vhide = new Set(); S.flt = {};
-  try { const o = JSON.parse(localStorage.getItem(tvKey()) || "{}"); S.sort = o.sort || null; S.hideDone = !!o.hideDone; S.vhide = new Set(o.vhide || []);
+  try { const o = JSON.parse(localStorage.getItem(tvKey()) || "{}"); S.sort = o.sort || null; S.hideDone = !!o.hideDone; S.vhide = new Set(o.vhide || []); S.vwidth = o.vwidth || {};
     for (const [k, v] of Object.entries(o.flt || {})) if (S.allFields.some(f => f.id === k)) S.flt[k] = new Set(v); } catch (_) {}
   if (S.sort && !colList(S.fields).some(c => c.id === S.sort.f)) S.sort = null; }
 const deadlineField = () => S.allFields.find(f => f.config?.pmkit === "deadline" && !S.removedFields.includes(f));
@@ -564,7 +609,8 @@ async function loadHistory(){
 
 /* ---------------- shell ---------------- */
 const SHEETS = [["tracker","Tracker"],["gantt","Gantt"],["workload","Workload"],["pipelines","Pipelines"],["history","History"]];
-function render(){ if (PREF.lockMode && S.sel && !S.editing && !S.cellOnce) S.sel.row = PREF.lockMode === "row";
+function markOverflow(){ document.querySelectorAll(".grid tbody td[data-f]:not(.editing)").forEach(td => td.classList.toggle("ov", td.scrollWidth > td.clientWidth + 1)); }
+function render(){ requestAnimationFrame(markOverflow); if (PREF.lockMode && S.sel && !S.editing && !S.cellOnce) S.sel.row = PREF.lockMode === "row";
   if (!S.user) return renderLogin();
   const main = document.querySelector(".main"); const keep = main ? [main.scrollTop, main.scrollLeft] : null;
   const body = !S.project ? `<div class="main"><div class="empty">No projects are visible to this account yet.</div></div>`
@@ -634,31 +680,33 @@ function cellText(r, f){ const v = r.data?.[f.id];
   if (f.kind === "done") return r.n_leaf ? r.n_done + " of " + r.n_leaf + " work items finished" : "";
   if (f.kind === "start") return r.start_wh == null ? "" : fmtDay(r.start_wh); if (f.kind === "end") return r.end_wh == null ? "" : fmtDay(r.end_wh, true);
   if (f.virtual) { const o = overtrack(r); return o == null ? "" : (o > 0 ? "+" : "") + Math.round(o * 100) + "%"; }
-  if (f.role === "estimate" && !r.is_leaf) return num(r.estimate_h); if (f.role === "time_spent" && !r.is_leaf) return num(r.spent_h);
+  if (f.role === "estimate" && !r.is_leaf) return numU(r.estimate_h); if (f.role === "time_spent" && !r.is_leaf) return numU(r.spent_h);
+  if (f.type === "duration") return v == null ? "" : numU(v);
   if (v == null) return ""; if (f.type === "person") return memberName(v); if (f.type === "link") return v.url || ""; if (f.type === "checkbox") return v ? "Yes" : "No"; return String(v); }
 function cellHtml(r, f){ const v = r.data?.[f.id];
   if (f.kind === "start") return r.start_wh == null ? "" : fmtDay(r.start_wh);
   if (f.kind === "end") return r.end_wh == null ? "" : isLate(r) ? `<span class="over" title="Later than the deadline">${fmtDay(r.end_wh, true)}</span>` : fmtDay(r.end_wh, true);
   if (f.kind === "done") return r.n_leaf ? `<span class="prog"><i><b style="width:${Math.round(r.n_done / r.n_leaf * 100)}%"></b></i>${r.n_done}/${r.n_leaf}</span>` : "";
   if (f.virtual) { const o = overtrack(r); return o == null ? "" : `<span class="${o > 0.005 ? "over" : o < -0.005 ? "under" : ""}">${(o > 0 ? "+" : "") + Math.round(o * 100)}%</span>`; }
-  if (isRollup(r, f)) return num(f.role === "estimate" ? r.estimate_h : r.spent_h);
+  if (isRollup(r, f)) return numU(f.role === "estimate" ? r.estimate_h : r.spent_h);
   switch (f.type) {
     case "select": return v ? `<span class="chip" style="--c:${esc(meta(f, v).color || "#5980a6")}" ${f.role === "status" && r._stAuto ? `title="Automatic: follows the rows inside"` : ""}>${esc(v)}</span>${f.role === "status" && r._stMan ? `<span class="man" title="Set by hand. Right-click › Set status automatically">✎</span>` : ""}` : "";
     case "person": return esc(memberName(v));
     case "checkbox": return `<span class="box ${v ? "on" : ""}"></span>`;
-    case "link": return v?.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener" tabindex="-1">${esc(v.caption || v.url)}</a>` : "";
-    case "number": case "money": case "duration": return num(v);
+    case "link": return v?.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener" tabindex="-1">${esc(v.caption || v.url)}</a>` : r._del || f.mode === "read" ? "" : `<span class="box addlnk" title="Add a link">＋ link</span>`;
+    case "duration": return f.role === "time_spent" && spentLog() && r.is_leaf ? `<span class="wlc">${v == null ? "" : numU(v)}</span>` : numU(v);
+    case "number": case "money": return num(v);
     default: return esc(v ?? ""); } }
 function cellClass(r, f){ const c = [];
   if (f.kind === "over" || ["number","money","duration"].includes(f.type)) c.push("num"); if (f.type === "checkbox") c.push("ctr");
   if (f.kind === "start" || f.kind === "end") { c.push("dtc"); if (S.segDraft?.has(r.id)) c.push("dr"); }
-  if (isRollup(r, f) || (f.virtual && !(f.kind === "start" && r.is_leaf))) c.push("sum");
+  if (isRollup(r, f) || ((f.kind === "start" || f.kind === "end") && !r.is_leaf)) c.push("sum");
   if (["estimate","approved_lead","approved_client"].includes(f.role)) { const a = byRole("approved_lead"), b = byRole("approved_client"); if (a && b && r.data?.[a.id] === true && r.data?.[b.id] === true) c.push("ok2"); }
   if ((f.type === "select" || f.type === "person") && f.mode !== "read" && !r._del) c.push("dd");
   if (r._dr?.has(f.id)) c.push("dr");
   if (S.csel?.has(ck(r.id, f.id))) c.push("csel");
   if (S.sel && !S.sel.row && S.sel.r === r.id && S.sel.f === f.id) c.push("sel"); return c.join(" "); }
-const wst = f => f.width ? ` style="width:${f.width}px;min-width:${f.width}px;max-width:${f.width}px"` : "";
+const wst = f => (f = f.virtual ? { ...f, width: S.vwidth?.[f.id] || null } : f, f.width) ? ` style="width:${f.width}px;min-width:${f.width}px;max-width:${f.width}px"` : "";
 function sheetTracker(){
   const cols = columns(); const title = cols[0]; const rest = cols.slice(1); const rows = visibleRows(); const st = byRole("status");
   const kids = new Set(S.tree.map(r => r.parent_id).filter(Boolean)); const top = enabledLevels()[0];
@@ -666,12 +714,12 @@ function sheetTracker(){
   let body = "";
   const SR = st && stRules(st); for (const r of rows) { const tint = SR?.by[r.data?.[st.id]]?.row || ""; const dim = tint === "grey";
     body += `<tr class="d${Math.min(r.depth, 3)} ${dim ? "dim" : tint ? "t-" + tint : ""} ${r._del ? "del" : ""} ${r._mv ? "mv" : ""} ${r._new ? "nw" : ""} ${S.sel?.row && (S.sel.r === r.id || S.multi?.has(r.id)) ? "rsel" : ""} ${marking() && matches(r) ? "hit" : ""}" data-id="${r.id}">
-      <td class="${cellClass(r, title)}" data-f="${title.id}"><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="${S.sort ? "Clear the sort to move rows by hand" : "Drag to move"}">⋮⋮</span>
+      <td class="${cellClass(r, title)}" data-f="${title.id}"${wst(title)}><div class="tc" style="padding-left:${r.depth * 18}px"><span class="grip" draggable="true" title="${S.sort ? "Clear the sort to move rows by hand" : "Drag to move"}">⋮⋮</span>
         <button class="caret ${kids.has(r.id) ? "" : "leaf"}" data-act="toggle" data-id="${r.id}" tabindex="-1">${S.collapsed.has(r.id) ? "▸" : "▾"}</button><span class="ttl" title="${esc(r.level || "")}">${esc(r.title ?? "")}</span></div></td>
-      ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}</tr>`; }
+      ${rest.map(f => `<td class="${cellClass(r, f)}" data-f="${f.id}"${wst(f)}>${cellHtml(r, f)}</td>`).join("")}<td class="rt">${r._del ? "" : `<span class="rtb"><button data-act="rt-up" data-id="${r.id}" title="Move up (${esc(keyHint("moveup"))})" tabindex="-1">↑</button><button data-act="rt-down" data-id="${r.id}" title="Move down (${esc(keyHint("movedown"))})" tabindex="-1">↓</button><button data-act="rt-add" data-id="${r.id}" title="New ${esc(r.level || "row")} below" tabindex="-1">＋</button><button data-act="rt-del" data-id="${r.id}" title="Delete (to the draft)" tabindex="-1">✕</button></span>`}</td></tr>`; }
   const leaves = S.tree.filter(r => r.is_leaf).length; const roots = S.tree.filter(r => r.depth === 0);
   const est = roots.reduce((a, r) => a + (+r.estimate_h || 0), 0), spent = roots.reduce((a, r) => a + (+r.spent_h || 0), 0), estT = roots.reduce((a, r) => a + (+r.est_tracked || 0), 0);
-  const selVal = selRow && selF ? cellText(selRow, selF) : ""; const direct = selRow && selF && !selF.virtual && !isRollup(selRow, selF) && ["text","number","money","duration","date"].includes(selF.type);
+  const selVal = selRow && selF ? cellText(selRow, selF) : ""; const direct = selRow && selF && !selF.virtual && !isRollup(selRow, selF) && !(selF.role === "time_spent" && spentLog()) && ["text","number","money","duration","date"].includes(selF.type);
   return `<div class="tb">${draftBar()}
       <span class="split"><button class="tbtn" data-act="addrow" title="Add a row of the same level below the selected one">＋ ${esc(selRow ? levelOf(selRow)?.name || "Row" : top?.name || "Row")}</button><button class="tbtn" data-act="addmenu" title="More ways to add a row">▾</button></span>
       <button class="tbtn" data-act="structure" title="Levels of the project, its milestones and batches">◆ Structure</button><span class="tsep"></span>
@@ -684,9 +732,9 @@ function sheetTracker(){
     <div class="cb"><div class="ref">${S.multi?.size > 1 ? `<b>${S.multi.size} rows</b> selected` : selRow && selF ? esc(selRow.title) + " · " + (S.sel.row ? "row" : esc(selF.name)) : "Select a row"}</div>
       <input id="cellbar" value="${S.sel?.row ? "" : esc(selVal)}" ${direct && !S.sel?.row ? "" : "readonly"} autocomplete="off" placeholder="${!selRow ? "↑↓ rows · → into the cells · Enter edits · right-click for more" : S.sel.row ? `→ or Enter steps into the cells · ${IS_MAC ? "⌥" : "Ctrl+"}← → collapse / expand` : ""}">
       <span class="hint">${selRow && selF ? (selF.virtual ? "computed" : isRollup(selRow, selF) ? "sum of rows below" : "") : ""}</span></div>
-    <div class="main" tabindex="0"><table class="grid"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""} ${S.flt[f.id]?.size ? "flt" : ""} ${S.fDraft?.has(f.id) ? "fdr" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", h" : ""}</span>${S.sort?.f === f.id ? `<span class="hmk">${S.sort.dir > 0 ? "↑" : "↓"}</span>` : ""}${S.flt[f.id]?.size ? `<span class="hmk" title="Filtered">▼</span>` : ""}<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1" title="Sort, filter, move, hide">⋮</button></div>${f.virtual ? "" : `<span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span>`}</th>`).join("")}</tr></thead>
-      <tbody>${body || `<tr><td colspan="${cols.length}"><div class="empty">${filtering() ? "Nothing matches the search or filters." : `Nothing here yet. Start with “+ ${esc(top?.name || "Row")}”.`}</div></td></tr>`}</tbody></table></div>
-    <div class="stat"><div>Rows<b>${filtering() ? rows.length + " of " + S.tree.length : S.tree.length}</b></div><div>Work items<b>${leaves}</b></div><div>Estimate<b>${num(est)} h</b></div><div>Spent<b>${num(spent)} h</b></div>
+    <div class="main" tabindex="0"><table class="grid ${PREF.rowTools ? "rto" : ""}"><thead><tr>${cols.map((f, i) => `<th data-f="${f.id}" class="${f.virtual ? "virt" : ""} ${f.width ? "wrap" : ""} ${S.flt[f.id]?.size ? "flt" : ""} ${S.fDraft?.has(f.id) ? "fdr" : ""}" ${i && !f.virtual ? 'draggable="true"' : ""}${wst(f)} title="${esc(f.name)}"><div class="thc"><span class="thn">${esc(f.name)}${f.type === "duration" ? ", " + UNITS() : ""}</span>${S.sort?.f === f.id ? `<span class="hmk">${S.sort.dir > 0 ? "↑" : "↓"}</span>` : ""}${S.flt[f.id]?.size ? `<span class="hmk" title="Filtered">▼</span>` : ""}<button class="hm" data-act="colmenu" data-f="${f.id}" tabindex="-1" title="Sort, filter, move, hide">⋮</button></div><span class="rz" data-rz="${f.id}" draggable="false" title="Drag to resize"></span></th>`).join("")}<th class="rt"><button data-act="rowtools" title="${PREF.rowTools ? "Hide" : "Show"} row tools: move, add, delete" tabindex="-1">${PREF.rowTools ? "›" : "‹"}</button></th></tr></thead>
+      <tbody>${body || `<tr><td colspan="${cols.length + 1}"><div class="empty">${filtering() ? "Nothing matches the search or filters." : `Nothing here yet. Start with “+ ${esc(top?.name || "Row")}”.`}</div></td></tr>`}</tbody></table></div>
+    ${warnBar()}<div class="stat"><div>Rows<b>${filtering() ? rows.length + " of " + S.tree.length : S.tree.length}</b></div><div>Work items<b>${leaves}</b></div><div>Estimate<b>${numU(est)} ${UNITS()}</b></div><div>Spent<b>${numU(spent)} ${UNITS()}</b></div>
       <div title="Time spent against the estimate of the work items that already have time logged">Over on started work<b>${estT && spent ? (spent / estT - 1 > 0 ? "+" : "") + Math.round((spent / estT - 1) * 100) + "%" : "—"}</b></div><div style="border:0">${enabledLevels().map(l => esc(l.name)).join(" › ")}</div>${viewBar()}</div>`;
 }
 
@@ -705,6 +753,13 @@ const picked = () => S.multi?.size > 1 ? [...S.multi].filter(id => S.row[id]) : 
 function enterCell(){ if (!S.sel) return; const cols = columns(); let f = cols.find(c => c.id === S.sel.f); if (!f || f.role === "title") f = cols[1] || cols[0]; select(S.sel.r, f.id); }
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /* Ctrl+← / Ctrl+→ (Option on a Mac): collapse and expand; with Shift — everything inside */
+/* plan warnings caused by the draft: shown, never blocking — Apply still works */
+function warnBar(){ if (!S.draft?.ops?.length) return ""; const est = byRole("estimate"), asg = byRole("assignee");
+  const ids = new Set(S.draft.ops.filter(o => o.t === "seg" || o.t === "unplan" || (o.t === "cell" && (o.field === est?.id || o.field === asg?.id))).map(o => o.record)); if (!ids.size) return "";
+  const pc = planConflicts(); const msgs = []; for (const id of ids) for (const m of pc[id] || []) msgs.push([id, m]);
+  for (const [id, list] of Object.entries(pc)) if (!ids.has(id) && list.some(m => [...ids].some(x => m.includes("“" + S.row[x]?.title + "”")))) for (const m of list) msgs.push([id, m]);
+  if (!msgs.length) return ""; const show = msgs.slice(0, 3);
+  return `<div class="warnbar"><b>⚠ ${msgs.length} plan warning${msgs.length > 1 ? "s" : ""} from the draft</b>${show.map(([id, m]) => `<button class="lnk" data-act="warn" data-id="${id}">${esc(S.row[id]?.title || "")}: ${esc(m)}</button>`).join("")}${msgs.length > 3 ? `<span>+${msgs.length - 3} more</span>` : ""}<span class="sp"></span><span class="note">Apply still saves — the Gantt will show these</span><button class="tbtn" data-act="warn-gantt">Open the Gantt</button></div>`; }
 /* Row or Cell: what clicks and arrows work with. Switch: the Row | Cell control at the bottom, or Shift+Space */
 function setSelMode(cell){ if (cell == null) cell = S.sel ? !!S.sel.row : S.modePref !== "cell"; S.modePref = cell ? "cell" : "row"; if (PREF.lockMode) { PREF.lockMode = S.modePref; savePref(); }
   if (!S.sel) { render(); return toast(cell ? "Clicks will pick cells" : "Clicks will pick rows"); }
@@ -876,6 +931,8 @@ function moveSel(dr, dc){ const rows = visibleRows(), cols = columns(); if (!row
   let ri = S.sel ? rows.findIndex(x => x.id === S.sel.r) : 0, ci = S.sel ? cols.findIndex(x => x.id === S.sel.f) : 0; if (ri < 0) ri = 0; if (ci < 0) ci = 0;
   ri = Math.max(0, Math.min(rows.length - 1, ri + dr)); ci = Math.max(0, Math.min(cols.length - 1, ci + dc)); select(rows[ri].id, cols[ci].id); }
 async function setCell(rec, f, val, confirmed){ const old = S.row[rec]?.data?.[f.id] ?? null;
+  if (f.role === "assignee" && byRole("lead") && JSON.stringify(old) !== JSON.stringify(val ?? null) && !S.row[rec]?._del) { const lf = byRole("lead"), r = S.row[rec], cur = r.data?.[lf.id] ?? null, nl = val ? leadOf(val) : null;
+    if (nl && (cur == null || cur === leadOf(old)) && cur !== nl) { draftPush(); const ops = cellOps([{ r, f, v: val ?? null }, { r, f: lf, v: nl }]); S.draft.ops.push(...ops); saveDraft(); rebuild(); render(); return toast(`${memberName(val)} · lead ${memberName(nl)} filled in`); } }
   if (JSON.stringify(old) === JSON.stringify(val ?? null)) return render();
   if (S.row[rec]?._del) { toast("This row is marked for deletion — restore it first (right-click)", true); return render(); }
   if (f.role === "title" && !val) { toast("Name cannot be empty", true); return render(); }
@@ -897,7 +954,7 @@ function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = colu
   if (r._del) return toast("This row is marked for deletion — right-click to restore it");
   if (f.kind === "done") return toast("Computed: finished work items inside this row");
   if (f.kind === "start") return r.is_leaf ? editStart(td, r) : toast("Collected from the rows inside — change their start, or drag the bar on the Gantt");
-  if (f.kind === "end") return toast(r.is_leaf ? "The end follows from the start and the estimate" : "Collected from the rows inside");
+  if (f.kind === "end") return r.is_leaf ? editEnd(td, r) : toast("Collected from the rows inside — change their dates, or drag the bars on the Gantt");
   if (f.virtual) return toast("Computed: time spent against the estimate of work that already has time logged");
   if (isRollup(r, f)) return toast("This is a sum of the rows below — edit those");
   if (f.mode === "read") return toast("This field is read-only on this sheet");
@@ -905,14 +962,15 @@ function startEdit(seed){ if (!S.sel) return; const r = S.row[S.sel.r], f = colu
   if (f.type === "select") return openOptions(td, r, f, (f.config?.options || []).map(o => ({ value:o, label:o, color: meta(f, o).color || "#5980a6" })));
   if (f.type === "person") return openOptions(td, r, f, S.members.map(m => ({ value:m.id, label:m.display_name })));
   if (f.type === "link") return openLink(td, r, f);
+  if (f.role === "time_spent" && spentLog()) return openWorkLog(r);
   if (f.type === "thumbnail" || f.type === "attachment") return toast("Files are not in this prototype yet");
   { const w = td.getBoundingClientRect().width / zf(); td.style.boxSizing = "border-box"; td.style.width = td.style.minWidth = td.style.maxWidth = w + "px"; } S.editing = true; td.classList.add("editing");
-  const isNum = ["number","money","duration"].includes(f.type); const cur = r.data?.[f.id];
+  const isNum = ["number","money","duration"].includes(f.type); const cur = f.type === "duration" ? toU(r.data?.[f.id]) : r.data?.[f.id];
   td.innerHTML = `<input class="edit" type="${f.type === "date" ? "date" : "text"}" ${isNum ? 'inputmode="decimal"' : ""} value="${esc(seed != null ? seed : cur ?? "")}" style="${isNum ? "text-align:right;font-family:var(--font-mono)" : f.role === "title" ? `padding-left:${r.depth * 18 + 42}px` : ""}">`;
   const inp = td.firstChild; inp.focus(); if (seed == null) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
   let done = false;
   const commit = async (dr, dc) => { if (done) return; done = true; S.editing = false; let v = inp.value.trim();
-    if (isNum) { if (v === "") v = null; else { v = Number(v.replace(",", ".")); if (Number.isNaN(v)) { toast("This cell needs a number", true); return render(); } } } else if (v === "") v = null;
+    if (isNum) { if (v === "") v = null; else { v = Number(v.replace(",", ".")); if (Number.isNaN(v)) { toast("This cell needs a number", true); return render(); } if (f.type === "duration") v = Math.round(fromU(v) * 100) / 100; } } else if (v === "") v = null;
     await setCell(r.id, f, v); if (dr || dc) moveSel(dr, dc); };
   inp.addEventListener("keydown", e => { e.stopPropagation();
     if (e.key === "Enter") { e.preventDefault(); commit(1, 0); } else if (e.key === "Tab") { e.preventDefault(); commit(0, e.shiftKey ? -1 : 1); }
@@ -925,7 +983,8 @@ function openMenu(x, y, items){ closeMenu(); const el = document.createElement("
   el.innerHTML = items.map((it, i) => it === "-" ? "<hr>" : it.head ? `<div class="mh">${esc(it.head)}</div>` : `<button data-i="${i}" class="${it.danger ? "danger" : ""}" ${it.disabled ? "disabled" : ""}>${it.html || esc(it.label)}${it.hint ? `<span class="hint">${esc(it.hint)}</span>` : ""}</button>`).join("");
   el.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (!b) return; closeMenu(); items[+b.dataset.i].run(); });
   placeMenu(el, x, y); return el; }
-function openOptions(td, r, f, opts){ const b = td.getBoundingClientRect(); const cur = r.data?.[f.id];
+let OPENLIST = null;
+function openOptions(td, r, f, opts){ const b = td.getBoundingClientRect(); const cur = r.data?.[f.id]; OPENLIST = ck(r.id, f.id);
   const items = opts.map(o => ({ html: (o.color ? `<span class="chip" style="--c:${esc(o.color)}">${esc(o.label)}</span>` : esc(o.label)) + (o.value === cur ? " ✓" : ""), run: () => setCell(r.id, f, o.value) }));
   items.push("-", { label:"Clear", run: () => setCell(r.id, f, null) });
   if (f.type === "select") items.push({ label: f.role === "status" ? "Edit workflow…" : "Edit options…", run: () => openSettings(f.id) });
@@ -956,6 +1015,68 @@ function setStart(r, day){ const g = S.segEff[r.id];
     return commitPlanOps([{ t:"seg", record:r.id, start, end: start + (g.end - g.start), hours:g.hours, assignee:g.assignee, version: segVersion(r.id) }], "Start moved: " + r.title); }
   const hours = +r.estimate_h || 0; if (!hours) { toast("Give this row an estimate first — the plan needs a length", true); return render(); }
   commitPlanOps([{ t:"seg", record:r.id, start, end: start + hours, hours, assignee: asgOf(r), version: segVersion(r.id) }], "Planned: " + r.title); }
+/* End date of a work item: a later end than start + estimate is a pause — the bar gets longer, the estimate stays */
+function editEnd(td, r){ if (!S.segEff[r.id]) return toast("Give it a start date first — then the end can move");
+  { const w = td.getBoundingClientRect().width / zf(); td.style.boxSizing = "border-box"; td.style.width = td.style.minWidth = td.style.maxWidth = w + "px"; } S.editing = true; td.classList.add("editing");
+  td.innerHTML = `<input class="edit" type="date" value="${r.end_wh != null ? isoOfWh(r.end_wh, true).slice(0, 10) : ""}">`; const inp = td.firstChild; inp.focus(); let done = false;
+  const commit = dr => { if (done) return; done = true; S.editing = false; setEnd(r, inp.value); if (dr) moveSel(dr, 0); };
+  inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); commit(1); } else if (e.key === "Escape") { done = true; S.editing = false; render(); } });
+  inp.addEventListener("blur", () => commit(0)); }
+function setEnd(r, day){ const g = S.segEff[r.id]; if (!g || !day) return render();
+  const ms = Date.parse(day + "T00:00:00Z"); if (Number.isNaN(ms) || ms < EPOCH) { toast("This date is outside the calendar", true); return render(); }
+  const end = whOfDate(ms) + HPD; if (end <= g.start) { toast("The end cannot be before the start", true); return render(); } if (Math.abs(end - g.end) < 0.01) return render();
+  const ops = [{ t:"seg", record:r.id, start:g.start, end, hours:g.hours, assignee:g.assignee, version: segVersion(r.id) }];
+  commitPlanOps(ops, end - g.start > g.hours + 0.01 ? `End moved: ${r.title} — ${num((end - g.start - g.hours) / HPD)} d of pause on the bar` : end - g.start < g.hours - 0.01 ? `End moved: ${r.title} — shorter than the estimate` : "End moved: " + r.title); }
+
+/* Time spent as a work log, like Jira's Log work: day · who · hours, to the draft */
+function openWorkLog(r){ closeMenu(); closeModal(); const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v);
+  const today = new Date().toISOString().slice(0, 10); let who = asgOf(r) || S.members[0]?.id || "";
+  const paint = () => { const list = S.wl.filter(w => w.record_id === r.id).sort((a, b) => a.day < b.day ? 1 : a.day > b.day ? -1 : 0); const tot = list.reduce((a, w) => a + w.hours, 0);
+    v.innerHTML = `<div class="modal" style="width:720px"><div class="mhead"><span class="t">Work log · ${esc(r.title)}</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div><div class="mbody">
+      <form class="wlf"><input type="date" name="day" value="${today}" required><select name="who">${S.members.map(m => `<option value="${m.id}" ${m.id === who ? "selected" : ""}>${esc(m.display_name)}</option>`).join("")}</select>
+        <input name="hours" inputmode="decimal" placeholder="${UNITS() === "d" ? "days" : "hours"}" required><input name="note" placeholder="What was done (optional)"><button class="tbtn pri" type="submit">Log work</button></form>
+      <table class="plain wlt"><thead><tr><th>Day</th><th>Who</th><th style="text-align:right">${UNITS() === "d" ? "Days" : "Hours"}</th><th>Note</th><th></th></tr></thead><tbody>
+      ${list.map(w => `<tr class="${w._new ? "nw" : ""}"><td>${esc(w.day)}</td><td>${esc(memberName(w.member_id))}</td><td style="text-align:right;font-family:var(--font-mono)">${numU(w.hours)}</td><td>${esc(w.note || "")}</td><td><button class="ib" data-del="${w.id}" title="Remove (to the draft)">✕</button></td></tr>`).join("") || `<tr><td colspan="5"><div class="empty" style="padding:10px">Nothing logged yet.</div></td></tr>`}
+      </tbody><tfoot><tr><td colspan="2">Total</td><td style="text-align:right;font-family:var(--font-mono)"><b>${numU(tot)}</b></td><td colspan="2" class="note">estimate ${numU(r.estimate_h) || "—"}</td></tr></tfoot></table>
+      <p class="note">Each entry is a day, a person and the time — the production report is built from these. Entries go to the draft and are saved by Apply. Project › Time spent switches to a plain number.</p></div>
+      <div class="mfoot"><button class="tbtn pri" data-x="close">Done</button></div></div>`;
+    v.querySelector("[name=hours]")?.focus(); };
+  paint();
+  v.addEventListener("submit", e => { e.preventDefault(); const fm = e.target; let h = Number(String(fm.hours.value).replace(",", ".")); if (!(h > 0)) return toast("Hours must be more than zero", true);
+    h = Math.round(fromU(h) * 100) / 100; who = fm.who.value; if (!who) return toast("Pick who did it", true);
+    pushOps([{ t:"wl", id: uid(), record: r.id, member: who, day: fm.day.value, hours: h, note: fm.note.value.trim() }], `Logged ${numU(h)} ${UNITS()} on ${r.title} — in the draft`); paint(); });
+  v.addEventListener("click", e => { if (e.target === v) return closeModal(); const d = e.target.closest("[data-del]"); if (d) { const id = d.dataset.del; const w = S.wl.find(x => x.id === id);
+      if (w?._new) { draftPush(); S.draft.ops = S.draft.ops.filter(o => !(o.t === "wl" && o.id === id)); saveDraft(); rebuild(); render(); } else pushOps([{ t:"wl_del", id }], "Entry removed — in the draft"); return paint(); }
+    if (e.target.closest("[data-x=close]")) closeModal(); });
+  v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
+
+/* People of the project: realizers and their leads. Setting a realizer fills the Lead by itself */
+function openPeople(){ closeMenu(); closeModal(); const v = document.createElement("div"); v.className = "veil"; document.body.appendChild(v); let focusNew = false;
+  const paint = () => { const ms = S.members; const leads = ms.filter(m => m.access_role === "lead" || ms.some(x => x.lead_id === m.id));
+    const used = id => S.tree.filter(r => !r._del && Object.values(r.data || {}).includes(id)).length;
+    v.innerHTML = `<div class="modal" style="width:640px"><div class="mhead"><span class="t">People</span><span class="sp"></span><button class="ib" data-x="close">✕</button></div><div class="mbody">
+      <div class="ohead"><span style="flex:1">Name</span><span style="width:110px">Role</span><span style="width:180px">Lead</span><span style="width:60px;text-align:right">Rows</span><span style="width:28px"></span></div>
+      ${ms.map(m => `<div class="orow pp ${m._new ? "nw" : ""}" data-id="${m.id}"><input type="text" data-k="name" value="${esc(m.display_name)}"><select data-k="role" style="width:110px">${["artist","lead","pm","client","guest"].map(r => `<option ${r === m.access_role ? "selected" : ""}>${r}</option>`).join("")}</select>
+        <select data-k="lead" style="width:180px"><option value="">—</option>${ms.filter(x => x.id !== m.id).map(x => `<option value="${x.id}" ${x.id === m.lead_id ? "selected" : ""}>${esc(x.display_name)}</option>`).join("")}</select>
+        <span class="n" style="width:60px;text-align:right">${used(m.id) || ""}</span><button class="ib" data-x="del" title="Remove from the project (to the draft)">✕</button></div>`).join("")}
+      <div style="margin-top:8px"><button class="tbtn" data-x="add">+ Add person</button></div>
+      <p class="note">A realizer's <b>Lead</b> fills the Lead column by itself when you set the Realizer of a row (if Lead is empty or was the previous realizer's lead) — you can still change it by hand. Workload and the Gantt take people from here. Everything goes to the draft and is saved by Apply.${leads.length ? "" : " Mark someone as <b>lead</b> to pick them as a lead."}</p></div>
+      <div class="mfoot"><button class="tbtn pri" data-x="close">Close</button></div></div>`;
+    if (focusNew) { const i = v.querySelectorAll(".orow input[type=text]"); const el = i[i.length - 1]; el?.focus(); el?.select(); focusNew = false; } };
+  paint();
+  v.addEventListener("change", e => { const row = e.target.closest(".orow"); if (!row) return; const id = row.dataset.id, k = e.target.dataset.k, val = e.target.value;
+    if (k === "name") { if (!val.trim()) { toast("A name cannot be empty", true); return paint(); } pushOps([{ t:"member", id, name: val.trim() }]); }
+    if (k === "lead") pushOps([{ t:"member", id, lead: val || "" }]);
+    if (k === "role") { const op = S.draft.ops.find(o => o.t === "member" && o.add && o.id === id); if (op) { draftPush(); op.role = val; saveDraft(); rebuild(); render(); } else toast("The role of a saved person changes with access rights — later"); return paint(); }
+    paint(); });
+  v.addEventListener("click", e => { if (e.target === v) return closeModal(); const b = e.target.closest("[data-x]"); if (!b) return; const x = b.dataset.x;
+    if (x === "close") return closeModal();
+    if (x === "add") { pushOps([{ t:"member", add:true, id: uid(), name: "New person " + (S.members.length + 1), role:"artist" }], "Person added — in the draft"); focusNew = true; return paint(); }
+    if (x === "del") { const id = b.closest(".orow").dataset.id; const m = S.members.find(z => z.id === id); if (m?._new) { draftPush(); S.draft.ops = S.draft.ops.filter(o => !(o.t === "member" && o.id === id)); saveDraft(); rebuild(); render(); return paint(); }
+      pushOps([{ t:"member", id, remove:true }], `${m?.display_name || "Person"} removed — in the draft, rows keep the name`); return paint(); } });
+  v.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Escape") closeModal(); }); }
+const leadOf = id => S.allMembers?.find(m => m.id === id)?.lead_id || null;
+
 function askName(label, then, extra = "", preset = "", okLabel = "Add"){ closeModal(); const v = document.createElement("div"); v.className = "veil";
   v.innerHTML = `<form class="modal" style="width:420px"><div class="mhead"><span class="t">${esc(label)}</span></div><div class="mbody" style="display:flex;flex-direction:column;gap:10px">
     <input name="name" placeholder="Name" required autocomplete="off" value="${esc(preset)}" style="height:32px;border:1px solid var(--frame);border-radius:3px;padding:0 9px">${extra}</div>
@@ -1025,7 +1146,7 @@ function extendCells(dr, dc){ if (!S.sel) return; const rows = visibleRows().map
   cellRect(rows[i], cols[j]); S.sel = { r: rows[i], f: cols[j], row:false }; render(); }
 const pickedCells = () => S.csel?.size > 1 ? [...S.csel].map(k => { const [r, f] = k.split("|"); return { r, f }; }).filter(c => S.row[c.r] && columns().some(x => x.id === c.f)) : S.sel && !S.sel.row ? [{ r: S.sel.r, f: S.sel.f }] : [];
 /* can this cell take a value from the person? computed, read-only and deleted cells cannot */
-function canSet(r, f){ if (!r || r._del || !f || f.mode === "read") return false; if (f.kind === "start") return !!r.is_leaf; if (f.virtual || isRollup(r, f)) return false;
+function canSet(r, f){ if (!r || r._del || !f || f.mode === "read") return false; if (f.role === "time_spent" && spentLog()) return false; if (f.kind === "start") return !!r.is_leaf; if (f.virtual || isRollup(r, f)) return false;
   return !["thumbnail","attachment"].includes(f.type); }
 function cellOps(list){ const out = []; for (const { r, f, v } of list) { const base = S.base.find(b => b.id === r.id)?.data?.[f.id] ?? null;
     S.draft.ops = S.draft.ops.filter(o => !(o.t === "cell" && o.record === r.id && o.field === f.id)); if (JSON.stringify(base) !== JSON.stringify(v ?? null)) out.push({ t:"cell", record:r.id, field:f.id, value: v ?? null, base }); } return out; }
@@ -1048,13 +1169,13 @@ function cellsMenu(cells, x, y){ const rowIds = [...new Set(cells.map(c => c.r))
 function bulkFields(rows){ const leaf = rows.every(r => r.is_leaf), out = [];
   for (const f of columns()) { if (f.role === "title" || f.mode === "read") continue;
     if (f.kind === "start") { if (leaf) out.push(f); continue; } if (f.virtual) continue;
-    if (["thumbnail","attachment","link"].includes(f.type)) continue; if ((f.role === "estimate" || f.role === "time_spent") && !leaf) continue; out.push(f); }
+    if (["thumbnail","attachment","link"].includes(f.type)) continue; if ((f.role === "estimate" || f.role === "time_spent") && !leaf) continue; if (f.role === "time_spent" && spentLog()) continue; out.push(f); }
   return out; }
 function bulkInput(f, rows){ const st = f.role === "status" && rows.some(r => S.tree.some(c => c.parent_id === r.id && !c._del));
   if (f.type === "select") return `<select data-v="${f.id}"><option value="">— empty —</option>${st ? `<option value="__auto">Automatic (follows the rows inside)</option>` : ""}${(f.config?.options || []).map(o => `<option>${esc(o)}</option>`).join("")}</select>`;
   if (f.type === "person") return `<select data-v="${f.id}"><option value="">— nobody —</option>${S.members.map(m => `<option value="${m.id}">${esc(m.display_name)}</option>`).join("")}</select>`;
   if (f.type === "checkbox") return `<select data-v="${f.id}"><option value="1">Yes</option><option value="">No</option></select>`;
-  if (["number","money","duration"].includes(f.type)) return `<input data-v="${f.id}" inputmode="decimal" placeholder="empty = clear">`;
+  if (["number","money","duration"].includes(f.type)) return `<input data-v="${f.id}" inputmode="decimal" placeholder="${f.type === "duration" ? (UNITS() === "d" ? "days" : "hours") + " · " : ""}empty = clear">`;
   if (f.type === "date" || f.kind === "start") return `<input type="date" data-v="${f.id}">`;
   return `<input data-v="${f.id}" placeholder="empty = clear">`; }
 function openBulk(ids, opt = {}){ closeMenu(); closeModal(); const rows0 = ids.map(id => S.row[id]).filter(r => r && !r._del); if (!rows0.length) return;
@@ -1090,11 +1211,12 @@ function bulkApply(rows, pairs, levelName){ const cells = [], plan = []; let ski
   for (const [f, raw] of pairs) {
     if (f.kind === "start") { plan.push(...startOps(rows, raw || null)); if (raw) skipped += rows.filter(r => !S.segEff[r.id] && !(+r.estimate_h > 0)).length; continue; }
     let val = raw === "" ? null : raw;
-    if (val != null && ["number","money","duration"].includes(f.type)) { val = Number(String(val).replace(",", ".")); if (Number.isNaN(val)) { bad = f.name; break; } }
+    if (val != null && ["number","money","duration"].includes(f.type)) { val = Number(String(val).replace(",", ".")); if (Number.isNaN(val)) { bad = f.name; break; } if (f.type === "duration") val = Math.round(fromU(val) * 100) / 100; }
     if (f.type === "checkbox") val = raw === "1";
     for (const r of rows) { if (!canSet(r, f)) { skipped++; continue; } const parent = S.tree.some(c => c.parent_id === r.id && !c._del);
       if (f.role === "status" && raw === "__auto") { if (parent) cells.push({ r, f, v: null }); else skipped++; continue; }
-      cells.push({ r, f, v: val }); } }
+      cells.push({ r, f, v: val });
+      if (f.role === "assignee" && val && !pairs.some(([g]) => g.role === "lead")) { const lf = byRole("lead"), nl = leadOf(val), cur = lf && r.data?.[lf.id]; if (lf && nl && (cur == null || cur === leadOf(r.data?.[f.id]))) cells.push({ r, f: lf, v: nl }); } } }
   if (bad) return toast(`“${bad}” needs a number`, true);
   draftPush(); const ops = cellOps(cells); S.draft.ops.push(...ops);
   if (plan.length) { const ids = new Set(plan.map(o => o.record)); S.draft.ops = S.draft.ops.filter(o => !((o.t === "seg" || o.t === "unplan") && ids.has(o.record))).concat(plan); }
@@ -1379,6 +1501,10 @@ function opInfo(o){ const fld = id => S.allFields.find(f => f.id === id) || S.ra
     case "ps_set": return { k:"Pipeline", t: stage(o.stage), d: `${({ name:"name", default_hours:"hours", gap_type:"review after", gap_hours:"review hours" })[o.key] || o.key}: ${o.value ?? "—"}`, go:["pipelines"] };
     case "dep": return { k:"Pipeline", t: stage(o.stage), d: (o.on ? "now waits for " : "no longer waits for ") + stage(o.depends_on), go:["pipelines"] };
     case "revert": return { k:"Take back", t: o.summary || "a saved entry", d:"from History", go:["history"] };
+    case "member": return { k:"People", t: o.add ? o.name : memberName(o.id) || "a person", d: o.add ? "added" + (o.lead ? " · lead " + memberName(o.lead) : "") : o.remove ? "removed" : o.name ? "renamed" : "lead → " + (memberName(o.lead) || "none"), go:["tracker"] };
+    case "wl": return { k:"Work log", t: row(o.record), d: `${o.day} · ${memberName(o.member)} · ${numU(o.hours)} ${UNITS()}`, go:["tracker", o.record] };
+    case "wl_del": { const w = (S.wlBase || []).find(x => x.id === o.id); return { k:"Work log", t: w ? row(w.record_id) : "an entry", d: w ? `removed ${w.day} · ${memberName(w.member_id)} · ${numU(w.hours)} ${UNITS()}` : "removed", go:["tracker", w?.record_id] }; }
+    case "pset": return { k:"Project", t: "Time spent", d: o.value === "log" ? "from the work log" : "a typed number", go:["tracker"] };
     default: return { k:o.t, t:"", d:"" }; } }
 /* take back one change, and whatever only makes sense with it (edits to a row it added, a column it added…) */
 /* ↶ switches one change off — it stays in the list, struck through, together with what only makes sense with it; ↷ brings the group back */
@@ -1428,7 +1554,7 @@ function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && col
     insert: [...enabledLevels().map(L => { const sp = insertSpot(L); return { label: L.name, hint: sp.why || sp.hint, disabled: !onT || !!sp.why, run: () => addRow(sp.parent, L, sp.before) }; }), "-",
       { label:"Row above", hint: lv?.name || "", disabled: !onT || !r, run: () => addRow(r.parent_id, lv, r.id) }, { label:"Row below", hint: lv?.name || "", disabled: !onT || !r, run: () => addRow(r.parent_id, lv, nextSibling(r)?.id || null) }, "-",
       (() => { const rf = f && !f.virtual ? f : null; const i = rf ? S.fields.indexOf(rf) : -1; return [{ label:"Column left", hint: rf ? "of " + rf.name : "select a cell", disabled: !onT || !rf || rf.role === "title", run: () => addField(rf.id) }, { label:"Column right", hint: rf ? "of " + rf.name : "at the end", disabled: !onT, run: () => addField(rf ? S.fields[i + 1]?.id || null : null) }]; })()].flat(),
-    view: [{ label:"Collapse one level", hint: keyHint("foldtable"), disabled: !onT, run: () => foldTable(false) }, { label:"Expand one level", hint: keyHint("unfoldtable"), disabled: !onT || !S.collapsed.size, run: () => foldTable(true) }, { label:"Collapse all", disabled: !onT, run: () => foldEverything(false) }, { label:"Expand all", disabled: !onT || !S.collapsed.size, run: () => foldEverything(true) }, "-",
+    view: [{ label:"Row tools", hint: PREF.rowTools ? "on ✓" : "move · add · delete at the right", run: () => { PREF.rowTools = !PREF.rowTools; savePref(); render(); } }, "-", { label:"Collapse one level", hint: keyHint("foldtable"), disabled: !onT, run: () => foldTable(false) }, { label:"Expand one level", hint: keyHint("unfoldtable"), disabled: !onT || !S.collapsed.size, run: () => foldTable(true) }, { label:"Collapse all", disabled: !onT, run: () => foldEverything(false) }, { label:"Expand all", disabled: !onT || !S.collapsed.size, run: () => foldEverything(true) }, "-",
       { label:"Clear search and filters", disabled: !filtering(), run: clearFilters }, { label:"Clear sort", disabled: !S.sort, run: () => { S.sort = null; saveTV(); render(); } },
       { label:"Show hidden columns", disabled: !S.hiddenFields?.length && !S.vhide.size, run: () => { S.vhide.clear(); saveTV(); S.hiddenFields.length ? act(() => q(sb.from("view_field").update({ mode:"edit" }).eq("view_id", S.view.id).in("field_id", S.hiddenFields.map(h => h.id))), { schema:true }) : render(); } }, "-",
       { head:"Table font" }, ...FONTS.map(f => ({ label:f[0], hint: VIEW.font === f[0] ? "✓" : "", run: () => { VIEW.font = f[0]; applyView(true); render(); } })),
@@ -1437,7 +1563,7 @@ function mainMenu(name, x, y){ const r = S.row[S.sel?.r]; const f = S.sel && col
     plan: [{ label:"Place unplanned work after what is planned", run: () => autoplan(false) }, { label:"Replan all open work from today", run: () => autoplan(true) }, "-",
       { label:"Remove everything from the plan", danger:true, disabled: !Object.keys(S.segEff).length, run: () => commitPlanOps(Object.keys(S.segEff).map(id => ({ t:"unplan", record:id, version: segVersion(id) })), "Plan cleared") }, "-", { head:"Step on the Gantt" },
       ...STEPS.map(([h, n]) => ({ label:n, hint: S.step === h ? "✓" : "", run: () => setStep(h) })), "-", { label:"Open the Gantt", run: go("gantt") }, { label:"Open the Workload", run: go("workload") }],
-    project: [{ label:"Status workflow…", run: () => openSettings(byRole("status")?.id) }, ...S.fields.filter(x => x.type === "select" && x.role !== "status").map(x => ({ label: x.name + " options…", run: () => openSettings(x.id) })), "-", { label:"Structure…", hint:"levels, milestones, batches", run: openStructure }, "-",
+    project: [{ label:"People…", hint:"realizers and their leads", run: openPeople }, { label:"Time spent", hint: spentLog() ? "from the work log ✓" : "a typed number ✓", run: () => pushOps([{ t:"pset", key:"spent_mode", value: spentLog() ? "number" : "log" }], spentLog() ? "Time spent: a typed number — in the draft" : "Time spent: from the work log — in the draft") }, "-", { label:"Status workflow…", run: () => openSettings(byRole("status")?.id) }, ...S.fields.filter(x => x.type === "select" && x.role !== "status").map(x => ({ label: x.name + " options…", run: () => openSettings(x.id) })), "-", { label:"Structure…", hint:"levels, milestones, batches", run: openStructure }, "-",
       { label:"Pipelines", run: go("pipelines") }, { label:"History", run: go("history") }] };
   openMenu(x, y, M[name]); }
 
@@ -1512,7 +1638,10 @@ function sheetHistory(){
 }
 
 /* ---------------- events ---------------- */
-document.addEventListener("mousedown", e => { if (!e.target.closest(".menu")) closeMenu(); });
+document.addEventListener("mousedown", e => { if (e.target.closest(".menu")) return;
+  // a second press on the cell whose list is open only closes the list
+  const td = e.target.closest?.(".grid td[data-f]"), tr = td?.closest("tr[data-id]"); WASOPEN = !!(td && tr && document.querySelector(".menu") && OPENLIST === ck(tr.dataset.id, td.dataset.f)); closeMenu(); if (!WASOPEN) OPENLIST = null; });
+let WASOPEN = false;
 $app.addEventListener("click", async e => {
   const t = e.target; const dropB = t.closest("[data-drop]"); if (dropB) return parkOp(+dropB.dataset.drop);
   const backB = t.closest("[data-restore]"); if (backB) return unparkOp(backB.dataset.restore);
@@ -1529,6 +1658,13 @@ $app.addEventListener("click", async e => {
     if (a === "collapse") { S.tree.filter(r => r.depth >= 1 && !r.is_leaf).forEach(r => S.collapsed.add(r.id)); return render(); }
     if (a === "expand") { S.collapsed.clear(); return render(); }
     if (a === "mode-row" || a === "mode-cell") return setSelMode(a === "mode-cell");
+    if (a === "warn-gantt") { S.sheet = "gantt"; return render(); }
+    if (a === "warn") { const r = S.row[id]; if (r) { let x = S.row[r.parent_id]; while (x) { S.collapsed.delete(x.id); x = S.row[x.parent_id]; } select(r.id, S.sel?.f || columns()[0].id, true, true); } return; }
+    if (a === "rowtools") { PREF.rowTools = !PREF.rowTools; savePref(); document.querySelector("table.grid")?.classList.toggle("rto", PREF.rowTools); setTimeout(render, 230); return; }
+    if (a && a.startsWith("rt-")) { const r = S.row[id]; if (!r) return; S.sel = { r: r.id, f: S.sel?.f || columns()[0].id, row:true };
+      if (a === "rt-up" || a === "rt-down") return nudgeRow(a === "rt-up" ? -1 : 1); if (a === "rt-del") return deleteRow(r);
+      if (a === "rt-add") return addRow(r.parent_id, levelOf(r), nextSibling(r)?.id || null); }
+    if (a === "units-h" || a === "units-d") { PREF.units = a === "units-d" ? "d" : "h"; savePref(); return render(); }
     if (a === "mode-lock") { PREF.lockMode = PREF.lockMode ? null : (S.sel ? (S.sel.row ? "row" : "cell") : S.modePref || "row"); savePref(); render(); return toast(PREF.lockMode ? `${PREF.lockMode === "cell" ? "Cell" : "Row"} mode locked — it changes only here or with ${keyHint("selmode")}` : "Mode unlocked — it follows your clicks again"); }
     if (a === "fsdown" || a === "fsup") { VIEW.fs += a === "fsup" ? 1 : -1; applyView(true); return render(); }
     if (a === "zoomout" || a === "zoomin") { VIEW.zoom += a === "zoomin" ? 10 : -10; applyView(true); return render(); }
@@ -1556,8 +1692,9 @@ $app.addEventListener("click", async e => {
   }
   if (S.sheet !== "tracker") return;
   const td = t.closest("td[data-f]"); const tr = t.closest("tr[data-id]");
+  if (DRAGGED) { DRAGGED = false; return; }
   if (td && tr && !t.closest("a")) { const same = S.sel && !S.sel.row && S.sel.r === tr.dataset.id && S.sel.f === td.dataset.f; const f = columns().find(x => x.id === td.dataset.f);
-    if (S.editing && same) return; const box = !!t.closest(".box");
+    if (S.editing && same) return; if (WASOPEN) { WASOPEN = false; OPENLIST = null; LASTCLICK = { t:0 }; return; } const box = !!t.closest(".box");
     if (!box && (e.shiftKey || (IS_MAC ? e.metaKey : e.ctrlKey)) && S.sel && !S.sel.row && !t.closest(".grip")) { const k = ck(tr.dataset.id, td.dataset.f); S.editing = false; S.multi = null;
       if (e.shiftKey) cellRect(tr.dataset.id, td.dataset.f); else { if (!S.csel) { S.csel = new Set([ck(S.sel.r, S.sel.f)]); } S.csel.has(k) && S.csel.size > 1 ? S.csel.delete(k) : S.csel.add(k); S.canchor = { r: tr.dataset.id, f: td.dataset.f }; }
       S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; return render(); }
@@ -1572,9 +1709,17 @@ $app.addEventListener("click", async e => {
     const rowMode = (!S.sel ? S.modePref !== "cell" : S.sel.row) || !!t.closest(".grip");
     if (!box && rowMode && !(S.sel && S.sel.row === false ? false : S.sel && S.sel.r === tr.dataset.id && !t.closest(".grip"))) { S.sel = { r: tr.dataset.id, f: td.dataset.f, row:true }; S.editing = false; return render(); }
     S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; S.editing = false; render();
-    if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)))) startEdit(); }
+    if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)) || t.closest(".addlnk"))) startEdit(); }
 });
-let LASTCLICK = { t:0 };
+let LASTCLICK = { t:0 }, DRAG = null, DRAGGED = false;
+$app.addEventListener("mousedown", e => { DRAGGED = false; if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || S.sheet !== "tracker" || S.editing) return;
+  const td = e.target.closest?.(".grid tbody td[data-f]"), tr = td?.closest("tr[data-id]"); if (!td || !tr || e.target.closest(".grip,.box,a,.rz,button,.caret")) { DRAG = null; return; }
+  if (!(S.sel && !S.sel.row) && !(PREF.lockMode === "cell")) { DRAG = null; return; } DRAG = { r: tr.dataset.id, f: td.dataset.f, moved:false }; });
+$app.addEventListener("mousemove", e => { if (!DRAG || !(e.buttons & 1)) return; const td = e.target.closest?.(".grid tbody td[data-f]"), tr = td?.closest("tr[data-id]"); if (!td || !tr) return;
+  if (!DRAG.moved && tr.dataset.id === DRAG.r && td.dataset.f === DRAG.f) return; e.preventDefault();
+  if (!DRAG.moved) { DRAG.moved = true; S.canchor = { r: DRAG.r, f: DRAG.f }; S.multi = null; }
+  const key = tr.dataset.id + "|" + td.dataset.f; if (DRAG.last === key) return; DRAG.last = key; cellRect(tr.dataset.id, td.dataset.f); S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); });
+document.addEventListener("mouseup", () => { if (DRAG?.moved) { DRAGGED = true; LASTCLICK = { t:0 }; document.querySelector(".main")?.focus({ preventScroll:true }); } DRAG = null; });
 $app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]"), tr = e.target.closest("tr[data-id]"); if (S.sheet !== "tracker" || !td || !tr || S.editing) return;
   S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
 $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
@@ -1587,7 +1732,7 @@ $app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.
 $app.addEventListener("keydown", e => {
   if (e.target.id === "cellbar") { e.stopPropagation();
     if (e.key === "Enter" && S.sel && !e.target.readOnly) { e.preventDefault(); const r = S.row[S.sel.r], f = columns().find(x => x.id === S.sel.f); let v = e.target.value.trim();
-      if (["number","money","duration"].includes(f.type)) { v = v === "" ? null : Number(v.replace(",", ".")); if (Number.isNaN(v)) return toast("This cell needs a number", true); } else if (v === "") v = null; e.target.blur(); return setCell(r.id, f, v); }
+      if (["number","money","duration"].includes(f.type)) { v = v === "" ? null : Number(v.replace(",", ".")); if (Number.isNaN(v)) return toast("This cell needs a number", true); if (f.type === "duration" && v != null) v = Math.round(fromU(v) * 100) / 100; } else if (v === "") v = null; e.target.blur(); return setCell(r.id, f, v); }
     if (e.key === "Escape") { e.target.blur(); render(); } return; }
   if (S.sheet !== "tracker" || S.editing || !e.target.classList.contains("main")) return; const k = e.key;
   if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && S.sel && !S.sel.row && k.startsWith("Arrow")) { e.preventDefault(); return extendCells(k === "ArrowDown" ? 1 : k === "ArrowUp" ? -1 : 0, k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0); }
@@ -1646,6 +1791,7 @@ $app.addEventListener("mousedown", e => { const h = e.target.closest?.("[data-rz
   const cells = document.querySelectorAll(`.grid [data-f="${id}"]`);
   const move = ev => { w = Math.max(48, Math.min(700, Math.round(w0 + (ev.clientX - x0) / zf()))); cells.forEach(c => { c.style.width = c.style.minWidth = c.style.maxWidth = w + "px"; }); };
   const up = () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); if (Math.abs(w - w0) < 2) return render();
+    if (id.startsWith("__")) { (S.vwidth ||= {})[id] = w; saveTV(); return render(); }
     act(() => q(sb.from("view_field").update({ width: w }).eq("view_id", S.view.id).eq("field_id", id)), { schema:true }); };
   document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); });
 $app.addEventListener("mousedown", e => { if ((e.shiftKey || e.ctrlKey || e.metaKey) && e.target.closest?.(".grid tbody td")) { e.preventDefault(); document.querySelector(".main")?.focus({ preventScroll:true }); } });
