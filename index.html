@@ -190,7 +190,7 @@ td:first-child.editing{position:sticky}
 .stat .vw{display:flex;align-items:center;gap:6px;border-right:0;border-left:1px solid var(--rule);text-transform:none;letter-spacing:0}
 .stat .vw select{height:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;font-size:11.5px;font-family:var(--font-body);padding:0 2px}
 .stat .vw button{width:22px;height:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;cursor:pointer;font-size:11px;line-height:1;color:var(--ink-2);padding:0}
-.stat .vw button:hover{background:var(--band-2)}
+.stat .vw button:hover{background:var(--band-2)} .stat .vw button:disabled{opacity:.4;cursor:default}
 .stat .vw input[type=range]{width:110px;accent-color:var(--ink-2)}
 .stat .vw .val{min-width:38px;text-align:right;color:var(--ink);font-size:11.5px}
 .tabs{flex:none;display:flex;align-items:stretch;height:32px;background:var(--band);border-top:1px solid var(--frame);padding-left:8px}
@@ -317,7 +317,8 @@ function applyView(save){ VIEW.fs = Math.max(10, Math.min(20, VIEW.fs)); VIEW.zo
   if (save) try { localStorage.setItem("pmkit.view", JSON.stringify(VIEW)); } catch (_) {} }
 applyView(false);
 const zf = () => VIEW.zoom / 100;
-function viewBar(){ return `<div class="sp"></div><div class="vw"><button data-act="prefs" title="Font and text size: Settings → General">Aa</button></div>
+function viewBar(){ return `<div class="sp"></div><div class="vw"><select id="vfont" title="Table font">${FONTS.map(f => `<option ${f[0] === VIEW.font ? "selected" : ""}>${f[0]}</option>`).join("")}</select>
+    <button data-act="fsdown" title="Smaller text" ${VIEW.fs <= 10 ? "disabled" : ""}>A−</button><span class="val" style="min-width:20px;text-align:center" title="Table text size">${VIEW.fs}</span><button data-act="fsup" title="Bigger text" ${VIEW.fs >= 20 ? "disabled" : ""}>A+</button></div>
     <div class="vw"><button data-act="zoomout" title="Zoom out">−</button><input type="range" id="vzoom" min="50" max="200" step="5" value="${VIEW.zoom}" title="Zoom"><button data-act="zoomin" title="Zoom in">+</button><span class="val" id="vzoomval">${VIEW.zoom}%</span></div>`; }
 
 /* ---------------- small helpers ---------------- */
