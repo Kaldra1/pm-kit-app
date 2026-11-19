@@ -500,6 +500,8 @@ table.rmteam2 td.rmtot,table.rmteam2 td.rmest{vertical-align:bottom;padding-bott
 table.rmteam tr.rmtotrow td.rmest{background:#d5efe9}
 .rmbar.short{outline:2px dashed #e0592f;outline-offset:1px} .rmrow>.rml>div.r.short{color:var(--alarm-fg)!important;background:var(--alarm)}
 table.rmteam td.rmtot.low{color:var(--alarm-fg);background:var(--alarm)!important}
+.rmlw{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font:10px var(--fm);color:var(--head-fg);border-left:1px solid var(--head-rule)} .rmlw.ms{border-left:2px solid #9db0c9;font-weight:700}
+.rmrow.lhd{position:sticky;top:41px;z-index:15}
 </style>
 </head>
 <body>
@@ -1049,7 +1051,9 @@ function sheetRoadmap(){
       rows += `<div class="rmrow sub"><div class="rml"><div class="c0">${rmLockBtn(D, [[a, p]], a.name + " · " + p.name)}<i class="rmdot" style="background:${rmPal(pidx[p.id]).solid}"></i><span class="nm">${esc(p.name)}</span></div><div class="r ${a.days?.[p.id] != null ? (+a.days[p.id] < (+p.days || 0) - 1e-6 ? "ov short" : "ov") : ""}" ${a.days?.[p.id] != null && +a.days[p.id] < (+p.days || 0) - 1e-6 ? `title="Fewer days than estimated: ${rmDays(+a.days[p.id])} of ${rmDays(p.days)}"` : ""}>${rmDays(it.work)}</div><div class="l">${it.work ? dd(it.start) : ""}</div><div class="l">${it.work ? de(it.start, it.end) : ""}</div><div class="r">${it.slot >= 0 ? "#" + (it.slot + 1) : it.work ? "—" : ""}</div></div>${tl(marks + (it.work ? bar(a, p, it, rmDays(it.work) + "d" + (it.rate && it.rate < 1 ? ` at ${rmPpl(it.rate * 8)}h/day = ${rmDays(Math.round((it.end - it.start) * 10) / 10)}d` : "") + (it.slot >= 0 ? " · #" + (it.slot + 1) : "")) : ""))}</div>`; } }
   /* team load per part, per week: busy / on the project */
   const L = RM.load(D, Sx, weeks);
-  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0">Team load · people per week, busy / on the project</div></div>${tl(marks)}</div>`;
+  /* week dates over the load rows, as in the header — easier to read when there are many rows */
+  const wkl = Array.from({ length: weeks }, (_, w) => { const dt = new Date(RM.dateOf(D.start, w * 5)); const ms = RM.mo(D.start, w * 5) !== RM.mo(D.start, w * 5 - 5); return `<div class="rmlw ${ms ? "ms" : ""}" style="left:${w * cw}px;width:${cw}px">${cw >= 30 ? String(dt.getUTCDate()).padStart(2, "0") + "." + String(dt.getUTCMonth() + 1).padStart(2, "0") : cw >= 18 ? String(dt.getUTCDate()).padStart(2, "0") : ""}</div>`; }).join("");
+  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0">Team load · people per week, busy / on the project</div></div>${tl(wkl + marks)}</div>`;
   for (const p of Sx.parts) { const l = L[p.id]; const c = rmPal(pidx[p.id]);
     load += `<div class="rmrow load"><div class="rml"><div class="c0"><i class="rmdot" style="background:${c.solid}"></i>${esc(p.name)}</div></div>${tl(l.need.map((n, w) => { const h = l.have[w]; if (h < 0.01 && n < 0.01) return "";
       const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; return `<div class="rmld ${cls}" style="left:${w * cw + 1}px;width:${cw - 2}px" title="Week of ${rmFmt(RM.dateOf(D.start, w * 5))}: ${rmDays(n)} busy of ${rmDays(h)} on the project${cls === "idle" ? " — paid, waiting for work" : ""}">${cw >= 44 ? rmDays(Math.round(n * 10) / 10) + "/" + rmDays(Math.round(h * 10) / 10) : cw >= 22 ? rmDays(Math.round(n)) : ""}</div>`; }).join(""))}</div>`; }
