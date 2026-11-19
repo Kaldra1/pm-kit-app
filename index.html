@@ -467,7 +467,7 @@ table.rmteam2 td.rmcell.sel{background:#e3eefa;box-shadow:inset 0 0 0 2px var(--
   body.rmprint .hdr,body.rmprint .mrow,body.rmprint nav.tabs,body.rmprint .rmtop,body.rmprint .rmhint,body.rmprint .toast,body.rmprint .menu,body.rmprint .chg,body.rmprint .tg,body.rmprint .seg.rmby{display:none!important}
   body.rmprint .rmv{display:block;overflow:visible;background:#fff}
   body.rmprint .rmwrap{overflow:visible} body.rmprint .rmv .rml,body.rmprint .rmhead{position:static}
-  body.rmprint .rmrow{break-inside:avoid} body.rmprint *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.rmprint .rmrow{break-inside:avoid} body.rmprint .rmrow.lhd,body.rmprint .rmrow.load,body.rmprint .rmlock{display:none!important} body.rmprint *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body.rmprint .rmbar{box-shadow:none}
 }
 .rmprinthead{display:none}
@@ -502,6 +502,7 @@ table.rmteam tr.rmtotrow td.rmest{background:#d5efe9}
 table.rmteam td.rmtot.low{color:var(--alarm-fg);background:var(--alarm)!important}
 .rmlw{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font:10px var(--fm);color:var(--head-fg);border-left:1px solid var(--head-rule)} .rmlw.ms{border-left:2px solid #9db0c9;font-weight:700}
 .rmrow.lhd{position:sticky;top:41px;z-index:15}
+.rmrow.lhd .tg{margin-right:8px;border-color:#5d7fa6;background:transparent;color:#dfeaf7} .rmrow.lhd .tg.open{background:var(--accent);border-color:var(--accent)} .rmrow.lhd>.rml>div.c0{display:flex;align-items:center}
 </style>
 </head>
 <body>
@@ -1053,8 +1054,8 @@ function sheetRoadmap(){
   const L = RM.load(D, Sx, weeks);
   /* week dates over the load rows, as in the header — easier to read when there are many rows */
   const wkl = Array.from({ length: weeks }, (_, w) => { const dt = new Date(RM.dateOf(D.start, w * 5)); const ms = RM.mo(D.start, w * 5) !== RM.mo(D.start, w * 5 - 5); return `<div class="rmlw ${ms ? "ms" : ""}" style="left:${w * cw}px;width:${cw}px">${cw >= 30 ? String(dt.getUTCDate()).padStart(2, "0") + "." + String(dt.getUTCMonth() + 1).padStart(2, "0") : cw >= 18 ? String(dt.getUTCDate()).padStart(2, "0") : ""}</div>`; }).join("");
-  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0">Team load · people per week, busy / on the project</div></div>${tl(wkl + marks)}</div>`;
-  for (const p of Sx.parts) { const l = L[p.id]; const c = rmPal(pidx[p.id]);
+  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0"><button class="tg ${RMV.noLoad ? "" : "open"}" data-act="rm-load" title="${RMV.noLoad ? "Show" : "Hide"} the team load (it is never printed to PDF)">${RMV.noLoad ? "+" : "−"}</button>Team load · people per week, busy / on the project</div></div>${tl(wkl + marks)}</div>`;
+  if (!RMV.noLoad) for (const p of Sx.parts) { const l = L[p.id]; const c = rmPal(pidx[p.id]);
     load += `<div class="rmrow load"><div class="rml"><div class="c0"><i class="rmdot" style="background:${c.solid}"></i>${esc(p.name)}</div></div>${tl(l.need.map((n, w) => { const h = l.have[w]; if (h < 0.01 && n < 0.01) return "";
       const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; return `<div class="rmld ${cls}" style="left:${w * cw + 1}px;width:${cw - 2}px" title="Week of ${rmFmt(RM.dateOf(D.start, w * 5))}: ${rmDays(n)} busy of ${rmDays(h)} on the project${cls === "idle" ? " — paid, waiting for work" : ""}">${cw >= 44 ? rmDays(Math.round(n * 10) / 10) + "/" + rmDays(Math.round(h * 10) / 10) : cw >= 22 ? rmDays(Math.round(n)) : ""}</div>`; }).join(""))}</div>`; }
   /* the verdict */
@@ -1080,7 +1081,7 @@ function sheetRoadmap(){
   if (lowParts.length) verdict.push(`<b class="bad">Fewer man-days planned than estimated</b> on ${esc(lowParts.map(p => p.name).join(", "))} — see Team by month.`);
   const nob = Object.values(Sx.items).flatMap(o => Object.values(o)).filter(x => x.nobody || x.clash).length;
   if (nob) verdict.push(`<b class="bad">${nob} bar${nob > 1 ? "s" : ""} without a person</b> — a limit is 0 there, or a bar placed by hand (✎) sits where everybody is busy.`);
-  const stat = (k, v, cls = "") => `<div class="stat"><span>${k}</span><b class="${cls}">${v}</b></div>`;
+  const stat = (k, v, cls = "", tip = "") => `<div class="stat" ${tip ? `title="${esc(tip)}"` : ""}><span>${k}</span><b class="${cls}">${v}</b></div>`;
   const plans = rmList(); const peak = Sx.parts.reduce((t, p) => t + C.people[p.id], 0);
   return `<div class="main rmv" style="--rcw:${cw}px"><div class="rmprinthead"><b>${esc(plan.name)}</b> · ${esc(S.project?.name || "")} · ${D.mode === "team" ? "Fit team" : "Fit timeline"}${D.withRisk ? " · risks included" : ""} · PM-Kit, ${rmFmt(Date.now())}</div>
     <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy plan</button></div>
@@ -1091,8 +1092,8 @@ function sheetRoadmap(){
       <button class="btn ${RMV.data ? "on" : ""}" data-act="rm-data" title="Show or hide the plan data: parts, risks, dependencies, team">${RMV.data ? "Data ▴" : "Data ▾"}</button><button class="btn ${RMV.gantt ? "on" : ""}" data-act="rm-gantt" title="Show or hide the Gantt — e.g. to work on the estimates only">${RMV.gantt ? "Gantt ▴" : "Gantt ▾"}</button><div class="seg rmseg2" title="Auto — the plan is laid out again after every change. Manual — the bars stay where they are; Lay out now recalculates once."><button data-rmlay="auto" aria-pressed="${D.layout !== "manual"}">Auto</button><button data-rmlay="manual" aria-pressed="${D.layout === "manual"}">Manual</button></div><button class="btn" data-act="rm-auto" title="Lay the plan out from scratch now: drops the bars placed by hand (✎)${D.layout === "manual" ? " and keeps the new positions" : ""}">Lay out now</button>
 </div>
     ${RMV.data ? rmDataPanel(plan, D, C, !RMV.gantt) : ""}
-    <div class="stats">${stat("Assets", (D.assets || []).length)}${stat("Scope, person-days", rmDays(Math.round(Sx.scope)))}${stat("Contract", contract ? rmDays(contract) : "—", contract && Sx.scope > contract ? "bad" : "")}
-      ${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.mo(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—")}${stat("People", rmPpl(peak))}${stat("Paid to the deadline", C.cap != null ? rmDays(Math.round(C.cap)) + " p-d" : "—")}${stat("Paid, waiting", rmDays(Math.round(C.idle)) + " p-d", C.idle > 20 ? "bad" : "")}</div>
+    <div class="stats">${stat("Assets", (D.assets || []).length)}${stat("Scope, man-days", rmDays(Math.round(Sx.scope)), "", "The work: assets × days per asset, summed over all parts (without risks)")}
+      ${stat("Project start", D.start ? rmFmt(RM.parse(D.start)) : "—", "", "The first working day of the plan")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—", "", D.deadline ? "Set in Plan data" : "No deadline yet — set it in Plan data")}${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.mo(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "", "The day the last asset is done")}${stat("People", rmPpl(peak), "", "Everyone on the plan, all parts together (a half-time person counts 0.5)")}${stat("Man-days to deadline", C.cap != null ? rmDays(Math.round(C.cap)) : "—", "", "Man-days the team is on the project from the start to the deadline (people × their working days)")}${stat("Idle, man-days", rmDays(Math.round(C.idle)), C.idle > 20 ? "bad" : "", "Man-days people are on the project but wait for work between assets — the hatched pauses in By person")}</div>
     ${verdict.length ? `<div class="rmverdict">${verdict.map(v => `<div>${v}</div>`).join("")}</div>` : ""}
     ${RMV.gantt ? `<div class="rmwrap"><div class="rmgt">
       <div class="rmhead"><div class="rml"><div class="rmh0"><button class="tg ${(RMV.by === "person" ? !Object.values(RMV.pshut).some(Boolean) : Object.values(RMV.open).some(Boolean)) ? "open" : ""}" data-act="rm-expand" title="${(RMV.by === "person" ? !Object.values(RMV.pshut).some(Boolean) : Object.values(RMV.open).some(Boolean)) ? "Collapse all" : "Expand all"}">${(RMV.by === "person" ? !Object.values(RMV.pshut).some(Boolean) : Object.values(RMV.open).some(Boolean)) ? "−" : "+"}</button><span class="seg rmby" title="Rows of the Gantt"><button data-rmby="asset" aria-pressed="${RMV.by !== "person"}">By asset</button><button data-rmby="person" aria-pressed="${RMV.by === "person"}">By person</button></span></div><div>Days</div><div>Start</div><div>End</div><div>${RMV.by === "person" ? "Bench" : "Who"}</div></div><div><div class="hrow mon">${mon}</div><div class="hrow wk">${wk}</div></div></div>
@@ -1296,6 +1297,7 @@ function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   const plan = rmCur(); if (!plan && !a) return false;
   if (a === "rm-copy") return rmNew(plan), true;
   if (a === "rm-data") { RMV.data = !RMV.data; render(); return true; }
+  if (a === "rm-load") { RMV.noLoad = !RMV.noLoad; render(); return true; }
   if (a === "rm-gantt") { RMV.gantt = !RMV.gantt; render(); return true; }
   if (a === "rm-expand") { if (RMV.by === "person") { const any = Object.values(RMV.pshut).some(Boolean); RMV.pshut = {}; if (!any) for (const x of plan.data.parts || []) RMV.pshut[x.id] = true; render(); return true; }
     const any = Object.values(RMV.open).some(Boolean); RMV.open = {}; if (!any) for (const x of plan.data.assets || []) RMV.open[x.id] = true; render(); return true; }
