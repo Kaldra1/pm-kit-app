@@ -766,10 +766,10 @@ RM.order = parts => { const out = [], seen = new Set(), by = Object.fromEntries(
 /* does any part wait for itself through others? */
 RM.loop = parts => { const by = Object.fromEntries(parts.map(p => [p.id, p])); const st = {}; const go = id => { if (st[id] === 1) return true; if (st[id] === 2) return false; st[id] = 1; for (const d of by[id]?.deps || []) if (by[d.on] && go(d.on)) return true; st[id] = 2; return false; }; return parts.some(p => go(p.id)); };
 RM.work = (a, p) => +(a.days?.[p.id] ?? p.days) || 0;
-/* risk, %: the part's own if set (> 0), otherwise the project's */
-RM.riskOf = (D, p) => +p.risk > 0 ? +p.risk : (+D.risk > 0 ? +D.risk : 0);
-/* days the planner lays out: with "Include risks" the part's days grow by its risk; days set by hand for one asset stay as they are */
-RM.dur = (D, a, p) => { const w = RM.work(a, p); return D.withRisk && a.days?.[p.id] == null ? w * (1 + RM.riskOf(D, p) / 100) : w; };
+/* risk of a part in days per asset: its own (riskDays > 0), otherwise the project risk in % of its days; (risk = the old % field, still read) */
+RM.riskDays = (D, p) => +p.riskDays > 0 ? +p.riskDays : +p.risk > 0 ? (+p.days || 0) * p.risk / 100 : (+p.days || 0) * (+D.risk > 0 ? +D.risk : 0) / 100;
+/* days the planner lays out: with "Include risks" the part's days + its risk days; days set by hand for one asset stay as they are */
+RM.dur = (D, a, p) => { const w = RM.work(a, p); return D.withRisk && a.days?.[p.id] == null ? w + RM.riskDays(D, p) : w; };
 /* a dependency: start once the part it waits for is done to `at` % (100 = finished); old plans: fs + lag days, ss + lag % */
 RM.at = dp => dp.at != null ? +dp.at : dp.type === "ss" ? +dp.lag || 0 : 100;
 /* parts that wait for `pid`, directly or through others */
@@ -874,7 +874,7 @@ function rmNew(copyOf){ const id = uid(); const base = copyOf ? JSON.parse(JSON.
 
 const RMV = { zoom: 60, open: {}, data: true, tab: "pipeline", by: "asset", pshut: {} };
 const RMC = { key: null, v: null };
-const RM_RISK_TIP = "Risk, % — a buffer on top of the days, for auto-planning only.\nEach part uses its own risk; where a part has none (empty or 0), the project risk is used; if that is empty too — no buffer.\nThe buffer counts only while Include risks is on. Bars placed or sized by hand keep what you set: hand-made changes win over the planner.";
+const RM_RISK_TIP = "Risks — a buffer on top of the days, for auto-planning only.\nEach part uses its own risk in days per asset; where a part has none (empty or 0), the project risk in % of the part's days is used; if that is empty too — no buffer.\nThe buffer counts only while Include risks is on. Bars placed or sized by hand keep what you set: hand-made changes win over the planner.";
 /* everything the page shows, computed once per plan state */
 function rmCalc(D){ const key = JSON.stringify(D); if (RMC.key === key) return RMC.v;
   const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null, team = D.mode === "team";
@@ -991,11 +991,11 @@ function rmDataPanel(plan, D, C){ const tab = RMV.tab; const Sx = C.S; const mon
     <div class="field" title="${esc(RM_RISK_TIP)}"><label>Project risk, %</label><input type="number" min="0" max="300" step="5" data-rmf="risk" value="${D.risk ?? ""}" placeholder="0"></div>
     <div class="field"><label>Assets</label><span class="rmcnt"><input type="number" min="0" max="500" step="1" data-rmf="count" value="${(D.assets || []).length}"><input data-rmf="prefix" value="${esc(D.prefix || "Character")}" title="Name for new assets"></span></div>
     <button class="btn danger rmdelbtn" data-act="rm-del" title="Delete this plan (to the draft, Ctrl+Z brings it back)">Delete plan</button><div class="seg rmtabsw"><button data-rmtab="pipeline" aria-pressed="${tab === "pipeline"}">Parts & dependencies</button><button data-rmtab="team" aria-pressed="${tab === "team"}">Team by month</button></div></div>`;
-  if (tab === "pipeline") return `<section class="rmdata">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, %<small>empty = project</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th></th></tr></thead><tbody>
+  if (tab === "pipeline") return `<section class="rmdata">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, days<small>empty = project %</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th></th></tr></thead><tbody>
     ${parts.map((p, i) => { const d0 = p.deps?.[0] || {}, d1 = p.deps?.[1] || {}; const opts = cur => `<option value="">—</option>${parts.filter(x => x.id !== p.id).map(x => `<option value="${x.id}" ${x.id === cur ? "selected" : ""}>${esc(x.name)}</option>`).join("")}`;
       const at = (d, k) => `<span class="rmlag"><input type="number" min="0" max="100" step="5" data-rmdep="${p.id}|${k}|at" value="${RM.at(d)}" title="100 % = when it is finished · 50 % = when half is done (and it cannot end before it) · 0 % = together">%</span>`;
       return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i></td><td><input class="in name" data-rmpart="${p.id}|name" value="${esc(p.name)}"></td><td><input class="in num" type="number" min="0" step="0.25" data-rmpart="${p.id}|days" value="${p.days}"></td>
-        <td title="${esc(RM_RISK_TIP)}"><input class="in num ${+p.risk > 0 ? "" : "carry"}" type="number" min="0" max="300" step="5" data-rmpart="${p.id}|risk" value="${+p.risk > 0 ? p.risk : ""}" placeholder="${+D.risk > 0 ? D.risk : 0}"></td>
+        <td title="${esc(RM_RISK_TIP)}"><input class="in num ${+p.riskDays > 0 ? "" : "carry"}" type="number" min="0" step="0.25" data-rmpart="${p.id}|risk" value="${+p.riskDays > 0 ? p.riskDays : ""}" placeholder="${rmDays(Math.round(RM.riskDays({ ...D }, { ...p, riskDays: 0 }) * 100) / 100)}"></td>
         <td><select data-rmdep="${p.id}|0|on">${opts(d0.on)}</select></td><td>${d0.on ? at(d0, 0) : ""}</td>
         <td><select data-rmdep="${p.id}|1|on">${opts(d1.on)}</select></td><td>${d1.on ? at(d1, 1) : ""}</td>
         <td class="acts"><button class="ico" data-rmpmove="${p.id}|-1" title="Up">↑</button><button class="ico" data-rmpmove="${p.id}|1" title="Down">↓</button><button class="ico del" data-rmpdel="${p.id}" title="Remove the part">✕</button></td></tr>`; }).join("")}
@@ -1043,7 +1043,7 @@ function rmChange(el){ const plan = rmCur(); if (!plan) return false;
   if (f === "contract") { rmEdit(d => { d.contract = el.value === "" ? null : +el.value; }, "Contract set"); return true; }
   if (f === "prefix") { rmEdit(d => { d.prefix = el.value.trim() || "Asset"; }); return true; }
   if (f === "count") { const n = Math.max(0, Math.min(500, Math.round(+el.value || 0))); rmEdit(d => { const pre = d.prefix || "Character"; while (d.assets.length < n) { const k = d.assets.length + 1; d.assets.push({ id: "a" + uid().slice(0, 7), name: pre + " " + String(k).padStart(2, "0"), days:{}, pin:{} }); } d.assets.length = n; }, `${n} assets`); return true; }
-  if (el.dataset.rmpart) { const [id, k] = el.dataset.rmpart.split("|"); rmEdit(d => { const p = d.parts.find(x => x.id === id); if (k === "days") p.days = Math.max(0, +el.value || 0); else if (k === "risk") { const v = String(el.value).trim().replace(",", "."); if (v === "" || !(+v > 0)) delete p.risk; else p.risk = Math.max(0, +v); } else p.name = el.value.trim() || p.name; }, k === "risk" ? "Risk changed" : undefined); return true; }
+  if (el.dataset.rmpart) { const [id, k] = el.dataset.rmpart.split("|"); rmEdit(d => { const p = d.parts.find(x => x.id === id); if (k === "days") p.days = Math.max(0, +el.value || 0); else if (k === "risk") { const v = String(el.value).trim().replace(",", "."); delete p.risk; if (v === "" || !(+v > 0)) delete p.riskDays; else p.riskDays = Math.max(0, +v); } else p.name = el.value.trim() || p.name; }, k === "risk" ? "Risk changed" : undefined); return true; }
   if (el.dataset.rmdep) { const [id, i, k] = el.dataset.rmdep.split("|"); rmEdit(d => { const p = d.parts.find(x => x.id === id); p.deps = (p.deps || []).map(x => ({ on: x.on, at: RM.at(x) }));
       if (k === "on") { if (!el.value) p.deps.splice(+i, 1); else if (p.deps[+i]) p.deps[+i].on = el.value; else p.deps.push({ on: el.value, at: 100 }); }
       else if (p.deps[+i]) p.deps[+i].at = Math.max(0, Math.min(100, +el.value || 0));
