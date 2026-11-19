@@ -440,6 +440,22 @@ table.rmteam tr.rmneed td:first-child small{margin-left:8px;letter-spacing:0;tex
 .rmchk{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--hair2);background:#fff;font:600 12.5px var(--fb);cursor:pointer;user-select:none;transition:background .15s}
 .rmchk:hover{background:var(--strip)} .rmchk input{accent-color:var(--accent);margin:0}
 .rmhint{display:flex;align-items:center;gap:14px} .rmhint .rmz{flex:none;order:2;margin-left:auto}
+table.rmteam2 td.rmcell{position:relative;padding:11px 8px 1px;vertical-align:bottom;text-align:right;font:12px var(--fm);color:var(--title);cursor:pointer;min-width:58px;transition:background .12s}
+table.rmteam2 td.rmcell:hover{background:var(--strip);box-shadow:inset 0 0 0 1px var(--frame)}
+table.rmteam2 td.rmcell.lim{background:#fff8e6} table.rmteam2 td.rmcell.lim:hover{background:#fff1cc}
+table.rmteam2 td.rmcell.sel{background:#e3eefa;box-shadow:inset 0 0 0 2px var(--accent)}
+.rmlim{position:absolute;left:3px;top:2px;font:700 8.5px/1 var(--fm);color:#8a5a00;background:#ffe9b0;padding:1px 3px} .rmlim.inl{position:static;font-size:10px;padding:1px 4px}
+.rmuse{font:500 10px var(--fm);color:#8a96a8;margin-left:6px}
+.rmpop{position:fixed;z-index:200;width:280px;background:#fff;border:1px solid var(--frame);box-shadow:0 10px 28px rgba(23,50,77,.22);padding:10px 12px;display:flex;flex-direction:column;gap:8px;animation:rmpop .16s ease}
+@keyframes rmpop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.rmpop-h{font:600 13px var(--fh);letter-spacing:.06em;text-transform:uppercase;color:var(--title)}
+.rmpop-f{display:flex;flex-direction:column;gap:3px;font:500 10px var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rmpop-f input{height:30px;border:1px solid var(--hair2);padding:0 8px;font:13px var(--fm);border-radius:0} .rmpop-f input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(61,134,198,.18)}
+.rmpop-r{display:flex;flex-direction:column;gap:4px;font-size:13px} .rmpop-r input{accent-color:var(--accent);margin-right:6px}
+.rmpop-b{display:flex;gap:6px;align-items:center} .rmpop-b .sp{flex:1}
+.rmdata.full{flex:1;max-height:none} .rmv .btn.on{background:var(--group);border-color:var(--frame)}
+.rmempty.rmhidden{margin:40px auto}
+.rmhead .rml>div.rmh0{justify-content:flex-start;gap:8px;padding-left:8px} .rmhead .tg{border-color:#5d7fa6;background:transparent;color:#dfeaf7} .rmhead .tg.open{background:var(--accent);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -872,7 +888,7 @@ function rmEdit(fn, msg){ const p = rmCur(); if (!p) return; const d = JSON.pars
 function rmNew(copyOf){ const id = uid(); const base = copyOf ? JSON.parse(JSON.stringify(copyOf.data)) : Object.assign(RM.defaults(), { start: rmNextMonday() });
   const name = copyOf ? copyOf.name + " · copy" : "Plan A"; draftPush(); S.draft.ops.push({ t:"rmap", add:true, id, name, data: base }); S.rmCur = id; saveDraft(); rebuild(); render(); toast(`${name} created — in the draft`); }
 
-const RMV = { zoom: 60, open: {}, data: true, tab: "pipeline", by: "asset", pshut: {} };
+const RMV = { zoom: 60, open: {}, data: true, gantt: true, tab: "pipeline", by: "asset", pshut: {} };
 const RMC = { key: null, v: null };
 const RM_RISK_TIP = "Risks — a buffer on top of the days, for auto-planning only.\nEach part uses its own risk in days per asset; where a part has none (empty or 0), the project risk in % of the part's days is used; if that is empty too — no buffer.\nThe buffer counts only while Include risks is on. Bars placed or sized by hand keep what you set: hand-made changes win over the planner.";
 /* everything the page shows, computed once per plan state */
@@ -969,20 +985,20 @@ function sheetRoadmap(){
       <div class="seg rmseg2" title="What the plan answers"><button data-rmmode="timeline" aria-pressed="${!C.team}" title="The team is given (Team by month) — when do we finish?">Fit timeline</button><button data-rmmode="team" aria-pressed="${C.team}" title="The deadline is given — the fewest people to make it, inside your limits">Fit team</button></div>
       <label class="rmchk" title="${esc(RM_RISK_TIP)}"><input type="checkbox" data-rmrisk ${D.withRisk ? "checked" : ""}> Include risks</label>
       <div class="seg rmseg2" title="Rows of the Gantt"><button data-rmby="asset" aria-pressed="${RMV.by !== "person"}">By asset</button><button data-rmby="person" aria-pressed="${RMV.by === "person"}">By person</button></div>
-      <button class="btn" data-act="rm-data">${RMV.data ? "Plan data ▴" : "Plan data ▾"}</button><button class="btn" data-act="rm-auto" title="Drop every bar placed by hand (✎) and lay the plan out again">Auto layout</button>
-      <button class="btn" data-act="rm-expand">${RMV.by === "person" ? (Object.values(RMV.pshut).some(Boolean) ? "Expand all" : "Collapse all") : Object.values(RMV.open).some(Boolean) ? "Collapse all" : "Expand all"}</button></div>
-    ${RMV.data ? rmDataPanel(plan, D, C) : ""}
+      <button class="btn ${RMV.data ? "on" : ""}" data-act="rm-data" title="Show or hide the plan data: parts, risks, dependencies, team">${RMV.data ? "Data ▴" : "Data ▾"}</button><button class="btn ${RMV.gantt ? "on" : ""}" data-act="rm-gantt" title="Show or hide the Gantt — e.g. to work on the estimates only">${RMV.gantt ? "Gantt ▴" : "Gantt ▾"}</button><button class="btn" data-act="rm-auto" title="Drop every bar placed by hand (✎) and lay the plan out again">Auto layout</button>
+</div>
+    ${RMV.data ? rmDataPanel(plan, D, C, !RMV.gantt) : ""}
     <div class="stats">${stat("Assets", (D.assets || []).length)}${stat("Scope, person-days", rmDays(Math.round(Sx.scope)))}${stat("Contract", contract ? rmDays(contract) : "—", contract && Sx.scope > contract ? "bad" : "")}
       ${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.mo(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—")}${stat("People", rmPpl(peak))}${stat("Paid to the deadline", C.cap != null ? rmDays(Math.round(C.cap)) + " p-d" : "—")}${stat("Paid, waiting", rmDays(Math.round(C.idle)) + " p-d", C.idle > 20 ? "bad" : "")}</div>
     ${verdict.length ? `<div class="rmverdict">${verdict.map(v => `<div>${v}</div>`).join("")}</div>` : ""}
-    <div class="rmwrap"><div class="rmgt">
-      <div class="rmhead"><div class="rml"><div>${RMV.by === "person" ? "Part / person" : "Asset / part"}</div><div>Days</div><div>Start</div><div>End</div><div>${RMV.by === "person" ? "Bench" : "Who"}</div></div><div><div class="hrow mon">${mon}</div><div class="hrow wk">${wk}</div></div></div>
+    ${RMV.gantt ? `<div class="rmwrap"><div class="rmgt">
+      <div class="rmhead"><div class="rml"><div class="rmh0"><button class="tg ${(RMV.by === "person" ? !Object.values(RMV.pshut).some(Boolean) : Object.values(RMV.open).some(Boolean)) ? "open" : ""}" data-act="rm-expand" title="${(RMV.by === "person" ? !Object.values(RMV.pshut).some(Boolean) : Object.values(RMV.open).some(Boolean)) ? "Collapse all" : "Expand all"}">${(RMV.by === "person" ? !Object.values(RMV.pshut).some(Boolean) : Object.values(RMV.open).some(Boolean)) ? "−" : "+"}</button>${RMV.by === "person" ? "Part / person" : "Asset / part"}</div><div>Days</div><div>Start</div><div>End</div><div>${RMV.by === "person" ? "Bench" : "Who"}</div></div><div><div class="hrow mon">${mon}</div><div class="hrow wk">${wk}</div></div></div>
       ${rows}${load}
-    </div></div>
-    <div class="rmhint"><label class="rmz" title="Zoom: week width">Zoom<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label>${C.team ? "Fit team: the planner picks the fewest people per part (in pipeline order) to make the deadline; numbers in Team by month and Max are the limits it keeps to." : "Fit timeline: the team comes from Team by month (a number = the limit for that month, empty = no limit) and Max."} One person does one asset at a time; 0.5 = a separate person, 4 h a day. Drag a bar to place it by hand (✎) · drag its right edge to change the days for this asset · right-click for more.</div>
+    </div></div>` : RMV.data ? "" : `<div class="rmempty rmhidden"><b>Gantt and plan data are hidden</b><span>Show either with the buttons above.</span></div>`}
+    ${RMV.gantt ? `<div class="rmhint"><label class="rmz" title="Zoom: week width">Zoom<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label>${C.team ? "Fit team: the planner picks the fewest people per part (in pipeline order) to make the deadline; numbers in Team by month and Max are the limits it keeps to." : "Fit timeline: the team comes from Team by month (a number = the limit for that month, empty = no limit) and Max."} One person does one asset at a time; 0.5 = a separate person, 4 h a day. Drag a bar to place it by hand (✎) · drag its right edge to change the days for this asset · right-click for more.</div>` : ""}
   </div>`; }
 
-function rmDataPanel(plan, D, C){ const tab = RMV.tab; const Sx = C.S; const months = Math.max(18, RM.mo(D.start, Sx.end) + 3);
+function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; const months = Math.max(18, RM.mo(D.start, Sx.end) + 3);
   const parts = D.parts || [];
   const head = `<div class="settings"><div class="field"><label>Plan name</label><input data-rmf="name" value="${esc(plan.name)}"></div>
     <div class="field"><label>Start</label><input type="date" data-rmf="start" value="${esc(D.start || "")}"></div>
@@ -991,7 +1007,7 @@ function rmDataPanel(plan, D, C){ const tab = RMV.tab; const Sx = C.S; const mon
     <div class="field" title="${esc(RM_RISK_TIP)}"><label>Project risk, %</label><input type="number" min="0" max="300" step="5" data-rmf="risk" value="${D.risk ?? ""}" placeholder="0"></div>
     <div class="field"><label>Assets</label><span class="rmcnt"><input type="number" min="0" max="500" step="1" data-rmf="count" value="${(D.assets || []).length}"><input data-rmf="prefix" value="${esc(D.prefix || "Character")}" title="Name for new assets"></span></div>
     <button class="btn danger rmdelbtn" data-act="rm-del" title="Delete this plan (to the draft, Ctrl+Z brings it back)">Delete plan</button><div class="seg rmtabsw"><button data-rmtab="pipeline" aria-pressed="${tab === "pipeline"}">Parts & dependencies</button><button data-rmtab="team" aria-pressed="${tab === "team"}">Team by month</button></div></div>`;
-  if (tab === "pipeline") return `<section class="rmdata">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, days<small>empty = project %</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th></th></tr></thead><tbody>
+  if (tab === "pipeline") return `<section class="rmdata ${full ? "full" : ""}">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, days<small>empty = project %</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th></th></tr></thead><tbody>
     ${parts.map((p, i) => { const d0 = p.deps?.[0] || {}, d1 = p.deps?.[1] || {}; const opts = cur => `<option value="">—</option>${parts.filter(x => x.id !== p.id).map(x => `<option value="${x.id}" ${x.id === cur ? "selected" : ""}>${esc(x.name)}</option>`).join("")}`;
       const at = (d, k) => `<span class="rmlag"><input type="number" min="0" max="100" step="5" data-rmdep="${p.id}|${k}|at" value="${RM.at(d)}" title="100 % = when it is finished · 50 % = when half is done (and it cannot end before it) · 0 % = together">%</span>`;
       return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i></td><td><input class="in name" data-rmpart="${p.id}|name" value="${esc(p.name)}"></td><td><input class="in num" type="number" min="0" step="0.25" data-rmpart="${p.id}|days" value="${p.days}"></td>
@@ -1001,22 +1017,54 @@ function rmDataPanel(plan, D, C){ const tab = RMV.tab; const Sx = C.S; const mon
         <td class="acts"><button class="ico" data-rmpmove="${p.id}|-1" title="Up">↑</button><button class="ico" data-rmpmove="${p.id}|1" title="Down">↓</button><button class="ico del" data-rmpdel="${p.id}" title="Remove the part">✕</button></td></tr>`; }).join("")}
     <tr class="add-row"><td colspan="9"><button class="link-btn" data-act="rm-padd">＋ Production part</button> <span class="hint">“at 33 %” — the part starts once a third of the one it waits for is done (6 animations: VFX for the first two can start) and cannot end before it; 100 % — when it is finished.</span></td></tr></tbody></table></section>`;
   const need = RM.months(D, Sx, months);
-  const mhead = Array.from({ length: months }, (_, m) => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCMonth(dt.getUTCMonth() + m); return `<th>M${m + 1}<small>${RM_MON[dt.getUTCMonth()]}</small></th>`; }).join("");
-  return `<section class="rmdata">${head}<div class="rmteamwrap"><table class="editor rmteam"><thead><tr><th>People</th><th title="The most people on this part over the whole plan">Max<small>whole plan</small></th>${mhead}</tr></thead><tbody>
-    ${parts.map((p, i) => { const arr = D.team?.[p.id] || []; const mx = D.max?.[p.id]; const nd = need[p.id] || [];
-      const lim = Array.from({ length: months }, (_, m) => { const own = m < arr.length; const v = RM.raw(arr, m);
-        return `<td><input class="in num ${own ? "" : "carry"}" type="number" min="0" step="0.5" data-rmteam="${p.id}|${m}" value="${own && v != null ? v : ""}" placeholder="${v == null ? "∞" : rmDays(v)}" title="${v == null ? "No limit — the planner takes as many people as the work needs" : own ? "The limit for this month" : "Same as the month before"} · empty = no limit"></td>`; }).join("");
-      const u = C.useful[p.id] < (D.assets || []).length ? C.useful[p.id] : 0;
-      return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i> ${esc(p.name)}</td><td><input class="in num" type="number" min="0" step="0.5" data-rmmax="${p.id}" value="${mx ?? ""}" placeholder="∞" title="The most people on this part over the whole plan · empty = no limit"></td>${lim}</tr>
-        <tr class="rmneed"><td title="People on the project in this month, as planned (average over the month)">needed${u ? ` <small title="More people than this do not move the end: the parts before cannot feed them faster">useful max ${u}</small>` : ""}</td><td>${C.people[p.id] ? rmPpl(C.people[p.id]) : ""}</td>${nd.map(v => `<td>${v >= 0.05 ? rmPpl(Math.round(v * 10) / 10) : ""}</td>`).join("")}</tr>`; }).join("")}</tbody></table></div>
-    <div class="hint" style="padding:6px 14px 10px">A number = the limit of people for that month (1.5 = one full-time + one half-time person); empty (∞) = no limit — the planner takes as many as the work needs; a month left blank repeats the one before. <b>needed</b> — people on the project as planned: they join when the first asset reaches them and stay until their last one.</div></section>`; }
+  const mname = m => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCMonth(dt.getUTCMonth() + m); return RM_MON[dt.getUTCMonth()]; };
+  const mhead = Array.from({ length: months }, (_, m) => `<th>M${m + 1}<small>${mname(m)}</small></th>`).join("");
+  const pop = RMV.pop;
+  return `<section class="rmdata ${full ? "full" : ""}">${head}<div class="rmteamwrap"><table class="editor rmteam rmteam2"><thead><tr><th>People</th><th title="The most people on this part over the whole plan">Max<small>whole plan</small></th>${mhead}</tr></thead><tbody>
+    ${parts.map((p, i) => { const arr = D.team?.[p.id] || []; const mx = D.max?.[p.id]; const nd = need[p.id] || []; const u = C.useful[p.id] < (D.assets || []).length ? C.useful[p.id] : 0;
+      const cells = Array.from({ length: months }, (_, m) => { const v = RM.raw(arr, m), prev = m ? RM.raw(arr, m - 1) : null; const starts = v !== prev && (v != null || m > 0);
+        const sel = pop && pop.pid === p.id && pop.ms.includes(m);
+        const tip = `${p.name} · M${m + 1} ${mname(m)}\nNeeded: ${rmPpl(Math.round((nd[m] || 0) * 10) / 10)} people (as planned)\nLimit: ${v == null ? "none" : v + " people"}\nClick to set a limit · Shift+click to take several months`;
+        return `<td class="rmcell ${v != null ? "lim" : ""} ${sel ? "sel" : ""}" data-rmcell="${p.id}|${m}" title="${esc(tip)}">${starts ? `<b class="rmlim">${v == null ? "∞" : "≤" + rmPpl(v)}</b>` : ""}<span>${nd[m] >= 0.05 ? rmPpl(Math.round(nd[m] * 10) / 10) : ""}</span></td>`; }).join("");
+      return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i> ${esc(p.name)}${u ? ` <small class="rmuse" title="More people than this do not move the end: the parts before cannot feed them faster">useful max ${u}</small>` : ""}</td><td><input class="in num" type="number" min="0" step="0.5" data-rmmax="${p.id}" value="${mx ?? ""}" placeholder="∞" title="The most people on this part over the whole plan · empty = no limit"></td>${cells}</tr>`; }).join("")}</tbody></table></div>
+    <div class="hint" style="padding:6px 14px 10px">Numbers — people on the project as planned (they join when the first asset reaches them and stay until their last one). Click a month to limit it: <b class="rmlim inl">≤6</b> marks where a limit starts, the tint shows where it holds. Max — the limit for the whole plan. 1.5 = one full-time + one half-time person.</div>
+    ${pop ? rmPopHtml(D, pop, parts, mname) : ""}</section>`; }
+
+/* the month-limit popover */
+function rmPopHtml(D, pop, parts, mname){ const p = parts.find(x => x.id === pop.pid); if (!p) return ""; const arr = D.team?.[p.id] || []; const ms = [...pop.ms].sort((a, b) => a - b);
+  const cur = RM.raw(arr, ms[0]); const label = ms.length > 1 ? `M${ms[0] + 1}–M${ms[ms.length - 1] + 1}` : `M${ms[0] + 1} ${mname(ms[0])}`; const many = ms.length > 1;
+  return `<div class="rmpop" style="left:${pop.x}px;top:${pop.y}px" data-rmpopbox>
+    <div class="rmpop-h">${esc(p.name)} · ${label}</div>
+    <label class="rmpop-f">Limit, people<input type="number" min="0" step="0.5" value="${cur ?? ""}" placeholder="∞ no limit" data-rmpopv onkeydown="rmPopKey(event)"></label>
+    <div class="rmpop-r"><label><input type="radio" name="rmpopw" value="only" ${pop.only || many ? "checked" : ""}> ${many ? "These months only" : "This month only"}</label><label><input type="radio" name="rmpopw" value="on" ${pop.only || many ? "" : "checked"}> From ${many ? "the first" : "this month"} on</label></div>
+    <div class="rmpop-b">${cur != null ? `<button class="btn" data-rmpop="clear">Remove limit</button>` : ""}<span class="sp"></span><button class="btn" data-rmpop="close">Cancel</button><button class="btn primary" data-rmpop="set">Set limit</button></div></div>`; }
+/* months → limit: only these months, or from the first one on; empty = no limit */
+function rmSetLimit(pid, ms, v, on){ rmEdit(d => { d.team = d.team || {}; const arr = (d.team[pid] || []).slice(); const last = Math.max(...ms) + 2; while (arr.length < last) arr.push(RM.raw(arr, arr.length));
+    if (on) { const m0 = Math.min(...ms); arr.length = m0 + 1; arr[m0] = v; } else for (const m of ms) arr[m] = v;
+    while (arr.length > 1 && arr[arr.length - 1] === arr[arr.length - 2]) arr.pop(); if (arr.length === 1 && arr[0] == null) arr.length = 0; d.team[pid] = arr; },
+    v == null ? "Limit removed" : `Limit ≤${v} set`); }
+function rmPopApply(kind){ const pop = RMV.pop; if (!pop) return; const box = document.querySelector("[data-rmpopbox]");
+  const raw = kind === "clear" ? "" : String(box?.querySelector("[data-rmpopv]")?.value ?? "").trim().replace(",", ".");
+  const on = kind === "clear" ? !!box?.querySelector('input[value="on"]')?.checked : !!box?.querySelector('input[value="on"]')?.checked;
+  RMV.pop = null; rmSetLimit(pop.pid, pop.ms, raw === "" ? null : Math.max(0, +raw || 0), on); }
+function rmPopKey(e){ e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); rmPopApply("set"); } else if (e.key === "Escape") { e.preventDefault(); RMV.pop = null; render(); } }
+function rmPopFocus(){ requestAnimationFrame(() => { const i = document.querySelector("[data-rmpopv]"); if (i) { i.focus(); i.select(); } }); }
 
 /* ----- events ----- */
-function rmClick(t){ const a = t.closest("[data-act]")?.dataset.act;
+function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
+  /* month-limit popover */
+  const pb = t.closest("[data-rmpop]"); if (pb) { if (pb.dataset.rmpop === "close") { RMV.pop = null; render(); } else rmPopApply(pb.dataset.rmpop); return true; }
+  if (t.closest("[data-rmpopbox]")) return true;
+  const cell = t.closest("[data-rmcell]"); if (cell) { const [pid, m] = cell.dataset.rmcell.split("|"); const r = cell.getBoundingClientRect();
+    if (ev?.shiftKey && RMV.pop && RMV.pop.pid === pid) { const a0 = RMV.pop.ms[0], b0 = +m; RMV.pop.ms = Array.from({ length: Math.abs(b0 - a0) + 1 }, (_, k) => Math.min(a0, b0) + k); RMV.pop.only = true; }
+    else RMV.pop = { pid, ms: [+m], x: 0, y: 0 };
+    RMV.pop.x = Math.max(8, Math.min(innerWidth - 300, r.left)); RMV.pop.y = Math.min(innerHeight - 190, r.bottom + 4); render(); rmPopFocus(); return true; }
+  if (RMV.pop) { RMV.pop = null; render(); }
   if (a === "rm-new") return rmNew(), true;
   const plan = rmCur(); if (!plan && !a) return false;
   if (a === "rm-copy") return rmNew(plan), true;
   if (a === "rm-data") { RMV.data = !RMV.data; render(); return true; }
+  if (a === "rm-gantt") { RMV.gantt = !RMV.gantt; render(); return true; }
   if (a === "rm-expand") { if (RMV.by === "person") { const any = Object.values(RMV.pshut).some(Boolean); RMV.pshut = {}; if (!any) for (const x of plan.data.parts || []) RMV.pshut[x.id] = true; render(); return true; }
     const any = Object.values(RMV.open).some(Boolean); RMV.open = {}; if (!any) for (const x of plan.data.assets || []) RMV.open[x.id] = true; render(); return true; }
   const md = t.closest("[data-rmmode]"); if (md) { const v = md.dataset.rmmode; if ((plan.data.mode || "timeline") !== v) rmEdit(d => { d.mode = v; }, v === "team" ? "Fit team: the fewest people for the deadline" : "Fit timeline: the end for the team you set"); return true; }
@@ -2101,7 +2149,7 @@ document.addEventListener("mousedown", e => { if (e.target.closest(".menu")) ret
   const td = e.target.closest?.(".grid td[data-f]"), tr = td?.closest("tr[data-id]"); WASOPEN = !!(td && tr && document.querySelector(".menu") && OPENLIST === ck(tr.dataset.id, td.dataset.f)); closeMenu(); if (!WASOPEN) OPENLIST = null; });
 let WASOPEN = false;
 $app.addEventListener("click", async e => {
-  if (S.sheet === "roadmap" && rmClick(e.target)) return;
+  if (S.sheet === "roadmap" && rmClick(e.target, e)) return;
   const t = e.target; const dropB = t.closest("[data-drop]"); if (dropB) return parkOp(+dropB.dataset.drop);
   const backB = t.closest("[data-restore]"); if (backB) return unparkOp(backB.dataset.restore);
   const opI = t.closest(".chgi"); if (opI) return showOp(+opI.dataset.op);
