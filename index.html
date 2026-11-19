@@ -460,6 +460,12 @@ table.rmteam2 td.rmcell.sel{background:#e3eefa;box-shadow:inset 0 0 0 2px var(--
 .rmstepseg button{min-width:34px} .rmman{font:600 11px var(--fm);letter-spacing:.08em;text-transform:uppercase;color:#8a5a00;background:#ffe9b0;padding:2px 6px;flex:none}
 @media print{
   @page{size:A3 landscape;margin:8mm}
+  body.rmprinttab,html:has(body.rmprinttab){height:auto!important;overflow:visible!important} body.rmprinttab #app{height:auto;display:block}
+  body.rmprinttab .hdr,body.rmprinttab .mrow,body.rmprinttab nav.tabs,body.rmprinttab .rmtop,body.rmprinttab .stats,body.rmprinttab .rmverdict,body.rmprinttab .rmwrap,body.rmprinttab .rmhint,body.rmprinttab .rmdata .settings,body.rmprinttab .rmdata .seg,body.rmprinttab .rmdata .btn,body.rmprinttab .rmlock,body.rmprinttab .toast,body.rmprinttab .menu,body.rmprinttab .add-row,body.rmprinttab .rmok,body.rmprinttab .ico{display:none!important}
+  body.rmprinttab .rmv{display:block;overflow:visible;background:#fff} body.rmprinttab,body.rmprinttab #app,body.rmprinttab .main{background:#fff!important} body.rmprinttab .rmdata .hint{display:none} body.rmprinttab .rmdata{max-height:none!important;overflow:visible!important;border:0} body.rmprinttab .rmteamwrap{overflow:visible!important}
+  body.rmprinttab .rmprinthead{display:block!important;padding:0 2px 8px;font:13px var(--fb);color:var(--muted)} body.rmprinttab .rmprinthead::after{content:" · " attr(data-t)} body.rmprinttab .rmprinthead b{font:600 18px var(--fh);letter-spacing:.06em;text-transform:uppercase;color:var(--title)}
+  body.rmprinttab table.editor th,body.rmprinttab table.editor td{position:static!important} body.rmprinttab *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.rmprinttab .rmv .in{border:0!important;background:transparent!important}
   body.rmprint .rmprinthead{display:block!important;padding:0 2px 6px;font:13px var(--fb);color:var(--muted)} body.rmprint .rmprinthead b{font:600 18px var(--fh);letter-spacing:.06em;text-transform:uppercase;color:var(--title)}
   body.rmprint,body.rmprint html{height:auto!important;overflow:visible!important}
   html:has(body.rmprint){height:auto;overflow:visible}
@@ -1083,7 +1089,7 @@ function sheetRoadmap(){
   if (nob) verdict.push(`<b class="bad">${nob} bar${nob > 1 ? "s" : ""} without a person</b> — a limit is 0 there, or a bar placed by hand (✎) sits where everybody is busy.`);
   const stat = (k, v, cls = "", tip = "") => `<div class="stat" ${tip ? `title="${esc(tip)}"` : ""}><span>${k}</span><b class="${cls}">${v}</b></div>`;
   const plans = rmList(); const peak = Sx.parts.reduce((t, p) => t + C.people[p.id], 0);
-  return `<div class="main rmv" style="--rcw:${cw}px"><div class="rmprinthead"><b>${esc(plan.name)}</b> · ${esc(S.project?.name || "")} · ${D.mode === "team" ? "Fit team" : "Fit timeline"}${D.withRisk ? " · risks included" : ""} · PM-Kit, ${rmFmt(Date.now())}</div>
+  return `<div class="main rmv" style="--rcw:${cw}px"><div class="rmprinthead" data-t="${document.body?.classList.contains("rmprinttab") ? esc(rmTableName()) : ""}"><b>${esc(plan.name)}</b> · ${esc(S.project?.name || "")} · ${D.mode === "team" ? "Fit team" : "Fit timeline"}${D.withRisk ? " · risks included" : ""} · PM-Kit, ${rmFmt(Date.now())}</div>
     <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy plan</button></div>
       <span class="sp"></span>
       <div class="seg rmseg2" title="What the plan answers"><button data-rmmode="timeline" aria-pressed="${!C.team}" title="The team is given (Team by month) — when do we finish?">Fit timeline</button><button data-rmmode="team" aria-pressed="${C.team}" title="The deadline is given — the fewest people to make it, inside your limits">Fit team</button></div>
@@ -1279,6 +1285,11 @@ function rmPrintPrep(){ const plan = rmCur(); if (!plan) return null; const keep
   RMV.data = false; RMV.gantt = true; RMV.by = "asset"; RMV.pop = null; RMV.open = {}; RMV.zoom = Math.max(12, Math.min(60, Math.floor((1500 - 486) / weeks)));
   document.body.classList.add("rmprint"); render(); return keep; }
 function rmPrintDone(keep){ document.body.classList.remove("rmprint"); if (keep) Object.assign(RMV, keep); render(); }
+/* PDF of the table on screen: just the table, scaled to an A3 landscape page */
+function rmPrintTablePrep(){ const keep = { data: RMV.data, pop: RMV.pop, hpop: RMV.hpop }; RMV.data = true; RMV.pop = null; RMV.hpop = null; document.body.classList.add("rmprinttab"); document.body.dataset.rmtable = rmTableName(); render();
+  const tb = document.querySelector(".rmdata table.editor"); if (tb) { const w = tb.scrollWidth; tb.style.zoom = w > 1500 ? String(Math.max(0.35, 1500 / w)) : ""; } return keep; }
+function rmPrintTableDone(keep){ document.body.classList.remove("rmprinttab"); const tb = document.querySelector(".rmdata table.editor"); if (tb) tb.style.zoom = ""; if (keep) Object.assign(RMV, keep); render(); }
+function rmPrintTable(){ const keep = rmPrintTablePrep(); const done = () => { removeEventListener("afterprint", done); rmPrintTableDone(keep); }; addEventListener("afterprint", done); setTimeout(() => window.print(), 60); }
 function rmPrint(){ const keep = rmPrintPrep(); if (!keep) return; const done = () => { removeEventListener("afterprint", done); rmPrintDone(keep); }; addEventListener("afterprint", done); setTimeout(() => window.print(), 60); }
 
 /* ----- events ----- */
@@ -1310,7 +1321,7 @@ function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   const ly = t.closest("[data-rmlay]"); if (ly) { const v = ly.dataset.rmlay; if ((plan.data.layout || "auto") === v) return true;
     rmEdit(d => { d.layout = v; if (v === "manual") { const S1 = rmCalc(plan.data).S; d.frozen = {}; for (const [aid, o] of Object.entries(S1.items)) { d.frozen[aid] = {}; for (const [pid, it] of Object.entries(o)) if (it.work > 0) d.frozen[aid][pid] = Math.round(it.start * 100) / 100; } } },
       v === "manual" ? "Manual layout: the bars stay where they are" : "Auto layout: the plan follows every change"); return true; }
-  if (a === "rm-texport") { const r = t.closest("[data-act]").getBoundingClientRect(); const nm = rmTableName(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + nm }, { label: "Excel (.xlsx)", run: () => rmExportTable("xlsx") }, { label: "CSV", run: () => rmExportTable("csv") }]); return true; }
+  if (a === "rm-texport") { const r = t.closest("[data-act]").getBoundingClientRect(); const nm = rmTableName(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + nm }, { label: "Excel (.xlsx)", run: () => rmExportTable("xlsx") }, { label: "PDF", hint: "A3, the whole table", run: () => rmPrintTable() }, { label: "CSV", run: () => rmExportTable("csv") }]); return true; }
   if (a === "rm-export") { const r = t.closest("[data-act]").getBoundingClientRect(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + plan.name }, { label: "Excel (.xlsx)", hint: "plan, Gantt, team, parts", run: () => rmExportXlsx(plan) }, { label: "PDF", hint: "the whole plan, A3", run: () => rmPrint() }, { label: "CSV", hint: "one row per asset · part", run: () => rmExportCsv(plan) }]); return true; }
   const tby = t.closest("[data-rmtby]"); if (tby) { RMV.teamBy = tby.dataset.rmtby; RMV.pop = null; render(); return true; }
   const lk = t.closest("[data-rmlock]"); if (lk) { const pairs = lk.dataset.rmlock.split(",").map(x => x.split(":")); const S1 = rmCalc(plan.data).S; const on = lk.classList.contains("on");
