@@ -479,6 +479,10 @@ table.rmteam tr.rmpgrp td{background:var(--group);font:600 12.5px var(--fh);lett
 table.rmteam td.rmpn{font-weight:500!important;padding-left:22px} table.rmteam td.rmpn .in{width:150px;display:inline-block} table.rmteam td.r{text-align:right;font:12px var(--fm)} table.rmteam td.l{font:12px var(--fm);color:var(--muted);white-space:nowrap}
 .rmv .in.num.own{font-weight:700;color:#8a5a00;background:#fff8e6} .rmback{color:var(--accent-d)!important;font-size:13px}
 .rmv table.editor th.rmtoth{position:sticky;right:0;z-index:3;background:var(--head)}
+table.rmteam tr.rmwd td.rmwdc{text-align:right;font:11.5px var(--fm);color:var(--muted);cursor:pointer;position:relative;transition:background .12s} table.rmteam tr.rmwd td.rmwdc:hover{background:#e9f0f8;color:var(--title)}
+table.rmteam tr.rmwd td.rmwdc.hasoff{color:var(--title);font-weight:600} table.rmteam tr.rmwd td.rmwdc i{position:absolute;left:4px;top:3px;font:700 8.5px var(--fm);font-style:normal;color:#a83a26}
+table.rmteam tr.rmwd td.rmwdc.sel{box-shadow:inset 0 0 0 2px var(--accent);background:#e3eefa}
+.rmhol{display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto} .rmhol>div{display:flex;align-items:center;justify-content:space-between;font:12.5px var(--fm);padding:2px 0;border-bottom:1px solid var(--hair)}
 </style>
 </head>
 <body>
@@ -773,28 +777,35 @@ const RM = {};
 RM.parse = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; };
 RM.iso = ms => new Date(ms).toISOString().slice(0, 10);
 /* working day index d (0 = start; fractional = part of a day) ↔ calendar date */
-RM.dateOf = (start, d) => { let ms = RM.parse(start); const dow = x => new Date(x).getUTCDay(); while (dow(ms) === 0 || dow(ms) === 6) ms += 864e5;
-  let n = Math.floor(d); const wk = Math.floor(n / 5); ms += wk * 7 * 864e5; n -= wk * 5; while (n > 0) { ms += 864e5; if (dow(ms) !== 0 && dow(ms) !== 6) n--; } return ms; };
-RM.dayOf = (start, iso) => { let a = RM.parse(start), b = RM.parse(iso); if (a == null || b == null) return null; const dow = x => new Date(x).getUTCDay(); while (dow(a) === 0 || dow(a) === 6) a += 864e5;
-  let n = 0; if (b < a) return 0; const wk = Math.floor((b - a) / (7 * 864e5)); n = wk * 5; a += wk * 7 * 864e5; while (a < b) { if (dow(a) !== 0 && dow(a) !== 6) n++; a += 864e5; } return n; };
+/* the calendar: Mon–Fri minus the plan's days off (holidays). Working day index d (0 = start; fractional = part of a day) ↔ calendar date */
+RM.UA_HOL = ["2027-01-01", "2027-03-08", "2027-05-03", "2027-05-04", "2027-05-10", "2027-06-21", "2027-06-28", "2027-07-15", "2027-08-24"]; // Ukraine 2027, matches Artem's working days per month (Jan 20 … Sep 22)
+RM.cal = { set: new Set(), key: "" };
+RM.holidays = D => Array.isArray(D.holidays) ? D.holidays : RM.UA_HOL;
+RM.useCal = D => { const list = RM.holidays(D); const key = list.join(","); if (key !== RM.cal.key) RM.cal = { set: new Set(list), key }; };
+RM.isWork = ms => { const w = new Date(ms).getUTCDay(); return w !== 0 && w !== 6 && !RM.cal.set.has(RM.iso(ms)); };
+RM._days = {};
+RM.dayList = (start, n) => { const k = start + "|" + RM.cal.key; let L = RM._days[k]; if (!L) { L = RM._days[k] = []; let ms = RM.parse(start); while (!RM.isWork(ms)) ms += 864e5; L.push(ms); }
+  while (L.length <= n) { let ms = L[L.length - 1] + 864e5; while (!RM.isWork(ms)) ms += 864e5; L.push(ms); } return L; };
+RM.dateOf = (start, d) => { const n = Math.max(0, Math.floor(d)); return RM.dayList(start, n)[n]; };
+RM.dayOf = (start, iso) => { const b = RM.parse(iso); if (RM.parse(start) == null || b == null) return null; let L = RM.dayList(start, 0); while (L[L.length - 1] < b && L.length < 20000) L = RM.dayList(start, L.length + 200);
+  let lo = 0, hi = L.length; while (lo < hi) { const m = (lo + hi) >> 1; if (L[m] < b) lo = m + 1; else hi = m; } return lo; };
 RM.monthOf = (start, d) => { const s = new Date(RM.parse(start)), x = new Date(RM.dateOf(start, d)); return (x.getUTCFullYear() - s.getUTCFullYear()) * 12 + x.getUTCMonth() - s.getUTCMonth(); };
 RM._mc = {};
-RM.mo = (start, d) => { const c = RM._mc[start] || (RM._mc[start] = []); const i = Math.max(0, Math.floor(d)); if (c[i] == null) c[i] = RM.monthOf(start, i); return c[i]; };
+RM.mo = (start, d) => { const ck = start + "|" + RM.cal.key; const c = RM._mc[ck] || (RM._mc[ck] = []); const i = Math.max(0, Math.floor(d)); if (c[i] == null) c[i] = RM.monthOf(start, i); return c[i]; };
 /* the month's raw team value: a number, or null = no limit; months past the table repeat the last one */
 RM.raw = (arr, m) => { if (!arr || !arr.length) return null; const v = arr[Math.min(m, arr.length - 1)]; return v == null || v === "" ? null : +v; };
 RM.capAt = (arr, m) => { const v = RM.raw(arr, m); return v == null ? Infinity : v; };
 RM.fte = RM.capAt;
 RM.H = 3000;
-/* working days per calendar month: what the plan says, else the known calendar, else Mon–Fri */
-RM.UA = { "2027-01": 20, "2027-02": 20, "2027-03": 22, "2027-04": 22, "2027-05": 18, "2027-06": 20, "2027-07": 21, "2027-08": 21, "2027-09": 22 }; // Ukraine 2027, from Artem's staffing sheet
+/* working days of a calendar month: Mon–Fri minus the plan's days off */
 RM.mkey = (start, m) => { const d = new Date(RM.parse(start)); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + m); return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0"); };
 RM.weekdays = key => { const [y, mo] = key.split("-").map(Number); let n = 0; for (let d = 1; d <= 31; d++) { const x = new Date(Date.UTC(y, mo - 1, d)); if (x.getUTCMonth() !== mo - 1) break; const w = x.getUTCDay(); if (w && w !== 6) n++; } return n; };
-RM.wdOf = (D, key) => { const v = D.wd?.[key]; return v != null && v !== "" ? +v : RM.UA[key] ?? RM.weekdays(key); };
+RM.wdOf = (D, key) => { const h = RM.holidays(D); const n = h.filter(x => x.startsWith(key + "-")).filter(x => { const w = new Date(RM.parse(x)).getUTCDay(); return w && w !== 6; }).length; return RM.weekdays(key) - n; };
 RM._mr = {};
-RM.monthRange = (start, m) => { const k = start + "|" + m; if (RM._mr[k] !== undefined) return RM._mr[k]; let lo = null, hi = null; for (let d = 0; d < RM.H; d++) { const x = RM.mo(start, d); if (x === m && lo == null) lo = d; if (x > m) { hi = d; break; } } return RM._mr[k] = lo == null ? null : [lo, hi ?? RM.H]; };
+RM.monthRange = (start, m) => { const k = start + "|" + m + "|" + RM.cal.key; if (RM._mr[k] !== undefined) return RM._mr[k]; let lo = null, hi = null; for (let d = 0; d < RM.H; d++) { const x = RM.mo(start, d); if (x === m && lo == null) lo = d; if (x > m) { hi = d; break; } } return RM._mr[k] = lo == null ? null : [lo, hi ?? RM.H]; };
 /* share of a weekday a person really works in month m: (their days that month) / (Mon–Fri of the month) */
 RM.effFn = D => { const c = {}; return (pid, k, m) => { const key = pid + "|" + k + "|" + m; if (c[key] != null) return c[key]; const mk = RM.mkey(D.start, m);
-  const own = D.avail?.[pid]?.[k]?.[mk]; const days = own != null && own !== "" ? +own : RM.wdOf(D, mk); return c[key] = Math.max(0, Math.min(1, days / RM.weekdays(mk))); }; }; // working days we look ahead (≈ 12 years)
+  const own = D.avail?.[pid]?.[k]?.[mk]; const wd = RM.wdOf(D, mk); return c[key] = own != null && own !== "" ? Math.max(0, Math.min(1, +own / Math.max(1, wd))) : 1; }; }; // working days we look ahead (≈ 12 years)
 RM.defaults = () => ({
   start: null, deadline: null, contract: null, mode: "timeline", risk: null, withRisk: false,
   parts: [
@@ -824,7 +835,7 @@ RM.at = dp => dp.at != null ? +dp.at : dp.type === "ss" ? +dp.lag || 0 : 100;
 /* parts that wait for `pid`, directly or through others */
 RM.followers = (parts, pid) => { const out = new Set([pid]); let grew = true; while (grew) { grew = false; for (const p of parts) if (!out.has(p.id) && (p.deps || []).some(d => out.has(d.on))) { out.add(p.id); grew = true; } } out.delete(pid); return [...out]; };
 /* schedule. opt.n = { part: most people } (Fit team), opt.extra = { part: +k people over every limit }, opt.free = part id whose limits are lifted */
-RM.schedule = (D, opt = {}) => {
+RM.schedule = (D, opt = {}) => { RM.useCal(D);
   const start = D.start, parts = RM.order(D.parts || []), team = opt.team || D.team || {}, mx = D.max || {}, lim = opt.n || {}, extra = opt.extra || {};
   const capFor = id => { if (opt.free === id) return () => Math.min(Infinity, lim[id] ?? Infinity);
     const arr = team[id] || [], m = mx[id] == null || mx[id] === "" ? Infinity : +mx[id], x = extra[id] || 0, l = lim[id] ?? Infinity;
@@ -891,7 +902,7 @@ RM.personMonths = (D, S, pid, x, months) => Array.from({ length: months }, (_, m
 /* man-days of a role typed by hand (Other roles) */
 RM.otherMonths = (D, o, months) => Array.from({ length: months }, (_, m) => (+o.days?.[RM.mkey(D.start, m)] || 0) * (+o.hours || 8) / 8);
 /* Fit team: the fewest people per part (pipeline order) so the plan ends by the deadline, inside the limits */
-RM.fit = D => { const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null; const parts = RM.order(D.parts || []);
+RM.fit = D => { RM.useCal(D); const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null; const parts = RM.order(D.parts || []);
   /* the target: the deadline; if even the limits allow no more than a later end (or there is no deadline), the earliest end possible */
   const S0 = RM.schedule(D, { live: true }); const ok = until == null ? null : S0.end <= until + 0.5; const target = ok ? until : S0.end;
   const n = {};
@@ -939,7 +950,7 @@ const RMV = { zoom: 60, open: {}, data: true, gantt: true, tab: "pipeline", by: 
 const RMC = { key: null, v: null };
 const RM_RISK_TIP = "Risks — a buffer on top of the days, for auto-planning only.\nEach part uses its own risk in days per asset; where a part has none (empty or 0), the project risk in % of the part's days is used; if that is empty too — no buffer.\nThe buffer counts only while Include risks is on. Bars placed or sized by hand keep what you set: hand-made changes win over the planner.";
 /* everything the page shows, computed once per plan state */
-function rmCalc(D){ const key = JSON.stringify(D); if (RMC.key === key) return RMC.v;
+function rmCalc(D){ RM.useCal(D); const key = JSON.stringify(D); if (RMC.key === key) return RMC.v;
   const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null, team = D.mode === "team";
   const manual = D.layout === "manual"; const F = team ? RM.fit(D) : null, n = F?.n || {};
   const S1 = manual ? RM.schedule(D, { n }) : team ? F.S : RM.schedule(D);
@@ -1078,8 +1089,9 @@ function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; con
   const colTot = keys.map((_, m) => Sx.parts.reduce((t, p) => t + pm[p.id].reduce((u, a) => u + a[m], 0), 0) + om.reduce((t, a) => t + a[m], 0));
   const grand = colTot.reduce((a, b) => a + b, 0); const sum = a => a.reduce((x, y) => x + y, 0);
   const lead = by === "part" ? 2 : 4;
-  const wdRow = `<tr class="rmwd"><td title="Working days in the month: holidays make everybody's month shorter, and the plan follows">Working days</td>${by === "part" ? "<td></td>" : "<td></td><td></td><td></td>"}${keys.map(k => { const own = D.wd?.[k] != null && D.wd[k] !== ""; const v = RM.wdOf(D, k);
-      return `<td><input class="in num ${own ? "" : "carry"}" type="number" min="0" max="31" step="1" data-rmwd="${k}" value="${own ? D.wd[k] : ""}" placeholder="${v}" title="${k}: ${v} working days${own ? " (set by hand)" : RM.UA[k] != null ? " (Ukraine calendar)" : " (Mon–Fri)"} · empty = default"></td>`; }).join("")}<td></td></tr>`;
+  const hol = RM.holidays(D);
+  const wdRow = `<tr class="rmwd"><td title="Working days in the month: Mon–Fri minus days off. Click a month to see or change its days off">Working days</td>${by === "part" ? "<td></td>" : "<td></td><td></td><td></td>"}${keys.map(k => { const off = hol.filter(x => x.startsWith(k + "-")); const v = RM.wdOf(D, k); const sel = RMV.hpop?.key === k;
+      return `<td class="rmwdc ${off.length ? "hasoff" : ""} ${sel ? "sel" : ""}" data-rmwdc="${k}" title="${esc(`${k}: ${v} working days${off.length ? "\nDays off: " + off.map(x => rmFmt(RM.parse(x))).join(", ") : ""}\nClick to change the days off`)}">${v}${off.length ? `<i>−${off.length}</i>` : ""}</td>`; }).join("")}<td></td></tr>`;
   const mhead = keys.map((k, m) => `<th>M${m + 1}<small>${mname(m)} ${k.slice(2, 4)}</small></th>`).join("");
   const seg = `<span class="seg rmtby"><button data-rmtby="part" aria-pressed="${by === "part"}">By part</button><button data-rmtby="person" aria-pressed="${by === "person"}">By person</button></span>`;
   let body = "";
@@ -1106,7 +1118,14 @@ function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; con
   return `<section class="rmdata ${full ? "full" : ""}">${head}<div class="rmteambar">${seg}<span class="rmcmp" title="Man-days the team is on the project (people × their working days) — compare with what the work needs and what is sold; the gap is waiting and buffer">${cmp}</span></div><div class="rmteamwrap"><table class="editor rmteam rmteam2"><thead><tr><th>${by === "part" ? "Part" : "Person"}</th>${by === "part" ? `<th title="The most people on this part over the whole plan">Max<small>whole plan</small></th>` : `<th>Hours<small>a day</small></th><th>Start</th><th>End</th>`}${mhead}<th class="rmtoth">Total<small>man-days</small></th></tr></thead><tbody>
     ${wdRow}${body}${totRow}</tbody></table></div>
     <div class="hint" style="padding:6px 14px 10px">${by === "part" ? `Numbers — people on the project in that month as planned (they join when the first asset reaches them and stay until their last one; a half-time person counts 0.5). Click a month to limit it: <b class="rmlim inl">≤6</b> marks where a limit starts, the tint shows where it holds. Max — the limit for the whole plan.` : `Working days each person is on the project, as planned (grey). Type a number to set that person's days for the month — the plan follows (hand-made wins); 0 = not on the project; ↺ — back to the plan. A 4-hour person counts half a man-day per day.`} <b>Working days</b>: holidays make the month shorter for everybody.</div>
-    ${pop && by === "part" ? rmPopHtml(D, pop, parts, mname) : ""}</section>`; }
+    ${pop && by === "part" ? rmPopHtml(D, pop, parts, mname) : ""}${RMV.hpop ? rmHolHtml(D, RMV.hpop) : ""}</section>`; }
+/* days-off popover for one month */
+function rmHolHtml(D, hp){ const off = RM.holidays(D).filter(x => x.startsWith(hp.key + "-")).sort(); const [y, m] = hp.key.split("-").map(Number);
+  return `<div class="rmpop" style="left:${hp.x}px;top:${hp.y}px" data-rmpopbox>
+    <div class="rmpop-h">${RM_MON[m - 1]} ${y} · ${RM.wdOf(D, hp.key)} working days</div>
+    <div class="rmhol">${off.length ? off.map(x => `<div><span>${rmFmt(RM.parse(x))} · ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(RM.parse(x)).getUTCDay()]}</span><button class="ico del" data-rmholdel="${x}" title="Not a day off">✕</button></div>`).join("") : `<div class="hint">No days off — Mon–Fri all work.</div>`}</div>
+    <label class="rmpop-f">Add a day off<input type="date" min="${hp.key}-01" max="${hp.key}-31" value="" data-rmholadd onkeydown="rmPopKey(event)"></label>
+    <div class="rmpop-b"><span class="hint">${Array.isArray(D.holidays) ? "Your calendar" : "Ukraine 2027 calendar"}</span><span class="sp"></span><button class="btn" data-rmpop="close">Close</button></div></div>`; }
 
 /* the month-limit popover */
 function rmPopHtml(D, pop, parts, mname){ const p = parts.find(x => x.id === pop.pid); if (!p) return ""; const arr = D.team?.[p.id] || []; const ms = [...pop.ms].sort((a, b) => a - b);
@@ -1125,7 +1144,7 @@ function rmPopApply(kind){ const pop = RMV.pop; if (!pop) return; const box = do
   const raw = kind === "clear" ? "" : String(box?.querySelector("[data-rmpopv]")?.value ?? "").trim().replace(",", ".");
   const on = kind === "clear" ? !!box?.querySelector('input[value="on"]')?.checked : !!box?.querySelector('input[value="on"]')?.checked;
   RMV.pop = null; rmSetLimit(pop.pid, pop.ms, raw === "" ? null : Math.max(0, +raw || 0), on); }
-function rmPopKey(e){ e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); rmPopApply("set"); } else if (e.key === "Escape") { e.preventDefault(); RMV.pop = null; render(); } }
+function rmPopKey(e){ e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); if (RMV.pop) rmPopApply("set"); } else if (e.key === "Escape") { e.preventDefault(); RMV.pop = null; RMV.hpop = null; render(); } }
 function rmPopFocus(){ requestAnimationFrame(() => { const i = document.querySelector("[data-rmpopv]"); if (i) { i.focus(); i.select(); } }); }
 
 /* ----- export: CSV, Excel, PDF ----- */
@@ -1205,13 +1224,15 @@ function rmPrint(){ const keep = rmPrintPrep(); if (!keep) return; const done = 
 /* ----- events ----- */
 function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   /* month-limit popover */
-  const pb = t.closest("[data-rmpop]"); if (pb) { if (pb.dataset.rmpop === "close") { RMV.pop = null; render(); } else rmPopApply(pb.dataset.rmpop); return true; }
+  const pb = t.closest("[data-rmpop]"); if (pb) { if (pb.dataset.rmpop === "close") { RMV.pop = null; RMV.hpop = null; render(); } else rmPopApply(pb.dataset.rmpop); return true; }
+  const hd = t.closest("[data-rmholdel]"); if (hd) { const x = hd.dataset.rmholdel; rmEdit(d => { d.holidays = RM.holidays(d).filter(y => y !== x); }, `${rmFmt(RM.parse(x))} is a working day`); return true; }
   if (t.closest("[data-rmpopbox]")) return true;
+  const wdc = t.closest("[data-rmwdc]"); if (wdc) { const r = wdc.getBoundingClientRect(); RMV.pop = null; RMV.hpop = { key: wdc.dataset.rmwdc, x: Math.max(8, Math.min(innerWidth - 300, r.left)), y: Math.min(innerHeight - 260, r.bottom + 4) }; render(); return true; }
   const cell = t.closest("[data-rmcell]"); if (cell) { const [pid, m] = cell.dataset.rmcell.split("|"); const r = cell.getBoundingClientRect();
     if (ev?.shiftKey && RMV.pop && RMV.pop.pid === pid) { const a0 = RMV.pop.ms[0], b0 = +m; RMV.pop.ms = Array.from({ length: Math.abs(b0 - a0) + 1 }, (_, k) => Math.min(a0, b0) + k); RMV.pop.only = true; }
     else RMV.pop = { pid, ms: [+m], x: 0, y: 0 };
     RMV.pop.x = Math.max(8, Math.min(innerWidth - 300, r.left)); RMV.pop.y = Math.min(innerHeight - 190, r.bottom + 4); render(); rmPopFocus(); return true; }
-  if (RMV.pop) { RMV.pop = null; render(); }
+  if (RMV.pop || RMV.hpop) { RMV.pop = null; RMV.hpop = null; render(); }
   if (a === "rm-new") return rmNew(), true;
   const plan = rmCur(); if (!plan && !a) return false;
   if (a === "rm-copy") return rmNew(plan), true;
@@ -1264,7 +1285,8 @@ function rmChange(el){ const plan = rmCur(); if (!plan) return false;
     rmEdit(d => { d.team = d.team || {}; const arr = (d.team[id] || []).slice(); const mm = +m; while (arr.length <= mm) arr.push(RM.raw(arr, arr.length));
       arr[mm] = raw === "" ? null : Math.max(0, +raw || 0); while (arr.length > 1 && arr[arr.length - 1] === arr[arr.length - 2]) arr.pop(); if (arr.length === 1 && arr[0] == null) arr.length = 0; d.team[id] = arr; },
       raw === "" ? "No limit from this month" : "Team limit changed"); return true; }
-  if (el.dataset.rmwd) { const k = el.dataset.rmwd, v = String(el.value).trim(); rmEdit(d => { d.wd = d.wd || {}; if (v === "") delete d.wd[k]; else d.wd[k] = Math.max(0, Math.min(31, +v || 0)); }, v === "" ? `${k}: working days by the calendar` : `${k}: ${v} working days`); return true; }
+  if (el.dataset.rmholadd != null) { const v = el.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return true; const w = new Date(RM.parse(v)).getUTCDay(); if (!w || w === 6) { toast("That is a weekend already", true); return true; }
+    rmEdit(d => { const h = RM.holidays(d).slice(); if (!h.includes(v)) h.push(v); h.sort(); d.holidays = h; }, `${rmFmt(RM.parse(v))} — a day off`); return true; }
   if (el.dataset.rmav) { const [pid, k, key] = el.dataset.rmav.split("|"); const v = String(el.value).trim().replace(",", "."); rmEdit(d => { d.avail = d.avail || {}; d.avail[pid] = d.avail[pid] || {}; const a = d.avail[pid][k] = d.avail[pid][k] || {}; a[key] = v === "" ? 0 : Math.max(0, Math.min(31, +v || 0)); }, v === "" || +v === 0 ? `${key}: not on the project` : `${key}: ${v} days`); return true; }
   if (el.dataset.rmo) { const [id, f] = el.dataset.rmo.split("|"); const v = String(el.value).trim().replace(",", "."); rmEdit(d => { const o = (d.other || []).find(x => x.id === id); if (!o) return; if (f === "name") o.name = v || o.name; else if (f === "hours") o.hours = +v || 8; else { o.days = o.days || {}; if (v === "") delete o.days[f]; else o.days[f] = Math.max(0, Math.min(31, +v || 0)); } }); return true; }
   if (el.dataset.rmmax) { const id = el.dataset.rmmax; const raw = String(el.value).trim().replace(",", "."); rmEdit(d => { d.max = d.max || {}; if (raw === "") delete d.max[id]; else d.max[id] = Math.max(0, +raw || 0); }, raw === "" ? "Max: no limit" : "Max people set"); return true; }
