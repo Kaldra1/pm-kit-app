@@ -348,6 +348,81 @@ table.plain{border-collapse:collapse;width:100%}
 .login input{height:32px;border:1px solid var(--frame);border-radius:2px;padding:0 9px;width:100%}
 .login label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;gap:4px}
 .err{color:var(--danger);font-size:12px;min-height:16px}
+/* ---------- Roadmap — the look of the Stage Gantt artifact (PM-сетап 4a "Day field") ---------- */
+.rmv{--frame:#aebbd0;--hair:#e2e9f2;--hair2:#cfd8e6;--head:#24486e;--head-fg:#dfeaf7;--head-rule:#35648f;--phead:#e6ecf5;--title:#17324d;--strip:#f6f9fd;--group:#d8e6f4;--alt:#f6f9fd;--ink:#23303f;--muted:#5d6b7d;--accent:#3d86c6;--accent-d:#2c5f8f;
+  --alarm:#ffe0d9;--alarm-bd:#e8a294;--alarm-fg:#a83a26;--save-fg:#0d514e;--fb:"Barlow","Segoe UI",system-ui,sans-serif;--fh:"Barlow Condensed","Arial Narrow",sans-serif;--fm:ui-monospace,Menlo,Consolas,monospace;
+  background:#eef2f8;color:var(--ink);font:14px/1.4 var(--fb);display:flex;flex-direction:column;overflow:hidden}
+.rmv .btn{border:1px solid var(--hair2);background:#fff;color:var(--ink);padding:5px 11px;font:500 13px var(--fb);white-space:nowrap;border-radius:0;cursor:pointer;transition:background .15s,border-color .15s}
+.rmv .btn:hover{border-color:var(--frame);background:var(--strip)} .rmv .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff} .rmv .btn.danger{color:var(--alarm-fg)}
+.rmtop{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--phead);border-bottom:1px solid var(--frame);flex:none;flex-wrap:wrap}
+.rmtop .sp{flex:1} .rmdraft{display:flex;align-items:center;gap:4px} .rmsep{width:1px;height:24px;background:var(--frame);margin:0 4px}
+.rmtabs{display:flex;gap:4px;flex-wrap:wrap}
+.rmsc{border:1px solid var(--hair2);background:#fff;padding:5px 12px;font:600 13px var(--fh);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-radius:0;transition:background .15s,color .15s}
+.rmsc.on{background:var(--head);border-color:var(--head);color:#fff} .rmsc.add{border-style:dashed;color:var(--accent-d);text-transform:none;letter-spacing:0;font:600 12.5px var(--fb)}
+.rmz{display:flex;align-items:center;gap:6px;font:11px var(--fm);color:var(--muted);text-transform:uppercase;letter-spacing:.08em} .rmz input{width:90px;accent-color:var(--accent)}
+.rmdata{background:#fff;border-bottom:1px solid var(--frame);flex:none;max-height:42vh;overflow:auto;animation:rmdown .22s ease}
+@keyframes rmdown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.rmv .settings{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;padding:10px 14px;background:var(--strip);border-bottom:1px solid var(--frame)}
+.rmv .field{display:flex;flex-direction:column;gap:3px} .rmv .field label{font:500 10px var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rmv .field input,.rmv .field select{height:30px;border:1px solid var(--hair2);padding:0 8px;background:#fff;border-radius:0;font:inherit}
+.rmv .field input[type=number]{width:90px} .rmcnt{display:flex;gap:4px} .rmcnt input:last-child{width:130px!important}
+.rmv .seg{display:inline-flex;border:1px solid var(--hair2);background:#fff;margin-left:auto} .rmv .seg button{border:0;background:#fff;padding:6px 12px;font:600 12.5px var(--fb);cursor:pointer}
+.rmv .seg button+button{border-left:1px solid var(--hair2)} .rmv .seg button[aria-pressed="true"]{background:var(--head);color:#fff}
+table.rmpe,table.rmteam{border-collapse:collapse;width:100%}
+.rmv table.editor th{position:sticky;top:0;background:var(--head);color:var(--head-fg);z-index:2;text-align:center;font:600 12px var(--fh);letter-spacing:.08em;text-transform:uppercase;padding:7px 8px;border-right:1px solid var(--head-rule);white-space:nowrap}
+.rmv table.editor th small{display:block;font:500 10px var(--fm);letter-spacing:0;text-transform:none;color:#9db0c9}
+.rmv table.editor td{padding:2px 8px;border-bottom:1px solid var(--hair);vertical-align:middle;height:32px}
+.rmv .in{width:100%;height:26px;border:1px solid transparent;padding:0 6px;background:transparent;border-radius:0;font:inherit}
+.rmv .in:hover{border-color:var(--hair2)} .rmv .in:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 2px rgba(61,134,198,.18)}
+.rmv .in.name{font-weight:600;color:var(--title)} .rmv .in.num{text-align:right;font:12.5px var(--fm);min-width:56px}
+.rmv .in.carry::placeholder{color:#a3aebd}
+.rmv td select{height:26px;border:1px solid var(--hair2);background:#fff;font:13px var(--fb);max-width:190px}
+.rmlag{display:inline-flex;align-items:center;gap:3px;font:12px var(--fm);color:var(--muted)} .rmlag input{width:64px;height:26px;border:1px solid var(--hair2);text-align:right;font:12.5px var(--fm)}
+.rmv .acts{white-space:nowrap;text-align:right} .rmv .ico{border:0;background:none;min-width:26px;height:26px;color:var(--muted);cursor:pointer} .rmv .ico:hover{background:var(--group);color:var(--title)} .rmv .ico.del:hover{background:var(--alarm);color:var(--alarm-fg)}
+.rmv .link-btn{border:1px dashed var(--frame);background:none;padding:5px 12px;color:var(--accent-d);font-weight:600;cursor:pointer} .rmv .hint{color:var(--muted);font-size:12.5px}
+.rmteamwrap{overflow:auto} table.rmteam td:first-child{white-space:nowrap;font-weight:600;color:var(--title);position:sticky;left:0;background:#fff;z-index:1}
+.rmdot{display:inline-block;width:10px;height:10px;flex:none;vertical-align:-1px}
+.rmv .stats{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--frame);background:var(--strip);flex:none}
+.rmv .stat{flex:1 1 120px;min-height:46px;padding:5px 14px;border-right:1px solid var(--hair);display:flex;flex-direction:column;justify-content:center;gap:1px}
+.rmv .stat span{font:500 9.5px var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rmv .stat b{font:600 20px/1.1 var(--fh);color:var(--title);font-variant-numeric:tabular-nums} .rmv .stat b small{font:500 11px var(--fm);color:var(--muted)}
+.rmv .stat b.bad,.rmverdict b.bad{color:var(--alarm-fg)} .rmverdict b.good{color:var(--save-fg)}
+.rmverdict{flex:none;padding:7px 14px;background:#fffdf4;border-bottom:1px solid #ecd9a6;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.rmwrap{flex:1;overflow:auto;background:#fff;position:relative}
+.rmgt{position:relative;min-width:max-content}
+.rmv .rml{position:sticky;left:0;z-index:12;display:grid;grid-template-columns:230px 56px 72px 72px 56px;flex:none;background:inherit}
+.rmhead{position:sticky;top:0;z-index:20;display:flex;background:var(--head);color:var(--head-fg)}
+.rmhead .rml{z-index:22;background:var(--head)} .rmhead .rml>div{display:flex;align-items:center;justify-content:center;padding:0 7px;font:600 11.5px/1.05 var(--fh);letter-spacing:.07em;text-transform:uppercase;border-right:1px solid var(--head-rule)}
+.rmv .hrow{display:flex} .rmv .hrow>div{flex:none;width:var(--rcw);border-left:1px solid var(--head-rule);display:flex;align-items:center;justify-content:center;font:10px var(--fm);overflow:hidden;white-space:nowrap}
+.rmv .hrow.mon{height:22px} .rmv .hrow.mon>div{justify-content:flex-start;padding-left:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase} .rmv .hrow.mon i{font-style:normal;color:#9db0c9;margin-left:6px}
+.rmv .hrow.wk{height:18px;border-top:1px solid var(--head-rule)} .rmv .hrow.wk>div.ms{border-left:2px solid #9db0c9}
+.rmrow{display:flex;border-bottom:1px solid var(--hair);background:#fff}
+.rmrow>.rml>div{display:flex;align-items:center;height:30px;padding:0 6px;border-right:1px solid var(--hair);white-space:nowrap;overflow:hidden;font-size:12.5px;min-width:0}
+.rmrow>.rml>div.r{justify-content:flex-end;font:12px var(--fm)} .rmrow>.rml>div.l{font:12px var(--fm);color:var(--muted)} .rmrow>.rml>div.r.ov{color:#9a6a00;font-weight:700}
+.rmrow>.rml>div:last-child{border-right:1px solid var(--frame);box-shadow:4px 0 6px -4px rgba(23,50,77,.18)}
+.rmrow>.rml>div.c0{gap:6px}
+.rmrow.grp{background:var(--group);border-bottom-color:var(--hair2)} .rmrow.grp>.rml>div.c0 .nm{font:600 14px var(--fh);letter-spacing:.08em;text-transform:uppercase;color:var(--title);overflow:hidden;text-overflow:ellipsis;cursor:text}
+.rmrow.grp.late>.rml>div.c0{box-shadow:inset 3px 0 0 var(--alarm-fg)}
+.rmrow.sub{background:#fbfcfe} .rmrow.sub>.rml>div.c0{padding-left:30px}
+.rmrow.lhd{background:var(--head)} .rmrow.lhd>.rml>div.c0{color:var(--head-fg);font:600 11.5px var(--fh);letter-spacing:.08em;text-transform:uppercase;grid-column:1/-1}
+.rmrow.load{background:#f3f7fc} .rmrow.load>.rml>div.c0{grid-column:1/-1;font:600 11px var(--fm);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)} .rmrow.load .rmtl{height:26px} .rmrow.load>.rml>div{height:26px}
+.rmv .tg{width:18px;height:18px;border:1px solid var(--hair2);background:#fff;font:700 12px/14px var(--fm);color:var(--accent-d);padding:0;flex:none;border-radius:0;cursor:pointer} .rmv .tg.open{background:var(--accent);border-color:var(--accent);color:#fff}
+.rmtl{position:relative;flex:none;height:30px;background-image:repeating-linear-gradient(to right,var(--hair) 0 1px,transparent 1px var(--rcw))}
+.rmseg{position:absolute;top:8px;height:14px;z-index:2;opacity:.95}
+.rmbar{position:absolute;top:4px;height:22px;z-index:3;border:1px solid;cursor:grab;touch-action:none;overflow:hidden}
+.rmbar>span{position:absolute;left:5px;top:1px;font:600 10.5px/18px var(--fm);white-space:nowrap;pointer-events:none}
+.rmbar.pin{outline:2px solid #17324d;outline-offset:-1px} .rmbar .rmpin{position:absolute;right:9px;top:1px;font:normal 11px/18px var(--fb);color:#fff;pointer-events:none}
+.rmbar.nobody{background:repeating-linear-gradient(135deg,#f3c4bb 0 4px,#fff 4px 8px)!important;border-color:var(--alarm-fg)!important}
+.rmrz{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:2} .rmrz::after{content:"";position:absolute;right:2px;top:4px;bottom:4px;width:2px;background:#fff;opacity:0;transition:opacity .12s} .rmbar:hover .rmrz::after{opacity:.8}
+.rmtoday{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.85;z-index:1}
+.rmdl{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--alarm-fg);z-index:5;pointer-events:none} .rmdl span{display:none}
+.rmrow.grp:first-of-type .rmdl span{display:block}
+.rmld{position:absolute;top:3px;height:20px;z-index:2;display:flex;align-items:center;justify-content:center;font:600 10px var(--fm);color:var(--title);background:#dfeaf6;border:1px solid #c3d4e8;overflow:hidden;white-space:nowrap}
+.rmld.over{background:var(--alarm);border-color:var(--alarm-bd);color:var(--alarm-fg)} .rmld.idle{background:repeating-linear-gradient(135deg,#dfe6ef 0 3px,#fff 3px 6px);border-color:var(--hair2);color:var(--muted);font-weight:500}
+.rmhint{flex:none;padding:6px 14px;font-size:12px;color:var(--muted);background:var(--strip);border-top:1px solid var(--frame)}
+.rmempty{margin:60px auto;max-width:520px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--frame);padding:22px 24px}
+.rmempty b{font:600 20px var(--fh);letter-spacing:.04em;text-transform:uppercase;color:var(--title)} .rmempty span{color:var(--muted)}
+body.rmmoving,body.rmmoving *{cursor:grabbing!important;user-select:none} body.rmsizing,body.rmsizing *{cursor:ew-resize!important;user-select:none}
 </style>
 </head>
 <body>
@@ -461,7 +536,7 @@ async function loadProject(){
   const deps = sids.length ? await q(sb.from("pipeline_stage_dep").select("*").in("stage_id", sids)) : [];
   S.raw = { levels, fields, vf, pipelines, stages, deps };
   deriveSchema();
-  await loadTree(); loadTV();
+  await loadTree(); loadTV(); S.rmBase = null; await rmLoad();
 }
 async function loadTree(){
   S.base = await q(sb.rpc("get_tree", { p_table: S.tbl.id }));
@@ -608,13 +683,13 @@ async function loadHistory(){
 }
 
 /* ---------------- shell ---------------- */
-const SHEETS = [["tracker","Tracker"],["gantt","Gantt"],["workload","Workload"],["pipelines","Pipelines"],["history","History"]];
+const SHEETS = [["tracker","Tracker"],["gantt","Gantt"],["roadmap","Roadmap"],["workload","Workload"],["pipelines","Pipelines"],["history","History"]];
 function markOverflow(){ document.querySelectorAll(".grid tbody td[data-f]:not(.editing)").forEach(td => td.classList.toggle("ov", td.scrollWidth > td.clientWidth + 1)); }
 function render(){ requestAnimationFrame(markOverflow); if (PREF.lockMode && S.sel && !S.editing && !S.cellOnce) S.sel.row = PREF.lockMode === "row";
   if (!S.user) return renderLogin();
   const main = document.querySelector(".main"); const keep = main ? [main.scrollTop, main.scrollLeft] : null;
   const body = !S.project ? `<div class="main"><div class="empty">No projects are visible to this account yet.</div></div>`
-    : ({ tracker: sheetTracker, gantt: sheetGantt, workload: sheetWorkload, pipelines: sheetPipelines, history: sheetHistory })[S.sheet]();
+    : ({ tracker: sheetTracker, gantt: sheetGantt, roadmap: sheetRoadmap, workload: sheetWorkload, pipelines: sheetPipelines, history: sheetHistory })[S.sheet]();
   $app.innerHTML = `<header class="hdr"><div class="brand">PM-KIT</div>
     ${S.projects.length ? `<select id="proj" title="Project">${S.projects.map(p => `<option value="${p.id}" ${p.id === S.project?.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : ""}
     <span class="saved ${S.saving ? "busy" : S.draft.ops.length ? "draft" : ""}">${S.saving ? "Saving…" : S.draft.ops.length ? `Draft · ${S.draft.ops.length} change${S.draft.ops.length > 1 ? "s" : ""} not applied` : "All changes saved"}</span><span class="sp"></span>
@@ -627,6 +702,266 @@ function render(){ requestAnimationFrame(markOverflow); if (PREF.lockMode && S.s
   if (m2 && keep) { m2.scrollTop = keep[0]; m2.scrollLeft = keep[1]; }
   if (S.sheet === "tracker" && m2 && !document.querySelector(".veil") && document.activeElement?.tagName !== "INPUT") m2.focus({ preventScroll:true });
 }
+
+/* ================= Roadmap: high-level plan by production parts =================
+   One plan = one document (roadmap.data). Every change goes to the draft as one {t:"rmap"} op per plan (latest wins).
+   Week columns, 1-day step. Positions are computed live from parts, dependencies and the team; bars moved by hand are pinned (✎). */
+/* ---------- Roadmap engine: working days from the plan start (Mon–Fri), fractional days allowed ---------- */
+const RM = {};
+RM.parse = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; };
+RM.iso = ms => new Date(ms).toISOString().slice(0, 10);
+/* working day index d (0 = start; fractional = part of a day) ↔ calendar date */
+RM.dateOf = (start, d) => { let ms = RM.parse(start); const dow = x => new Date(x).getUTCDay(); while (dow(ms) === 0 || dow(ms) === 6) ms += 864e5;
+  let n = Math.floor(d); const wk = Math.floor(n / 5); ms += wk * 7 * 864e5; n -= wk * 5; while (n > 0) { ms += 864e5; if (dow(ms) !== 0 && dow(ms) !== 6) n--; } return ms; };
+RM.dayOf = (start, iso) => { let a = RM.parse(start), b = RM.parse(iso); if (a == null || b == null) return null; const dow = x => new Date(x).getUTCDay(); while (dow(a) === 0 || dow(a) === 6) a += 864e5;
+  let n = 0; if (b < a) return 0; const wk = Math.floor((b - a) / (7 * 864e5)); n = wk * 5; a += wk * 7 * 864e5; while (a < b) { if (dow(a) !== 0 && dow(a) !== 6) n++; a += 864e5; } return n; };
+RM.monthOf = (start, d) => { const s = new Date(RM.parse(start)), x = new Date(RM.dateOf(start, d)); return (x.getUTCFullYear() - s.getUTCFullYear()) * 12 + x.getUTCMonth() - s.getUTCMonth(); };
+RM.fte = (arr, m) => { if (!arr || !arr.length) return 0; return +(arr[Math.min(m, arr.length - 1)] || 0); };
+RM.defaults = () => ({
+  start: null, deadline: null, contract: null,
+  parts: [
+    { id:"concept", name:"Concept",        days:12,   deps:[] },
+    { id:"cvfx",    name:"Concept VFX",    days:4,    deps:[{ on:"concept", type:"ss", lag:50 }] },
+    { id:"m3d",     name:"3D",             days:31,   deps:[{ on:"concept", type:"fs", lag:0 }] },
+    { id:"tech",    name:"Tech animation", days:4.25, deps:[{ on:"m3d", type:"fs", lag:0 }] },
+    { id:"anim",    name:"3D animation",   days:8.25, deps:[{ on:"tech", type:"fs", lag:0 }] },
+    { id:"vfx",     name:"VFX real-time",  days:9,    deps:[{ on:"anim", type:"ss", lag:33 }, { on:"cvfx", type:"fs", lag:0 }] },
+  ],
+  team: { concept:[1.5], cvfx:[0.5], m3d:[0, 3, 4], tech:[0, 0, 0.5], anim:[0, 0, 1], vfx:[0, 0, 0, 1, 2] },
+  assets: Array.from({ length: 26 }, (_, i) => ({ id: "a" + (i + 1), name: "Character " + String(i + 1).padStart(2, "0"), days:{}, pin:{} })),
+});
+/* does any part wait for itself through others? */
+RM.loop = parts => { const by = Object.fromEntries(parts.map(p => [p.id, p])); const st = {}; const go = id => { if (st[id] === 1) return true; if (st[id] === 2) return false; st[id] = 1; for (const d of by[id]?.deps || []) if (by[d.on] && go(d.on)) return true; st[id] = 2; return false; }; return parts.some(p => go(p.id)); };
+/* topological order of parts by their dependencies */
+RM.order = parts => { const out = [], seen = new Set(), by = Object.fromEntries(parts.map(p => [p.id, p]));
+  const visit = (p, stack = new Set()) => { if (seen.has(p.id) || stack.has(p.id)) return; stack.add(p.id); for (const d of p.deps || []) if (by[d.on]) visit(by[d.on], stack); seen.add(p.id); out.push(p); };
+  parts.forEach(p => visit(p)); return out; };
+/* schedule: every asset goes through the parts; each part has people (slots) whose share of a day comes from the team table month by month */
+RM.schedule = (D, opt = {}) => {
+  const start = D.start, parts = RM.order(D.parts || []); const teamOf = id => (opt.team || D.team || {})[id] || [];
+  const slots = {}; for (const p of parts) { const max = Math.ceil(Math.max(0, ...teamOf(p.id).map(Number).filter(x => !isNaN(x)))); slots[p.id] = Array.from({ length: max }, () => 0); }
+  const rate = (p, k, d) => Math.max(0, Math.min(1, RM.fte(teamOf(p.id), RM.monthOf(start, d)) - k));
+  /* when does slot k finish `work` days of work if it starts at s? (its share may change month to month) */
+  const finish = (p, k, s, work) => { let d = s, left = work, guard = 0;
+    while (left > 1e-9 && guard++ < 4000) { const r = rate(p, k, d); const day0 = Math.floor(d); const room = (day0 + 1) - d;
+      if (r <= 0) { d = day0 + 1; continue; } const can = room * r; if (can >= left) { d += left / r; left = 0; } else { left -= can; d = day0 + 1; } }
+    return guard >= 4000 ? Infinity : d; };
+  const firstWork = (p, k, s) => { let d = s, g = 0; while (rate(p, k, d) <= 0 && g++ < 4000) d = Math.floor(d) + 1; return g >= 4000 ? Infinity : d; };
+  const items = {}, wait = {}; for (const p of parts) wait[p.id] = 0;
+  for (const a of D.assets || []) { items[a.id] = {};
+    for (const p of parts) { const work = +(a.days?.[p.id] ?? p.days) || 0;
+      let earliest = 0, minEnd = 0;
+      for (const dp of p.deps || []) { const pr = items[a.id][dp.on]; if (!pr) continue;
+        if (dp.type === "ss") { earliest = Math.max(earliest, pr.start + (pr.end - pr.start) * (+dp.lag || 0) / 100); minEnd = Math.max(minEnd, pr.end); }
+        else earliest = Math.max(earliest, pr.end + (+dp.lag || 0)); }
+      const pin = a.pin?.[p.id];
+      if (work <= 0) { items[a.id][p.id] = { start: earliest, end: Math.max(earliest, minEnd), slot: -1, work: 0, earliest }; continue; }
+      let best = null;
+      const ks = slots[p.id].length ? slots[p.id].map((_, k) => k) : [];
+      for (const k of ks) { const s0 = pin != null ? pin : firstWork(p, k, Math.max(earliest, slots[p.id][k])); const e = finish(p, k, s0, work);
+        const score = pin != null ? Math.max(0, slots[p.id][k] - pin) * 1000 + e : e; if (!best || score < best.score) best = { k, s: s0, e, score }; }
+      if (!best) { items[a.id][p.id] = { start: pin ?? earliest, end: (pin ?? earliest) + work, slot: -1, work, earliest, nobody: true }; continue; }
+      let s = best.s, e = best.e;
+      if (minEnd > e && pin == null) { /* overlapped part cannot end before the part it overlaps: start later */ const d = minEnd - e; s += d; e = finish(p, best.k, s, work); }
+      slots[p.id][best.k] = Math.max(slots[p.id][best.k], e); wait[p.id] += Math.max(0, s - earliest);
+      items[a.id][p.id] = { start: s, end: e, slot: best.k, work, earliest, pinned: pin != null }; } }
+  const all = Object.values(items).flatMap(o => Object.values(o)); const end = all.length ? Math.max(...all.map(x => x.end)) : 0;
+  const scope = (D.assets || []).reduce((t, a) => t + parts.reduce((u, p) => u + (+(a.days?.[p.id] ?? p.days) || 0), 0), 0);
+  return { parts, items, end, scope, wait, slots, rate };
+};
+/* weekly load per part: needed (people busy) vs available (team) */
+RM.load = (D, S, weeks) => { const out = {};
+  for (const p of S.parts) { const need = Array(weeks).fill(0), have = Array(weeks).fill(0);
+    for (let w = 0; w < weeks; w++) { let h = 0; for (let d = w * 5; d < w * 5 + 5; d++) h += RM.fte((D.team || {})[p.id], RM.monthOf(D.start, d)); have[w] = h / 5; }
+    for (const a of Object.values(S.items)) { const it = a[p.id]; if (!it || it.slot < 0 || !it.work) continue;
+      for (let d = Math.floor(it.start); d < Math.ceil(it.end); d++) { const lo = Math.max(d, it.start), hi = Math.min(d + 1, it.end); if (hi <= lo) continue; const w = Math.floor(d / 5); if (w < weeks) need[w] += (hi - lo) * S.rate(p, it.slot, d) / 5; } }
+    out[p.id] = { need, have }; }
+  return out; };
+/* how many person-days the team offers up to day `until` */
+RM.capacity = (D, until) => { let t = 0; for (const p of D.parts || []) for (let d = 0; d < until; d++) t += RM.fte((D.team || {})[p.id], RM.monthOf(D.start, d)); return t; };
+
+
+const RMPAL = [
+  { solid:"#3d86c6", light:"#e7f1fb", bd:"#8fbde4", fg:"#1d4467" },   // concept
+  { solid:"#8a78bd", light:"#f1ecfa", bd:"#c3b6e0", fg:"#3f2f6b" },   // concept VFX
+  { solid:"#17b3b0", light:"#e3f6f6", bd:"#7fd4d2", fg:"#0d514e" },   // 3D
+  { solid:"#24486e", light:"#e6ecf5", bd:"#9fb3cf", fg:"#17324d" },   // tech animation
+  { solid:"#8b9bb4", light:"#f2f5f9", bd:"#b8c3d4", fg:"#3f4a5c" },   // 3D animation
+  { solid:"#e2a02b", light:"#fff3d6", bd:"#e7c766", fg:"#5a4200" },   // VFX
+];
+const rmPal = i => RMPAL[i % RMPAL.length];
+const rmDays = v => { const r = Math.round(v * 100) / 100; return String(r); };
+const rmFmt = ms => { const d = new Date(ms); return String(d.getUTCDate()).padStart(2, "0") + "." + String(d.getUTCMonth() + 1).padStart(2, "0") + "." + String(d.getUTCFullYear()).slice(2); };
+const RM_MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function rmNextMonday(){ const d = new Date(); d.setUTCHours(0, 0, 0, 0); const k = (8 - d.getUTCDay()) % 7 || 7; return RM.iso(d.getTime() + k * 864e5); }
+
+/* plans with the draft on top */
+function rmList(){ const list = (S.rmBase || []).map(x => ({ ...x }));
+  for (const o of S.draft?.ops || []) { if (o.t !== "rmap") continue;
+    if (o.add) { list.push({ id:o.id, name:o.name, data:o.data, _new:true }); continue; }
+    const x = list.find(y => y.id === o.id); if (!x) continue; if (o.data) x.data = o.data; if (o.name) x.name = o.name; if (o.remove) x._gone = true; }
+  return list.filter(x => !x._gone); }
+function rmCur(){ const l = rmList(); return l.find(x => x.id === S.rmCur) || l[0] || null; }
+async function rmLoad(){ if (!S.project) return; try { S.rmBase = await q(sb.from("roadmap").select("id,name,data,version,position").eq("project_id", S.project.id).is("deleted_at", null).order("position")); S.rmErr = null; }
+  catch (err) { S.rmBase = []; S.rmErr = /relation|roadmap|schema cache/i.test(err.message || "") ? "need014" : err.message; } }
+/* one change to a plan = one draft step; ops for the same plan collapse into one */
+function rmPush(plan, patch, msg){ draftPush(); const ops = S.draft.ops; const add = ops.find(o => o.t === "rmap" && o.add && o.id === plan.id);
+  if (add) Object.assign(add, patch); else { const ex = ops.find(o => o.t === "rmap" && !o.add && !o.remove && o.id === plan.id); if (ex && !patch.remove) Object.assign(ex, patch); else ops.push({ t:"rmap", id: plan.id, ...patch }); }
+  saveDraft(); rebuild(); render(); if (msg) toast(msg + " — in the draft"); }
+function rmEdit(fn, msg){ const p = rmCur(); if (!p) return; const d = JSON.parse(JSON.stringify(p.data)); fn(d); rmPush(p, { data: d }, msg); }
+function rmNew(copyOf){ const id = uid(); const base = copyOf ? JSON.parse(JSON.stringify(copyOf.data)) : Object.assign(RM.defaults(), { start: rmNextMonday() });
+  const name = copyOf ? copyOf.name + " · copy" : "Plan A"; draftPush(); S.draft.ops.push({ t:"rmap", add:true, id, name, data: base }); S.rmCur = id; saveDraft(); rebuild(); render(); toast(`${name} created — in the draft`); }
+
+const RMV = { zoom: 60, open: {}, data: true, tab: "pipeline" };
+function rmCalc(D){ const S1 = RM.schedule(D); const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null;
+  const cap = until != null ? RM.capacity(D, until) : null;
+  /* paid but idle up to the plan end: team days − work days */
+  const capEnd = RM.capacity(D, Math.ceil(S1.end)); const idle = Math.max(0, capEnd - S1.scope);
+  /* which part, given one more person from the start, brings the end closest */
+  let best = null; for (const p of S1.parts) { const team = JSON.parse(JSON.stringify(D.team || {})); team[p.id] = (team[p.id] && team[p.id].length ? team[p.id] : [0]).map(v => +v + 1);
+    const e = RM.schedule(D, { team }).end; const gain = S1.end - e; if (gain > 2.5 && (!best || gain > best.gain)) best = { p, gain, end: e }; }
+  return { S: S1, until, cap, idle, best }; }
+
+function sheetRoadmap(){
+  if (S.rmErr === "need014") return `<div class="main rmv"><div class="rmempty"><b>Roadmap needs the database update 014.</b><span>It adds the table for plans. Ask Claude to apply it — then reload.</span></div></div>`;
+  const plan = rmCur();
+  if (!plan) return `<div class="main rmv"><div class="rmempty"><b>High-level plan</b><span>Production parts per asset — Concept, 3D, Tech animation, Animation, VFX — on a week grid, with dependencies, the team month by month and a check against the contract.</span><button class="btn primary" data-act="rm-new">＋ Create a plan</button></div></div>`;
+  S.rmCur = plan.id; const D = plan.data; const C = rmCalc(D), Sx = C.S;
+  const cw = RMV.zoom, dw = cw / 5; const weeks = Math.max(Math.ceil(Math.max(Sx.end, C.until || 0) / 5) + 4, 26);
+  const startMs = RM.dateOf(D.start, 0);
+  /* header: months and weeks */
+  let mon = "", wk = ""; let curM = -1, span = 0, label = "";
+  for (let w = 0; w < weeks; w++) { const ms = RM.dateOf(D.start, w * 5), dt = new Date(ms); const m = dt.getUTCFullYear() * 12 + dt.getUTCMonth();
+    if (m !== curM) { if (span) mon += `<div style="width:${span * cw}px">${label}</div>`; curM = m; span = 0; label = RM_MON[dt.getUTCMonth()] + " " + String(dt.getUTCFullYear()).slice(2) + ` <i>M${RM.monthOf(D.start, w * 5) + 1}</i>`; }
+    span++; wk += `<div class="${RM.monthOf(D.start, w * 5) !== RM.monthOf(D.start, w * 5 - 5) ? "ms" : ""}">${String(dt.getUTCDate()).padStart(2, "0")}.${String(dt.getUTCMonth() + 1).padStart(2, "0")}</div>`; }
+  mon += `<div style="width:${span * cw}px">${label}</div>`;
+  const todayD = RM.dayOf(D.start, new Date().toISOString().slice(0, 10)); const dl = C.until;
+  const marks = `${todayD > 0 && todayD < weeks * 5 ? `<b class="rmtoday" style="left:${todayD * dw}px"></b>` : ""}${dl != null ? `<b class="rmdl" style="left:${dl * dw}px"><span>Deadline ${rmFmt(RM.parse(D.deadline))}</span></b>` : ""}`;
+  const pidx = Object.fromEntries((D.parts || []).map((p, i) => [p.id, i]));
+  const bar = (a, p, it, row) => { const c = rmPal(pidx[p.id]); const w = Math.max(2, (it.end - it.start) * dw);
+    const ov = a.days?.[p.id] != null; return `<div class="rmbar ${it.pinned ? "pin" : ""} ${it.nobody ? "nobody" : ""}" data-rmbar="${a.id}|${p.id}" style="left:${it.start * dw}px;width:${w}px;background:${row ? c.solid : c.solid};border-color:${c.solid};color:#fff" title="${esc(a.name)} · ${esc(p.name)}\n${rmFmt(RM.dateOf(D.start, it.start))} → ${rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01)))}\n${rmDays(it.work)} d of work${it.slot >= 0 ? " · " + esc(p.name) + " #" + (it.slot + 1) : ""}${it.nobody ? "\nNobody in the team for this part" : ""}${it.pinned ? "\n✎ placed by hand — right-click › Back to automatic" : ""}${ov ? "\nDays changed for this asset" : ""}">
+      ${row && w > 34 ? `<span>${rmDays(it.work)}d${it.slot >= 0 ? " · #" + (it.slot + 1) : ""}</span>` : ""}${it.pinned ? `<i class="rmpin">✎</i>` : ""}${row ? `<i class="rmrz" data-rmrz="${a.id}|${p.id}"></i>` : ""}</div>`; };
+  const tl = inner => `<div class="rmtl" style="width:${weeks * cw}px">${inner}</div>`;
+  let rows = "";
+  for (const a of D.assets || []) { const its = Sx.items[a.id] || {}; const vals = Object.values(its).filter(x => x.end > x.start); const s = vals.length ? Math.min(...vals.map(x => x.start)) : 0, e = vals.length ? Math.max(...vals.map(x => x.end)) : 0;
+    const open = !!RMV.open[a.id]; const tot = Sx.parts.reduce((t, p) => t + (+(a.days?.[p.id] ?? p.days) || 0), 0);
+    rows += `<div class="rmrow grp ${e > (dl ?? Infinity) ? "late" : ""}" data-rma="${a.id}"><div class="rml"><div class="c0"><button class="tg ${open ? "open" : ""}" data-rmtg="${a.id}">${open ? "−" : "+"}</button><span class="nm" data-rmname="${a.id}" title="Double-click to rename">${esc(a.name)}</span></div><div class="r">${rmDays(tot)}</div><div class="l">${vals.length ? rmFmt(RM.dateOf(D.start, s)) : ""}</div><div class="l">${vals.length ? rmFmt(RM.dateOf(D.start, Math.max(s, e - 0.01))) : ""}</div><div class="r">${vals.length ? Math.round((e - s) / 5 * 10) / 10 + " w" : ""}</div></div>
+      ${tl(marks + Sx.parts.map(p => its[p.id] && its[p.id].end > its[p.id].start ? `<div class="rmseg" style="left:${its[p.id].start * dw}px;width:${Math.max(1, (its[p.id].end - its[p.id].start) * dw)}px;background:${rmPal(pidx[p.id]).solid}" title="${esc(p.name)}"></div>` : "").join(""))}</div>`;
+    if (open) for (const p of Sx.parts) { const it = its[p.id]; if (!it) continue;
+      rows += `<div class="rmrow sub"><div class="rml"><div class="c0"><i class="rmdot" style="background:${rmPal(pidx[p.id]).solid}"></i><span class="nm">${esc(p.name)}</span></div><div class="r ${a.days?.[p.id] != null ? "ov" : ""}">${rmDays(it.work)}</div><div class="l">${it.work ? rmFmt(RM.dateOf(D.start, it.start)) : ""}</div><div class="l">${it.work ? rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01))) : ""}</div><div class="r">${it.slot >= 0 ? "#" + (it.slot + 1) : it.work ? "—" : ""}</div></div>${tl(marks + (it.work ? bar(a, p, it, true) : ""))}</div>`; } }
+  /* team load per part, per week: busy / available */
+  const L = RM.load(D, Sx, weeks);
+  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0">Team load · people per week, busy / in the team</div></div>${tl(marks)}</div>`;
+  for (const p of Sx.parts) { const l = L[p.id]; const c = rmPal(pidx[p.id]);
+    load += `<div class="rmrow load"><div class="rml"><div class="c0"><i class="rmdot" style="background:${c.solid}"></i>${esc(p.name)}</div></div>${tl(l.need.map((n, w) => { const h = l.have[w]; if (h < 0.01 && n < 0.01) return "";
+      const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; return `<div class="rmld ${cls}" style="left:${w * cw + 1}px;width:${cw - 2}px" title="Week of ${rmFmt(RM.dateOf(D.start, w * 5))}: ${rmDays(n)} busy of ${rmDays(h)} in the team${cls === "idle" ? " — paid, no work" : cls === "over" ? " — more work than people" : ""}">${rmDays(Math.round(n * 10) / 10)}/${rmDays(Math.round(h * 10) / 10)}</div>`; }).join(""))}</div>`; }
+  /* the verdict */
+  const endMs = RM.dateOf(D.start, Sx.end); const late = dl != null ? Sx.end - dl : null; const contract = +D.contract || null;
+  const verdict = [];
+  if (dl != null) verdict.push(late > 0.5 ? `<b class="bad">Late by ${Math.round(late / 5 * 10) / 10} weeks</b> — the plan ends ${rmFmt(endMs)}, the deadline is ${rmFmt(RM.parse(D.deadline))}.` : `<b class="good">In time</b>, ${Math.round(-late / 5 * 10) / 10} weeks to spare before the deadline.`);
+  if (contract) verdict.push(Sx.scope > contract + 0.5 ? `<b class="bad">Scope is ${rmDays(Math.round(Sx.scope - contract))} person-days over the contract</b> (${rmDays(Math.round(Sx.scope))} needed, ${rmDays(contract)} sold).` : `Scope fits the contract: ${rmDays(Math.round(Sx.scope))} of ${rmDays(contract)} person-days.`);
+  if (C.idle > 5) verdict.push(`${rmDays(Math.round(C.idle))} person-days paid but without work before the end — see the grey weeks in Team load.`);
+  if (C.best) verdict.push(`Bottleneck: <b>${esc(C.best.p.name)}</b> — one more person there from the start ends ${Math.round(C.best.gain / 5 * 10) / 10} weeks earlier (${rmFmt(RM.dateOf(D.start, C.best.end))}).`);
+  const stat = (k, v, cls = "") => `<div class="stat"><span>${k}</span><b class="${cls}">${v}</b></div>`;
+  const plans = rmList();
+  return `<div class="main rmv" style="--rcw:${cw}px">
+    <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy as a new plan</button></div>
+      <span class="sp"></span><button class="btn" data-act="rm-data">${RMV.data ? "Plan data ▴" : "Plan data ▾"}</button><button class="btn" data-act="rm-auto" title="Drop every bar placed by hand (✎) and lay the plan out again">Auto layout</button>
+      <button class="btn" data-act="rm-expand">${Object.values(RMV.open).some(Boolean) ? "Collapse all" : "Expand all"}</button><label class="rmz">Zoom<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label>
+      <button class="btn danger" data-act="rm-del" title="Delete this plan (to the draft)">Delete plan</button></div>
+    ${RMV.data ? rmDataPanel(plan, D) : ""}
+    <div class="stats">${stat("Assets", (D.assets || []).length)}${stat("Scope, person-days", rmDays(Math.round(Sx.scope)))}${stat("Contract", contract ? rmDays(contract) : "—", contract && Sx.scope > contract ? "bad" : "")}
+      ${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.monthOf(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—")}${stat("Team to the deadline", C.cap != null ? rmDays(Math.round(C.cap)) + " p-d" : "—", C.cap != null && C.cap < Sx.scope ? "bad" : "")}${stat("Paid, no work", rmDays(Math.round(C.idle)) + " p-d", C.idle > 20 ? "bad" : "")}</div>
+    ${verdict.length ? `<div class="rmverdict">${verdict.map(v => `<div>${v}</div>`).join("")}</div>` : ""}
+    <div class="rmwrap"><div class="rmgt">
+      <div class="rmhead"><div class="rml"><div>Asset / part</div><div>Days</div><div>Start</div><div>End</div><div>Who</div></div><div><div class="hrow mon">${mon}</div><div class="hrow wk">${wk}</div></div></div>
+      ${rows}${load}
+    </div></div>
+    <div class="rmhint">Drag a bar to place it by hand (✎, step 1 day) · drag its right edge to change the days for this asset · right-click a bar for more. Parts, dependencies and the team are in <b>Plan data</b>; positions follow them at once.</div>
+  </div>`; }
+
+function rmDataPanel(plan, D){ const tab = RMV.tab; const months = Math.max(18, Math.ceil(RM.monthOf(D.start, RM.schedule(D).end)) + 3);
+  const parts = D.parts || [];
+  const head = `<div class="settings"><div class="field"><label>Plan name</label><input data-rmf="name" value="${esc(plan.name)}"></div>
+    <div class="field"><label>Start</label><input type="date" data-rmf="start" value="${esc(D.start || "")}"></div>
+    <div class="field"><label>Deadline</label><input type="date" data-rmf="deadline" value="${esc(D.deadline || "")}"></div>
+    <div class="field"><label>Contract, person-days</label><input type="number" min="0" step="1" data-rmf="contract" value="${D.contract ?? ""}" placeholder="—"></div>
+    <div class="field"><label>Assets</label><span class="rmcnt"><input type="number" min="0" max="500" step="1" data-rmf="count" value="${(D.assets || []).length}"><input data-rmf="prefix" value="${esc(D.prefix || "Character")}" title="Name for new assets"></span></div>
+    <div class="seg rmtabsw"><button data-rmtab="pipeline" aria-pressed="${tab === "pipeline"}">Parts & dependencies</button><button data-rmtab="team" aria-pressed="${tab === "team"}">Team by month</button></div></div>`;
+  if (tab === "pipeline") return `<section class="rmdata">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th>Starts after</th><th>How</th><th>Lag</th><th>Also after</th><th>How</th><th>Lag</th><th></th></tr></thead><tbody>
+    ${parts.map((p, i) => { const d0 = p.deps?.[0] || {}, d1 = p.deps?.[1] || {}; const opts = cur => `<option value="">—</option>${parts.filter(x => x.id !== p.id).map(x => `<option value="${x.id}" ${x.id === cur ? "selected" : ""}>${esc(x.name)}</option>`).join("")}`;
+      const how = (d, k) => `<select data-rmdep="${p.id}|${k}|type"><option value="fs" ${d.type !== "ss" ? "selected" : ""}>when it ends</option><option value="ss" ${d.type === "ss" ? "selected" : ""}>when it is done to</option></select>`;
+      const lag = (d, k) => `<span class="rmlag"><input type="number" step="${d.type === "ss" ? 5 : 0.5}" data-rmdep="${p.id}|${k}|lag" value="${d.lag ?? 0}">${d.type === "ss" ? "%" : "d"}</span>`;
+      return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i></td><td><input class="in name" data-rmpart="${p.id}|name" value="${esc(p.name)}"></td><td><input class="in num" type="number" min="0" step="0.25" data-rmpart="${p.id}|days" value="${p.days}"></td>
+        <td><select data-rmdep="${p.id}|0|on">${opts(d0.on)}</select></td><td>${d0.on ? how(d0, 0) : ""}</td><td>${d0.on ? lag(d0, 0) : ""}</td>
+        <td><select data-rmdep="${p.id}|1|on">${opts(d1.on)}</select></td><td>${d1.on ? how(d1, 1) : ""}</td><td>${d1.on ? lag(d1, 1) : ""}</td>
+        <td class="acts"><button class="ico" data-rmpmove="${p.id}|-1" title="Up">↑</button><button class="ico" data-rmpmove="${p.id}|1" title="Down">↓</button><button class="ico del" data-rmpdel="${p.id}" title="Remove the part">✕</button></td></tr>`; }).join("")}
+    <tr class="add-row"><td colspan="10"><button class="link-btn" data-act="rm-padd">＋ Production part</button> <span class="hint">“When it is done to 33 %” — starts once a third of the previous part is done (6 animations: VFX for the first two can start), and cannot end before it. “When it ends” + lag in days: a buffer, e.g. client review.</span></td></tr></tbody></table></section>`;
+  return `<section class="rmdata">${head}<div class="rmteamwrap"><table class="editor rmteam"><thead><tr><th>People in the team</th>${Array.from({ length: months }, (_, m) => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCMonth(dt.getUTCMonth() + m); return `<th>M${m + 1}<small>${RM_MON[dt.getUTCMonth()]}</small></th>`; }).join("")}</tr></thead><tbody>
+    ${parts.map((p, i) => { const arr = D.team?.[p.id] || []; return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i> ${esc(p.name)}</td>${Array.from({ length: months }, (_, m) => { const own = m < arr.length; const v = RM.fte(arr, m);
+      return `<td><input class="in num ${own ? "" : "carry"}" type="number" min="0" step="0.5" data-rmteam="${p.id}|${m}" value="${own ? arr[m] : ""}" placeholder="${rmDays(v)}" title="${own ? "" : "Same as the month before — type to change"}"></td>`; }).join("")}</tr>`; }).join("")}</tbody></table></div>
+    <div class="hint" style="padding:6px 14px 10px">Fractions are shares of a day: 1.5 = one person full-time + one half-time. An empty month keeps the number of the month before. People who are not hired yet are just numbers here — the plan says from which month you need them.</div></section>`; }
+
+/* ----- events ----- */
+function rmClick(t){ const a = t.closest("[data-act]")?.dataset.act;
+  if (a === "rm-new") return rmNew(), true;
+  const plan = rmCur(); if (!plan && !a) return false;
+  if (a === "rm-copy") return rmNew(plan), true;
+  if (a === "rm-data") { RMV.data = !RMV.data; render(); return true; }
+  if (a === "rm-expand") { const any = Object.values(RMV.open).some(Boolean); RMV.open = {}; if (!any) for (const x of plan.data.assets || []) RMV.open[x.id] = true; render(); return true; }
+  if (a === "rm-auto") { const n = (plan.data.assets || []).reduce((t, x) => t + Object.keys(x.pin || {}).length, 0); if (!n) { toast("Nothing is placed by hand"); return true; } rmEdit(d => d.assets.forEach(x => x.pin = {}), `Auto layout: ${n} bar${n > 1 ? "s" : ""} back to automatic`); return true; }
+  if (a === "rm-del") { if (rmList().length < 1) return true; draftPush(); const add = S.draft.ops.find(o => o.t === "rmap" && o.add && o.id === plan.id);
+    if (add) S.draft.ops = S.draft.ops.filter(o => !(o.t === "rmap" && o.id === plan.id)); else { S.draft.ops = S.draft.ops.filter(o => !(o.t === "rmap" && o.id === plan.id)); S.draft.ops.push({ t:"rmap", id: plan.id, remove:true }); }
+    S.rmCur = null; saveDraft(); rebuild(); render(); toast(`${plan.name} deleted — in the draft, Ctrl+Z brings it back`); return true; }
+  if (a === "rm-padd") { rmEdit(d => { const id = "p" + uid().slice(0, 6); d.parts.push({ id, name:"New part", days:5, deps: d.parts.length ? [{ on: d.parts[d.parts.length - 1].id, type:"fs", lag:0 }] : [] }); d.team[id] = [1]; }, "Production part added"); return true; }
+  const tb = t.closest("[data-rmtab]"); if (tb) { RMV.tab = tb.dataset.rmtab; render(); return true; }
+  const pk = t.closest("[data-rmpick]"); if (pk) { S.rmCur = pk.dataset.rmpick; render(); return true; }
+  const tg = t.closest("[data-rmtg]"); if (tg) { RMV.open[tg.dataset.rmtg] = !RMV.open[tg.dataset.rmtg]; render(); return true; }
+  const mv = t.closest("[data-rmpmove]"); if (mv) { const [id, dir] = mv.dataset.rmpmove.split("|"); rmEdit(d => { const i = d.parts.findIndex(p => p.id === id), j = i + +dir; if (j < 0 || j >= d.parts.length) return; [d.parts[i], d.parts[j]] = [d.parts[j], d.parts[i]]; }); return true; }
+  const pd = t.closest("[data-rmpdel]"); if (pd) { const id = pd.dataset.rmpdel; rmEdit(d => { d.parts = d.parts.filter(p => p.id !== id); d.parts.forEach(p => p.deps = (p.deps || []).filter(x => x.on !== id)); delete d.team[id]; d.assets.forEach(x => { delete x.days[id]; delete x.pin[id]; }); }, "Production part removed"); return true; }
+  return false; }
+function rmChange(el){ const plan = rmCur(); if (!plan) return false;
+  if (el.dataset.rmzoom != null) { RMV.zoom = +el.value; render(); return true; }
+  const f = el.dataset.rmf;
+  if (f === "name") { if (!el.value.trim()) return render(), true; rmPush(plan, { name: el.value.trim() }, "Plan renamed"); return true; }
+  if (f === "start" || f === "deadline") { rmEdit(d => { d[f] = el.value || null; }, f === "start" ? "Start moved" : "Deadline set"); return true; }
+  if (f === "contract") { rmEdit(d => { d.contract = el.value === "" ? null : +el.value; }, "Contract set"); return true; }
+  if (f === "prefix") { rmEdit(d => { d.prefix = el.value.trim() || "Asset"; }); return true; }
+  if (f === "count") { const n = Math.max(0, Math.min(500, Math.round(+el.value || 0))); rmEdit(d => { const pre = d.prefix || "Character"; while (d.assets.length < n) { const k = d.assets.length + 1; d.assets.push({ id: "a" + uid().slice(0, 7), name: pre + " " + String(k).padStart(2, "0"), days:{}, pin:{} }); } d.assets.length = n; }, `${n} assets`); return true; }
+  if (el.dataset.rmpart) { const [id, k] = el.dataset.rmpart.split("|"); rmEdit(d => { const p = d.parts.find(x => x.id === id); if (k === "days") p.days = Math.max(0, +el.value || 0); else p.name = el.value.trim() || p.name; }); return true; }
+  if (el.dataset.rmdep) { const [id, i, k] = el.dataset.rmdep.split("|"); rmEdit(d => { const p = d.parts.find(x => x.id === id); p.deps = p.deps || []; const dep = p.deps[+i] || (p.deps[+i] = { on:"", type:"fs", lag:0 });
+      if (k === "on") { if (!el.value) p.deps.splice(+i, 1); else dep.on = el.value; }
+      else if (k === "type") { dep.type = el.value; dep.lag = el.value === "ss" ? 50 : 0; } else dep.lag = +el.value || 0;
+      p.deps = p.deps.filter(x => x && x.on);
+      /* no loops: a part cannot wait for itself through others */
+      if (RM.loop(d.parts)) throw new Error("loop"); }, "Dependency changed"); return true; }
+  if (el.dataset.rmteam) { const [id, m] = el.dataset.rmteam.split("|"); rmEdit(d => { const arr = d.team[id] = (d.team[id] || []).slice(); const mm = +m; const keep = RM.fte(arr, mm);
+      while (arr.length <= mm) arr.push(RM.fte(arr, arr.length)); arr[mm] = el.value === "" ? keep : Math.max(0, +el.value); while (arr.length > 1 && arr[arr.length - 1] === arr[arr.length - 2]) arr.pop(); }, "Team changed"); return true; }
+  return false; }
+/* drag a bar: place by hand (pin, 1-day step); drag its right edge: days for this asset */
+function rmDown(e){ const rz = e.target.closest("[data-rmrz]"), b = e.target.closest("[data-rmbar]"); if (!b || e.button !== 0) return false; const plan = rmCur(); if (!plan) return false;
+  const [aid, pid] = (rz?.dataset.rmrz || b.dataset.rmbar).split("|"); const D = plan.data; const it = RM.schedule(D).items[aid]?.[pid]; if (!it) return false;
+  const dw = RMV.zoom / 5, x0 = e.clientX, l0 = parseFloat(b.style.left), w0 = parseFloat(b.style.width); let moved = false, val = null; e.preventDefault();
+  document.body.classList.add(rz ? "rmsizing" : "rmmoving");
+  const mm = ev => { const dx = (ev.clientX - x0) / zf(); if (Math.abs(dx) > 3) moved = true; if (!moved) return;
+    if (rz) { const days = Math.max(0.25, Math.round((w0 + dx) / dw * 4) / 4); b.style.width = days * dw + "px"; val = days; b.title = days + " d"; }
+    else { const s = Math.max(0, Math.round((l0 + dx) / dw)); b.style.left = s * dw + "px"; val = s; } };
+  const up = () => { document.removeEventListener("mousemove", mm); document.removeEventListener("mouseup", up); document.body.classList.remove("rmsizing", "rmmoving");
+    if (!moved || val == null) return; const a = D.assets.find(x => x.id === aid), p = D.parts.find(x => x.id === pid);
+    if (rz) rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.days = x.days || {}; x.days[pid] = val; }, `${a.name} · ${p.name}: ${val} d of work`);
+    else rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.pin = x.pin || {}; x.pin[pid] = val; }, `${a.name} · ${p.name} placed by hand (✎)`); };
+  document.addEventListener("mousemove", mm); document.addEventListener("mouseup", up); return true; }
+function rmContext(e){ const b = e.target.closest("[data-rmbar]"); const plan = rmCur(); if (!b || !plan) return false; e.preventDefault();
+  const [aid, pid] = b.dataset.rmbar.split("|"); const a = plan.data.assets.find(x => x.id === aid), p = plan.data.parts.find(x => x.id === pid);
+  const items = [{ head: `${a.name} · ${p.name}` }];
+  if (a.pin?.[pid] != null) items.push({ label:"Back to automatic", hint:"✎ → auto", run: () => rmEdit(d => { delete d.assets.find(x => x.id === aid).pin[pid]; }, `${a.name} · ${p.name} back to automatic`) });
+  items.push({ label:"Days for this asset…", hint: `${a.days?.[pid] ?? p.days} d`, run: () => askName("Days of work for " + a.name + " · " + p.name, v => { const n = +String(v).replace(",", "."); if (!(n >= 0)) return toast("Days must be a number", true); rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.days = x.days || {}; x.days[pid] = n; }, `${a.name} · ${p.name}: ${n} d`); }, "", String(a.days?.[pid] ?? p.days), "Set") });
+  if (a.days?.[pid] != null) items.push({ label:"Days as in Plan data", hint: `${p.days} d`, run: () => rmEdit(d => { delete d.assets.find(x => x.id === aid).days[pid]; }, `${a.name} · ${p.name}: days as in Plan data`) });
+  openMenu(e.clientX, e.clientY, items); return true; }
+function rmDbl(e){ const n = e.target.closest("[data-rmname]"), pk = e.target.closest("[data-rmpick]"); const plan = rmCur(); if (!plan) return false;
+  if (n) { const a = plan.data.assets.find(x => x.id === n.dataset.rmname); askName("Rename the asset", v => v.trim() && rmEdit(d => { d.assets.find(x => x.id === a.id).name = v.trim(); }, "Asset renamed"), "", a.name, "Rename"); return true; }
+  if (pk) { askName("Rename the plan", v => v.trim() && rmPush(plan, { name: v.trim() }, "Plan renamed"), "", plan.name, "Rename"); return true; }
+  return false; }
 
 /* ---------------- tracker ---------------- */
 const fltOn = () => Object.values(S.flt).some(v => v.size);
@@ -1504,6 +1839,7 @@ function opInfo(o){ const fld = id => S.allFields.find(f => f.id === id) || S.ra
     case "member": return { k:"People", t: o.add ? o.name : memberName(o.id) || "a person", d: o.add ? "added" + (o.lead ? " · lead " + memberName(o.lead) : "") : o.remove ? "removed" : o.name ? "renamed" : "lead → " + (memberName(o.lead) || "none"), go:["tracker"] };
     case "wl": return { k:"Work log", t: row(o.record), d: `${o.day} · ${memberName(o.member)} · ${numU(o.hours)} ${UNITS()}`, go:["tracker", o.record] };
     case "wl_del": { const w = (S.wlBase || []).find(x => x.id === o.id); return { k:"Work log", t: w ? row(w.record_id) : "an entry", d: w ? `removed ${w.day} · ${memberName(w.member_id)} · ${numU(w.hours)} ${UNITS()}` : "removed", go:["tracker", w?.record_id] }; }
+    case "rmap": { const x = rmList().find(y => y.id === o.id) || (S.rmBase || []).find(y => y.id === o.id); return { k:"Roadmap", t: o.name || x?.name || "a plan", d: o.add ? "new plan" : o.remove ? "deleted" : o.data ? "parts, team or bars changed" : "renamed", go:["roadmap"] }; }
     case "pset": return { k:"Project", t: "Time spent", d: o.value === "log" ? "from the work log" : "a typed number", go:["tracker"] };
     default: return { k:o.t, t:"", d:"" }; } }
 /* take back one change, and whatever only makes sense with it (edits to a row it added, a column it added…) */
@@ -1643,13 +1979,14 @@ document.addEventListener("mousedown", e => { if (e.target.closest(".menu")) ret
   const td = e.target.closest?.(".grid td[data-f]"), tr = td?.closest("tr[data-id]"); WASOPEN = !!(td && tr && document.querySelector(".menu") && OPENLIST === ck(tr.dataset.id, td.dataset.f)); closeMenu(); if (!WASOPEN) OPENLIST = null; });
 let WASOPEN = false;
 $app.addEventListener("click", async e => {
+  if (S.sheet === "roadmap" && rmClick(e.target)) return;
   const t = e.target; const dropB = t.closest("[data-drop]"); if (dropB) return parkOp(+dropB.dataset.drop);
   const backB = t.closest("[data-restore]"); if (backB) return unparkOp(backB.dataset.restore);
   const opI = t.closest(".chgi"); if (opI) return showOp(+opI.dataset.op);
   const mb = t.closest("[data-menu]"); if (mb) { const bx = mb.getBoundingClientRect(); return mainMenu(mb.dataset.menu, bx.left, bx.bottom + 1); }
   const b = t.closest("[data-sheet],[data-act]");
   if (b?.dataset.sheet) { S.sheet = b.dataset.sheet; S.editing = false; closeMenu();
-    try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadTree(); } catch (err) { fail(err); } return render(); }
+    try { if (S.sheet === "history") await loadHistory(); if (S.sheet === "gantt" || S.sheet === "workload") await loadTree(); if (S.sheet === "roadmap") await rmLoad(); } catch (err) { fail(err); } return render(); }
   if (b) { const a = b.dataset.act, id = b.dataset.id;
     if (a === "out") return sb.auth.signOut();
     if (a === "prefs") return openPrefs("general");
@@ -1712,6 +2049,8 @@ $app.addEventListener("click", async e => {
     if (f && (f.type === "checkbox" || (same && ["select","person","link"].includes(f.type)) || t.closest(".addlnk"))) startEdit(); }
 });
 let LASTCLICK = { t:0 }, DRAG = null, DRAGGED = false;
+$app.addEventListener("mousedown", e => { if (S.sheet === "roadmap") rmDown(e); });
+$app.addEventListener("input", e => { if (S.sheet === "roadmap" && e.target.dataset?.rmzoom != null) { RMV.zoom = +e.target.value; const m = document.querySelector(".rmwrap"); const k = m ? [m.scrollTop, m.scrollLeft] : null; render(); const m2 = document.querySelector(".rmwrap"); if (m2 && k) { m2.scrollTop = k[0]; m2.scrollLeft = k[1]; } } });
 $app.addEventListener("mousedown", e => { DRAGGED = false; if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || S.sheet !== "tracker" || S.editing) return;
   const td = e.target.closest?.(".grid tbody td[data-f]"), tr = td?.closest("tr[data-id]"); if (!td || !tr || e.target.closest(".grip,.box,a,.rz,button,.caret")) { DRAG = null; return; }
   if (!(S.sel && !S.sel.row) && !(PREF.lockMode === "cell")) { DRAG = null; return; } DRAG = { r: tr.dataset.id, f: td.dataset.f, moved:false }; });
@@ -1720,9 +2059,9 @@ $app.addEventListener("mousemove", e => { if (!DRAG || !(e.buttons & 1)) return;
   if (!DRAG.moved) { DRAG.moved = true; S.canchor = { r: DRAG.r, f: DRAG.f }; S.multi = null; }
   const key = tr.dataset.id + "|" + td.dataset.f; if (DRAG.last === key) return; DRAG.last = key; cellRect(tr.dataset.id, td.dataset.f); S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); });
 document.addEventListener("mouseup", () => { if (DRAG?.moved) { DRAGGED = true; LASTCLICK = { t:0 }; document.querySelector(".main")?.focus({ preventScroll:true }); } DRAG = null; });
-$app.addEventListener("dblclick", e => { const td = e.target.closest("td[data-f]"), tr = e.target.closest("tr[data-id]"); if (S.sheet !== "tracker" || !td || !tr || S.editing) return;
+$app.addEventListener("dblclick", e => { if (S.sheet === "roadmap" && rmDbl(e)) return;  const td = e.target.closest("td[data-f]"), tr = e.target.closest("tr[data-id]"); if (S.sheet !== "tracker" || !td || !tr || S.editing) return;
   S.sel = { r: tr.dataset.id, f: td.dataset.f, row:false }; render(); startEdit(); });
-$app.addEventListener("contextmenu", e => { const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
+$app.addEventListener("contextmenu", e => { if (S.sheet === "roadmap" && rmContext(e)) return;  const gb = S.sheet === "gantt" && e.target.closest(".gbar[data-bar]"); if (gb && S.row[gb.dataset.bar]?.is_leaf) { e.preventDefault(); return barMenu(gb.dataset.bar, e.clientX, e.clientY); }
   if (S.sheet !== "tracker") return; const tr = e.target.closest("tr[data-id]"); const th = e.target.closest("th[data-f]");
   if (tr && S.csel?.size > 1 && S.csel.has(ck(tr.dataset.id, e.target.closest("td[data-f]")?.dataset.f))) { e.preventDefault(); return cellsMenu(pickedCells(), e.clientX, e.clientY); }
   if (tr) { e.preventDefault(); const td = e.target.closest("td[data-f]"); const inGroup = S.multi?.size > 1 && S.multi.has(tr.dataset.id);
@@ -1760,7 +2099,7 @@ $app.addEventListener("keydown", e => {
 });
 $app.addEventListener("input", e => { if (e.target.id === "vzoom") { VIEW.zoom = +e.target.value; applyView(true); const v = document.getElementById("vzoomval"); if (v) v.textContent = VIEW.zoom + "%"; return; }
   if (e.target.id === "search") { S.search = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById("search"); s.focus(); s.setSelectionRange(pos, pos); } });
-$app.addEventListener("change", e => { const el = e.target;
+$app.addEventListener("change", e => { const el = e.target; if (S.sheet === "roadmap") { try { if (rmChange(el)) return; } catch (err) { if (/loop/.test(err.message)) { toast("That would make a loop: a part would wait for itself", true); return render(); } throw err; } }
   if (el.id === "hidedone") { S.hideDone = el.checked; saveTV(); return render(); }
   if (el.id === "vfont") { VIEW.font = el.value; applyView(true); return; }
   if (el.id === "step") { S.step = +el.value; try { localStorage.setItem("pmkit.step", S.step); } catch (_) {} return render(); }
