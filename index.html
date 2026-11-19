@@ -861,24 +861,29 @@ RM.schedule = (D, opt = {}) => { RM.useCal(D);
         else earliest = Math.max(earliest, pr.end + (dp.at == null ? +dp.lag || 0 : 0)); }
       /* a bar placed by hand wins; in Manual layout every other bar stays where "Lay out now" put it */
       const own = a.pin?.[p.id], fr = opt.auto || opt.live ? null : D.layout === "manual" ? D.frozen?.[a.id]?.[p.id] : null; const pin = opt.auto ? null : own ?? fr;
-      return { a, i, work, earliest, minEnd, pin, own: own != null && !opt.auto, key: pin != null ? pin : earliest }; });
-    q.sort((x, y) => x.key - y.key || x.i - y.i);
-    for (const t of q) { const { a, work, earliest, minEnd, pin, own } = t;
+      const who = own != null && !opt.auto ? a.pinWho?.[p.id] : null;
+      return { a, i, work, earliest, minEnd, pin, who, own: own != null && !opt.auto, key: pin != null ? pin : earliest }; });
+    /* bars placed by hand (and locked ones) take their place first — with their own person; the rest fill the time around them */
+    q.sort((x, y) => (x.pin == null) - (y.pin == null) || x.key - y.key || x.i - y.i);
+    const overlap = (k, s, e) => P[k] ? P[k].iv.find(([bs, be]) => bs < e - 1e-6 && be > s + 1e-6) : null;
+    for (const t of q) { const { a, work, earliest, minEnd, pin, own, who } = t;
       if (work <= 0) { items[a.id][p.id] = { start: earliest, end: Math.max(earliest, minEnd), slot: -1, work: 0, earliest }; continue; }
       let best = null;
-      const tryK = (k, free) => { let s;
-        if (pin != null) { s = pin; if (free > pin + 1e-6 || rate(k, s) <= 0 || ef(k, s) <= 0) return; }
-        else { s = Math.max(earliest, free); let g = 0; while ((rate(k, s) <= 0 || ef(k, s) <= 0) && g++ < RM.H) s = Math.floor(s) + 1; if (g >= RM.H) return; }
-        const r = rate(k, s); let e = fin(k, r, s, work); if (!isFinite(e)) return;
-        for (let t = 0; t < 3 && pin == null && e < minEnd - 1e-6; t++) { s += minEnd - e; e = fin(k, r, s, work); }
+      const tryK = k => { let s, e, r;
+        if (pin != null) { s = pin; if (who != null && k !== who) return; if (rate(k, s) <= 0 || ef(k, s) <= 0) return; r = rate(k, s); e = fin(k, r, s, work); if (!isFinite(e) || overlap(k, s, e)) return; }
+        else { s = earliest; for (let g = 0; g < 400; g++) { let h = 0; while ((rate(k, s) <= 0 || ef(k, s) <= 0) && h++ < RM.H) s = Math.floor(s) + 1; if (h >= RM.H) return;
+            r = rate(k, s); e = fin(k, r, s, work); if (!isFinite(e)) return; for (let t = 0; t < 3 && e < minEnd - 1e-6; t++) { s += minEnd - e; e = fin(k, r, s, work); }
+            const o = overlap(k, s, e); if (!o) break; s = o[1]; } }
         if (!best || e < best.e - 1e-9) best = { k, s, e, r }; };
-      for (let k = 0; k < P.length; k++) tryK(k, P[k].free);
-      if (P.length < most && P.length < 500) tryK(P.length, 0); /* a new person, if the limits allow one */
+      for (let k = 0; k < P.length; k++) tryK(k);
+      if (P.length < most && P.length < 500) tryK(P.length); /* a new person, if the limits allow one */
+      if (!best && who != null && who >= P.length && who < most) { while (P.length < who) P.push({ k: P.length, free: 0, first: Infinity, last: 0, busy: 0, r: 0, items: [], iv: [] }); tryK(who); }
       if (!best) { items[a.id][p.id] = pin != null ? { start: pin, end: pin + work, slot: -1, work, earliest, pinned: own, frozen: !own, clash: true } : { start: earliest, end: earliest + work, slot: -1, work, earliest, nobody: true }; continue; }
-      if (best.k === P.length) P.push({ k: best.k, free: 0, first: best.s, last: 0, busy: 0, r: 0, items: [] });
-      const pp = P[best.k]; pp.free = best.e; pp.first = Math.min(pp.first, best.s); pp.last = Math.max(pp.last, best.e); pp.busy += work; pp.r = Math.max(pp.r, best.r); pp.items.push(a.id);
+      if (best.k === P.length) P.push({ k: best.k, free: 0, first: best.s, last: 0, busy: 0, r: 0, items: [], iv: [] });
+      const pp = P[best.k]; pp.free = Math.max(pp.free, best.e); pp.iv.push([best.s, best.e]); pp.first = Math.min(pp.first, best.s); pp.last = Math.max(pp.last, best.e); pp.busy += work; pp.r = Math.max(pp.r, best.r); pp.items.push(a.id);
       wait[p.id] += Math.max(0, best.s - earliest);
       items[a.id][p.id] = { start: best.s, end: best.e, slot: best.k, rate: best.r, work, earliest, pinned: own, frozen: pin != null && !own, early: pin != null && pin < earliest - 0.01 }; } }
+  for (const p of parts) for (const x of people[p.id]) if (!x.items.length) { x.first = 0; x.last = 0; }
   const all = Object.values(items).flatMap(o => Object.values(o)); const end = all.length ? Math.max(...all.map(x => x.end)) : 0;
   const scope = (D.assets || []).reduce((t, a) => t + parts.reduce((u, p) => u + RM.work(a, p), 0), 0);
   const scopeRisk = (D.assets || []).reduce((t, a) => t + parts.reduce((u, p) => u + RM.dur({ ...D, withRisk: true }, a, p), 0), 0);
@@ -1010,7 +1015,7 @@ function sheetRoadmap(){
     for (const p of Sx.parts) { const P = Sx.people[p.id]; const c = rmPal(pidx[p.id]); const lost = (D.assets || []).filter(a => Sx.items[a.id]?.[p.id]?.slot < 0 && Sx.items[a.id][p.id].work > 0);
       if (!P.length && !lost.length) continue; const shut = !!RMV.pshut[p.id];
       const s = P.length ? Math.min(...P.map(x => x.first)) : 0, e = P.length ? Math.max(...P.map(x => x.last)) : 0, bench = P.reduce((t, x) => t + (x.last - x.first) * x.r - x.busy, 0);
-      rows += `<div class="rmrow grp" data-rmp="${p.id}"><div class="rml"><div class="c0"><button class="tg ${shut ? "" : "open"}" data-rmptg="${p.id}">${shut ? "+" : "−"}</button><i class="rmdot" style="background:${c.solid}"></i><span class="nm">${esc(p.name)}</span><small class="rmppl">${rmPpl(C.people[p.id])} ppl</small></div><div class="r">${rmDays(Math.round(P.reduce((t, x) => t + x.busy, 0)))}</div><div class="l">${P.length ? dd(s) : ""}</div><div class="l">${P.length ? de(s, e) : ""}</div><div class="r ${bench > 5 ? "bn" : ""}" title="Paid days without work">${bench > 0.5 ? rmDays(Math.round(bench)) + " d" : "—"}</div></div>
+      rows += `<div class="rmrow grp" data-rmp="${p.id}"><div class="rml"><div class="c0"><button class="tg ${shut ? "" : "open"}" data-rmptg="${p.id}">${shut ? "+" : "−"}</button>${rmLockBtn(D, (D.assets || []).map(a => [a, p]), "all of " + p.name)}<i class="rmdot" style="background:${c.solid}"></i><span class="nm">${esc(p.name)}</span><small class="rmppl">${rmPpl(C.people[p.id])} ppl</small></div><div class="r">${rmDays(Math.round(P.reduce((t, x) => t + x.busy, 0)))}</div><div class="l">${P.length ? dd(s) : ""}</div><div class="l">${P.length ? de(s, e) : ""}</div><div class="r ${bench > 5 ? "bn" : ""}" title="Paid days without work">${bench > 0.5 ? rmDays(Math.round(bench)) + " d" : "—"}</div></div>
         ${tl(marks + P.map(x => `<div class="rmseg" style="left:${x.first * dw}px;width:${Math.max(1, (x.last - x.first) * dw)}px;background:${c.solid};opacity:${0.35 + 0.6 / Math.max(1, P.length)}"></div>`).join(""))}</div>`;
       if (shut) continue;
       for (const x of P) { const its = x.items.map(id => [D.assets.find(a => a.id === id), Sx.items[id][p.id]]); const bench1 = (x.last - x.first) * x.r - x.busy;
@@ -1268,7 +1273,7 @@ function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   const ptg = t.closest("[data-rmptg]"); if (ptg) { RMV.pshut[ptg.dataset.rmptg] = !RMV.pshut[ptg.dataset.rmptg]; render(); return true; }
   if (a === "rm-auto") { const n = (plan.data.assets || []).reduce((t, x) => t + Object.keys(x.pin || {}).length, 0); const man = plan.data.layout === "manual";
     if (!n && !man) { toast("Already laid out — nothing is placed by hand"); return true; }
-    rmEdit(d => { d.assets.forEach(x => x.pin = {}); if (man) d.frozen = RM.freeze(d, d.mode === "team" ? { n: RM.fit(d).n || {} } : {}); }, `Laid out from scratch${n ? ` — ${n} bar${n > 1 ? "s" : ""} placed by hand back to automatic` : ""}`); return true; }
+    rmEdit(d => { d.assets.forEach(x => { x.pin = {}; x.pinWho = {}; }); if (man) d.frozen = RM.freeze(d, d.mode === "team" ? { n: RM.fit(d).n || {} } : {}); }, `Laid out from scratch${n ? ` — ${n} bar${n > 1 ? "s" : ""} placed by hand back to automatic` : ""}`); return true; }
   const ly = t.closest("[data-rmlay]"); if (ly) { const v = ly.dataset.rmlay; if ((plan.data.layout || "auto") === v) return true;
     rmEdit(d => { d.layout = v; if (v === "manual") { const S1 = rmCalc(plan.data).S; d.frozen = {}; for (const [aid, o] of Object.entries(S1.items)) { d.frozen[aid] = {}; for (const [pid, it] of Object.entries(o)) if (it.work > 0) d.frozen[aid][pid] = Math.round(it.start * 100) / 100; } } },
       v === "manual" ? "Manual layout: the bars stay where they are" : "Auto layout: the plan follows every change"); return true; }
@@ -1276,7 +1281,7 @@ function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   if (a === "rm-export") { const r = t.closest("[data-act]").getBoundingClientRect(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + plan.name }, { label: "Excel (.xlsx)", hint: "plan, Gantt, team, parts", run: () => rmExportXlsx(plan) }, { label: "PDF", hint: "the whole plan, A3", run: () => rmPrint() }, { label: "CSV", hint: "one row per asset · part", run: () => rmExportCsv(plan) }]); return true; }
   const tby = t.closest("[data-rmtby]"); if (tby) { RMV.teamBy = tby.dataset.rmtby; RMV.pop = null; render(); return true; }
   const lk = t.closest("[data-rmlock]"); if (lk) { const pairs = lk.dataset.rmlock.split(",").map(x => x.split(":")); const S1 = rmCalc(plan.data).S; const on = lk.classList.contains("on");
-    rmEdit(d => { for (const [aid, pid] of pairs) { const x = d.assets.find(y => y.id === aid); if (!x) continue; x.pin = x.pin || {}; if (on) delete x.pin[pid]; else { const it = S1.items[aid]?.[pid]; if (it && it.work > 0) x.pin[pid] = Math.round(it.start * 1000) / 1000; } } }, on ? `Unlocked: ${pairs.length} bar${pairs.length > 1 ? "s" : ""} back to auto-planning` : `Locked: ${pairs.length} bar${pairs.length > 1 ? "s" : ""} stay where they are`); return true; }
+    rmEdit(d => { for (const [aid, pid] of pairs) { const x = d.assets.find(y => y.id === aid); if (!x) continue; x.pin = x.pin || {}; x.pinWho = x.pinWho || {}; if (on) { delete x.pin[pid]; delete x.pinWho[pid]; } else { const it = S1.items[aid]?.[pid]; if (it && it.work > 0) { x.pin[pid] = Math.round(it.start * 1000) / 1000; if (it.slot >= 0) x.pinWho[pid] = it.slot; } } } }, on ? `Unlocked: ${pairs.length} bar${pairs.length > 1 ? "s" : ""} back to auto-planning` : `Locked: ${pairs.length} bar${pairs.length > 1 ? "s" : ""} stay where they are`); return true; }
   const avr = t.closest("[data-rmavreset]"); if (avr) { const [pid, k] = avr.dataset.rmavreset.split("|"); rmEdit(d => { if (d.avail?.[pid]) delete d.avail[pid][k]; }, `${pid} #${+k + 1}: back to the plan`); return true; }
   if (a === "rm-oadd") { rmEdit(d => { d.other = d.other || []; d.other.push({ id: "o" + uid().slice(0, 6), name: d.other.length ? "Role" : "Project Manager", hours: 8, days: {} }); }, "Role added"); return true; }
   const od = t.closest("[data-rmodel]"); if (od) { rmEdit(d => { d.other = (d.other || []).filter(o => o.id !== od.dataset.rmodel); }, "Role removed"); return true; }
@@ -1332,7 +1337,7 @@ function rmDown(e){ const rz = e.target.closest("[data-rmrz]"), b = e.target.clo
     if (!moved || val == null) return; const a = D.assets.find(x => x.id === aid), p = D.parts.find(x => x.id === pid);
     if (rz) rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.days = x.days || {}; x.days[pid] = val; }, `${a.name} · ${p.name}: ${val} d of work`);
     else { const delta = val - it.start; let moved2 = 0;
-      rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.pin = x.pin || {}; x.pin[pid] = val;
+      rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.pin = x.pin || {}; x.pin[pid] = val; x.pinWho = x.pinWho || {}; if (it.slot >= 0) x.pinWho[pid] = it.slot;
         /* parts that wait for this one and were placed by hand move with it; the automatic ones follow on their own */
         for (const f of RM.followers(d.parts, pid)) if (x.pin[f] != null) { x.pin[f] = Math.max(0, Math.round(x.pin[f] + delta)); moved2++; } },
         `${a.name} · ${p.name} placed by hand (✎)${moved2 ? ` — ${moved2} hand-placed part${moved2 > 1 ? "s" : ""} after it moved too` : ""}`); } };
@@ -1340,7 +1345,7 @@ function rmDown(e){ const rz = e.target.closest("[data-rmrz]"), b = e.target.clo
 function rmContext(e){ const b = e.target.closest("[data-rmbar]"); const plan = rmCur(); if (!b || !plan) return false; e.preventDefault();
   const [aid, pid] = b.dataset.rmbar.split("|"); const a = plan.data.assets.find(x => x.id === aid), p = plan.data.parts.find(x => x.id === pid);
   const items = [{ head: `${a.name} · ${p.name}` }];
-  if (a.pin?.[pid] != null) items.push({ label:"Back to automatic", hint:"✎ → auto", run: () => rmEdit(d => { delete d.assets.find(x => x.id === aid).pin[pid]; }, `${a.name} · ${p.name} back to automatic`) });
+  if (a.pin?.[pid] != null) items.push({ label:"Back to automatic", hint:"✎ → auto", run: () => rmEdit(d => { const x = d.assets.find(y => y.id === aid); delete x.pin[pid]; if (x.pinWho) delete x.pinWho[pid]; }, `${a.name} · ${p.name} back to automatic`) });
   items.push({ label:"Days for this asset…", hint: `${a.days?.[pid] ?? p.days} d`, run: () => askName("Days of work for " + a.name + " · " + p.name, v => { const n = +String(v).replace(",", "."); if (!(n >= 0)) return toast("Days must be a number", true); rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.days = x.days || {}; x.days[pid] = n; }, `${a.name} · ${p.name}: ${n} d`); }, "", String(a.days?.[pid] ?? p.days), "Set") });
   if (a.days?.[pid] != null) items.push({ label:"Days as in Plan data", hint: `${p.days} d`, run: () => rmEdit(d => { delete d.assets.find(x => x.id === aid).days[pid]; }, `${a.name} · ${p.name}: days as in Plan data`) });
   openMenu(e.clientX, e.clientY, items); return true; }
