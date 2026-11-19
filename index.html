@@ -354,12 +354,12 @@ table.plain{border-collapse:collapse;width:100%}
   background:#eef2f8;color:var(--ink);font:14px/1.4 var(--fb);display:flex;flex-direction:column;overflow:hidden}
 .rmv .btn{border:1px solid var(--hair2);background:#fff;color:var(--ink);padding:5px 11px;font:500 13px var(--fb);white-space:nowrap;border-radius:0;cursor:pointer;transition:background .15s,border-color .15s}
 .rmv .btn:hover{border-color:var(--frame);background:var(--strip)} .rmv .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff} .rmv .btn.danger{color:var(--alarm-fg)}
-.rmtop{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--phead);border-bottom:1px solid var(--frame);flex:none;flex-wrap:wrap}
+.rmtop{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--phead);border-bottom:1px solid var(--frame);flex:none;flex-wrap:wrap}
 .rmtop .sp{flex:1} .rmdraft{display:flex;align-items:center;gap:4px} .rmsep{width:1px;height:24px;background:var(--frame);margin:0 4px}
 .rmtabs{display:flex;gap:4px;flex-wrap:wrap}
 .rmsc{border:1px solid var(--hair2);background:#fff;padding:5px 12px;font:600 13px var(--fh);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-radius:0;transition:background .15s,color .15s}
 .rmsc.on{background:var(--head);border-color:var(--head);color:#fff} .rmsc.add{border-style:dashed;color:var(--accent-d);text-transform:none;letter-spacing:0;font:600 12.5px var(--fb)}
-.rmz{display:flex;align-items:center;gap:6px;font:11px var(--fm);color:var(--muted);text-transform:uppercase;letter-spacing:.08em} .rmz input{width:90px;accent-color:var(--accent)}
+.rmz{display:flex;align-items:center;gap:6px;font:11px var(--fm);color:var(--muted);text-transform:uppercase;letter-spacing:.08em} .rmz input{width:72px;accent-color:var(--accent)}
 .rmdata{background:#fff;border-bottom:1px solid var(--frame);flex:none;max-height:42vh;overflow:auto;animation:rmdown .22s ease}
 @keyframes rmdown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .rmv .settings{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;padding:10px 14px;background:var(--strip);border-bottom:1px solid var(--frame)}
@@ -423,7 +423,7 @@ table.rmpe,table.rmteam{border-collapse:collapse;width:100%}
 .rmempty{margin:60px auto;max-width:520px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--frame);padding:22px 24px}
 .rmempty b{font:600 20px var(--fh);letter-spacing:.04em;text-transform:uppercase;color:var(--title)} .rmempty span{color:var(--muted)}
 body.rmmoving,body.rmmoving *{cursor:grabbing!important;user-select:none} body.rmsizing,body.rmsizing *{cursor:ew-resize!important;user-select:none}
-.rmv .seg.rmseg2{margin-left:0} .rmv .seg.rmseg2 button{padding:5px 11px;transition:background .15s,color .15s}
+.rmv .seg.rmseg2{margin-left:0} .rmv .seg.rmseg2 button{padding:5px 9px;transition:background .15s,color .15s}
 .rmbench{position:absolute;top:5px;height:20px;z-index:1;background:repeating-linear-gradient(135deg,#e3e9f1 0 3px,#fff 3px 7px);border:1px dashed #b8c3d4;animation:rmfade .25s ease}
 @keyframes rmfade{from{opacity:0}to{opacity:1}}
 .rmrow.person>.rml>div.c0{padding-left:34px} .rmrow.person .nm{font:12.5px var(--fb);color:var(--ink)}
@@ -940,12 +940,12 @@ function sheetRoadmap(){
   const stat = (k, v, cls = "") => `<div class="stat"><span>${k}</span><b class="${cls}">${v}</b></div>`;
   const plans = rmList(); const peak = Sx.parts.reduce((t, p) => t + C.people[p.id], 0);
   return `<div class="main rmv" style="--rcw:${cw}px">
-    <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy as a new plan</button></div>
+    <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy plan</button></div>
       <span class="sp"></span>
       <div class="seg rmseg2" title="What the plan answers"><button data-rmmode="timeline" aria-pressed="${!C.team}" title="The team is given (Team by month) — when do we finish?">Fit timeline</button><button data-rmmode="team" aria-pressed="${C.team}" title="The deadline is given — the fewest people to make it, inside your limits">Fit team</button></div>
       <div class="seg rmseg2" title="Rows of the Gantt"><button data-rmby="asset" aria-pressed="${RMV.by !== "person"}">By asset</button><button data-rmby="person" aria-pressed="${RMV.by === "person"}">By person</button></div>
       <button class="btn" data-act="rm-data">${RMV.data ? "Plan data ▴" : "Plan data ▾"}</button><button class="btn" data-act="rm-auto" title="Drop every bar placed by hand (✎) and lay the plan out again">Auto layout</button>
-      <button class="btn" data-act="rm-expand">${RMV.by === "person" ? (Object.values(RMV.pshut).some(Boolean) ? "Expand all" : "Collapse all") : Object.values(RMV.open).some(Boolean) ? "Collapse all" : "Expand all"}</button><label class="rmz">Zoom<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label></div>
+      <button class="btn" data-act="rm-expand">${RMV.by === "person" ? (Object.values(RMV.pshut).some(Boolean) ? "Expand all" : "Collapse all") : Object.values(RMV.open).some(Boolean) ? "Collapse all" : "Expand all"}</button><label class="rmz" title="Zoom: week width">⇔<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label></div>
     ${RMV.data ? rmDataPanel(plan, D, C) : ""}
     <div class="stats">${stat("Assets", (D.assets || []).length)}${stat("Scope, person-days", rmDays(Math.round(Sx.scope)))}${stat("Contract", contract ? rmDays(contract) : "—", contract && Sx.scope > contract ? "bad" : "")}
       ${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.mo(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—")}${stat("People", rmPpl(peak))}${stat("Paid to the deadline", C.cap != null ? rmDays(Math.round(C.cap)) + " p-d" : "—")}${stat("Paid, waiting", rmDays(Math.round(C.idle)) + " p-d", C.idle > 20 ? "bad" : "")}</div>
