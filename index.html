@@ -930,8 +930,10 @@ RM.fit = D => { RM.useCal(D); const until = D.deadline ? RM.dayOf(D.start, D.dea
   const S0 = RM.schedule(D, { live: true }); const team = D.mode === "team"; const ok = until == null ? null : S0.end <= until + 0.5;
   const target = team && ok ? until : S0.end + RM.SLACK;
   const n = {};
+  /* a team is good enough when every asset has a person and the plan ends by the target (an asset nobody can take does not count as done) */
+  const fits = S => S.end <= target + 0.5 && !Object.values(S.items).some(o => Object.values(o).some(x => x.nobody || x.clash));
   for (const p of parts) { if (D.closed?.[p.id]) continue; const used = RM.schedule(D, { n, live: true }).people[p.id].length; if (!used) continue;
-    const st = +D.step === 0.5 ? 2 : 1; let lo = 1, hi = used * st; while (lo < hi) { const mid = (lo + hi) >> 1; if (RM.schedule(D, { n: { ...n, [p.id]: mid / st }, live: true }).end <= target + 0.5) hi = mid; else lo = mid + 1; }
+    const st = +D.step === 0.5 ? 2 : 1; let lo = 1, hi = used * st; while (lo < hi) { const mid = (lo + hi) >> 1; if (fits(RM.schedule(D, { n: { ...n, [p.id]: mid / st }, live: true }))) hi = mid; else lo = mid + 1; }
     n[p.id] = lo / st; }
   return { S: RM.schedule(D, { n, live: true }), n, ok, until, target, fastest: S0.end }; };
 /* "Lay out now": the plan laid out from scratch (no hand-placed bars), as positions to keep */
