@@ -488,6 +488,7 @@ table.rmteam tr.rmwd td.rmwdc.sel{box-shadow:inset 0 0 0 2px var(--accent);backg
 .rmlock{width:20px;height:20px;border:0;background:none;padding:0;font-size:11px;line-height:20px;cursor:pointer;opacity:.28;filter:grayscale(1);transition:opacity .15s,filter .15s;flex:none}
 .rmrow:hover .rmlock{opacity:.7} .rmlock:hover{opacity:1!important} .rmlock.on{opacity:1;filter:none}
 .rmrow.person .rmbar{box-shadow:inset 2px 0 0 #0c1a29} .rmrow.person .rmbar.early{box-shadow:inset 3px 0 0 var(--alarm-fg)}
+td.rmwait{font:12px var(--fm);color:var(--muted);text-align:right;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -830,6 +831,9 @@ RM.order = parts => { const out = [], seen = new Set(), by = Object.fromEntries(
   parts.forEach(p => visit(p)); return out; };
 /* does any part wait for itself through others? */
 RM.loop = parts => { const by = Object.fromEntries(parts.map(p => [p.id, p])); const st = {}; const go = id => { if (st[id] === 1) return true; if (st[id] === 2) return false; st[id] = 1; for (const d of by[id]?.deps || []) if (by[d.on] && go(d.on)) return true; st[id] = 2; return false; }; return parts.some(p => go(p.id)); };
+/* how long an asset may wait for an artist already on the project before a new one is brought in:
+   half of the days of the part it waits for (per asset), but never less than 5 working days */
+RM.waitFor = (D, p) => { const by = Object.fromEntries((D.parts || []).map(x => [x.id, x])); const dp = (p.deps || []).find(d => RM.at(d) >= 100) || (p.deps || [])[0]; const prev = dp ? by[dp.on] : null; return Math.max(5, prev ? (+prev.days || 0) / 2 : 0); };
 RM.work = (a, p) => +(a.days?.[p.id] ?? p.days) || 0;
 /* risk of a part in days per asset: its own (riskDays > 0), otherwise the project risk in % of its days; (risk = the old % field, still read) */
 RM.riskDays = (D, p) => +p.riskDays > 0 ? +p.riskDays : +p.risk > 0 ? (+p.days || 0) * p.risk / 100 : (+p.days || 0) * (+D.risk > 0 ? +D.risk : 0) / 100;
@@ -861,7 +865,7 @@ RM.schedule = (D, opt = {}) => { RM.useCal(D);
         else earliest = Math.max(earliest, pr.end + (dp.at == null ? +dp.lag || 0 : 0)); }
       /* a bar placed by hand wins; in Manual layout every other bar stays where "Lay out now" put it */
       const own = a.pin?.[p.id], fr = opt.auto || opt.live ? null : D.layout === "manual" ? D.frozen?.[a.id]?.[p.id] : null; const pin = opt.auto ? null : own ?? fr;
-      const who = own != null && !opt.auto ? a.pinWho?.[p.id] : null;
+      const who = opt.auto ? null : own != null ? a.pinWho?.[p.id] ?? a.who?.[p.id] ?? null : a.who?.[p.id] ?? null;
       return { a, i, work, earliest, minEnd, pin, who, own: own != null && !opt.auto, key: pin != null ? pin : earliest }; });
     /* bars placed by hand (and locked ones) take their place first — with their own person; the rest fill the time around them */
     q.sort((x, y) => (x.pin == null) - (y.pin == null) || x.key - y.key || x.i - y.i);
@@ -869,14 +873,16 @@ RM.schedule = (D, opt = {}) => { RM.useCal(D);
     for (const t of q) { const { a, work, earliest, minEnd, pin, own, who } = t;
       if (work <= 0) { items[a.id][p.id] = { start: earliest, end: Math.max(earliest, minEnd), slot: -1, work: 0, earliest }; continue; }
       let best = null;
-      const tryK = k => { let s, e, r;
-        if (pin != null) { s = pin; if (who != null && k !== who) return; if (rate(k, s) <= 0 || ef(k, s) <= 0) return; r = rate(k, s); e = fin(k, r, s, work); if (!isFinite(e) || overlap(k, s, e)) return; }
+      const tryK = k => { let s, e, r; if (who != null && k !== who) return;
+        if (pin != null) { s = pin; if (rate(k, s) <= 0 || ef(k, s) <= 0) return; r = rate(k, s); e = fin(k, r, s, work); if (!isFinite(e) || overlap(k, s, e)) return; }
         else { s = earliest; for (let g = 0; g < 400; g++) { let h = 0; while ((rate(k, s) <= 0 || ef(k, s) <= 0) && h++ < RM.H) s = Math.floor(s) + 1; if (h >= RM.H) return;
             r = rate(k, s); e = fin(k, r, s, work); if (!isFinite(e)) return; for (let t = 0; t < 3 && e < minEnd - 1e-6; t++) { s += minEnd - e; e = fin(k, r, s, work); }
             const o = overlap(k, s, e); if (!o) break; s = o[1]; } }
         if (!best || e < best.e - 1e-9) best = { k, s, e, r }; };
       for (let k = 0; k < P.length; k++) tryK(k);
-      if (P.length < most && P.length < 500) tryK(P.length); /* a new person, if the limits allow one */
+      /* a new person only if nobody on the project frees up within the wait (half of the previous part, at least 5 days) */
+      const old = best; best = null; if (P.length < most && P.length < 500) tryK(P.length); const fresh = best;
+      best = old && (!fresh || pin != null || who != null || old.s <= fresh.s + RM.waitFor(D, p) + 1e-6) ? old : fresh || old;
       if (!best && who != null && who >= P.length && who < most) { while (P.length < who) P.push({ k: P.length, free: 0, first: Infinity, last: 0, busy: 0, r: 0, items: [], iv: [] }); tryK(who); }
       if (!best) { items[a.id][p.id] = pin != null ? { start: pin, end: pin + work, slot: -1, work, earliest, pinned: own, frozen: !own, clash: true } : { start: earliest, end: earliest + work, slot: -1, work, earliest, nobody: true }; continue; }
       if (best.k === P.length) P.push({ k: best.k, free: 0, first: best.s, last: 0, busy: 0, r: 0, items: [], iv: [] });
@@ -1006,7 +1012,7 @@ function sheetRoadmap(){
   const who = (p, k) => { const x = Sx.people[p.id][k]; return `${p.name} #${k + 1}${x && x.r < 1 ? ` · ${rmPpl(x.r * 8)} h/day` : ""}`; };
   const bar = (a, p, it, text) => { const c = rmPal(pidx[p.id]); const w = Math.max(2, (it.end - it.start) * dw);
     const ov = a.days?.[p.id] != null; return `<div class="rmbar ${it.pinned ? "pin" : ""} ${it.early ? "early" : ""} ${it.nobody || it.clash ? "nobody" : ""}" data-rmbar="${a.id}|${p.id}" style="left:${it.start * dw}px;width:${w}px;background:${c.solid};border-color:${c.solid};color:#fff" title="${esc(a.name)} · ${esc(p.name)}\n${rmFmt(RM.dateOf(D.start, it.start))} → ${rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01)))}\n${rmDays(it.work)} d of work${it.rate && it.rate < 1 ? ` at ${rmPpl(it.rate * 8)} h a day → ${rmDays(Math.round((it.end - it.start) * 100) / 100)} working days on the calendar` : ""}${it.slot >= 0 ? " · " + esc(who(p, it.slot)) : ""}${it.nobody ? "\nNobody in the team for this part — see the limits in Team by month" : ""}${it.clash ? "\nNobody is free on this day — every person is busy" : ""}${it.pinned ? "\n✎ placed by hand — the planner keeps it here; right-click › Back to automatic" : ""}${it.early ? "\nStarts before its input is ready (by the dependencies: " + rmFmt(RM.dateOf(D.start, it.earliest)) + ") — your call" : ""}${ov ? "\nDays changed for this asset" : ""}">
-      ${w > 34 ? `<span>${esc(text)}</span>` : ""}${it.pinned ? `<i class="rmpin">✎</i>` : ""}<i class="rmrz" data-rmrz="${a.id}|${p.id}"></i></div>`; };
+      ${w > 34 ? `<span>${esc(text)}</span>` : ""}${it.pinned ? `<i class="rmpin">✎</i>` : a.who?.[p.id] != null ? `<i class="rmpin">👤</i>` : ""}<i class="rmrz" data-rmrz="${a.id}|${p.id}"></i></div>`; };
   const tl = inner => `<div class="rmtl" style="width:${weeks * cw}px">${inner}</div>`;
   const dd = d => rmFmt(RM.dateOf(D.start, d)), de = (s, e) => rmFmt(RM.dateOf(D.start, Math.max(s, e - 0.01)));
   let rows = "";
@@ -1084,15 +1090,16 @@ function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; con
     ${tab === "team" ? `<div class="field" title="How Fit team counts people: 1 — full-time people only; ½ — the last person on a part may work 4 h a day"><label>People step</label><span class="seg rmstepseg"><button data-rmstep="1" aria-pressed="${+D.step !== 0.5}">1</button><button data-rmstep="0.5" aria-pressed="${+D.step === 0.5}">½</button></span></div>` : ""}
     <button class="btn rmdelbtn" data-act="rm-texport" title="Export this table (${tab === "pipeline" ? "Parts & dependencies" : (RMV.teamBy || "part") === "person" ? "Team by person" : "Team by part"}): Excel or CSV">Export table ▾</button>
     <button class="btn danger rmdelbtn" data-act="rm-del" title="Delete this plan (to the draft, Ctrl+Z brings it back)">Delete plan</button><div class="seg rmtabsw"><button data-rmtab="pipeline" aria-pressed="${tab === "pipeline"}">Parts & dependencies</button><button data-rmtab="team" aria-pressed="${tab === "team"}">Team by month</button></div></div>`;
-  if (tab === "pipeline") return `<section class="rmdata ${full ? "full" : ""}">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, days<small>empty = project %</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th></th></tr></thead><tbody>
+  if (tab === "pipeline") return `<section class="rmdata ${full ? "full" : ""}">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, days<small>empty = project %</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th title="How long an asset may wait for an artist already on the project before a new one is brought in: half of the days of the part it waits for, at least 5">Waits for<small>a free artist</small></th><th></th></tr></thead><tbody>
     ${parts.map((p, i) => { const d0 = p.deps?.[0] || {}, d1 = p.deps?.[1] || {}; const opts = cur => `<option value="">—</option>${parts.filter(x => x.id !== p.id).map(x => `<option value="${x.id}" ${x.id === cur ? "selected" : ""}>${esc(x.name)}</option>`).join("")}`;
       const at = (d, k) => `<span class="rmlag"><input type="number" min="0" max="100" step="5" data-rmdep="${p.id}|${k}|at" value="${RM.at(d)}" title="100 % = when it is finished · 50 % = when half is done (and it cannot end before it) · 0 % = together">%</span>`;
       return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i></td><td><input class="in name" data-rmpart="${p.id}|name" value="${esc(p.name)}"></td><td><input class="in num" type="number" min="0" step="0.25" data-rmpart="${p.id}|days" value="${p.days}"></td>
         <td title="${esc(RM_RISK_TIP)}"><input class="in num ${+p.riskDays > 0 ? "" : "carry"}" type="number" min="0" step="0.25" data-rmpart="${p.id}|risk" value="${+p.riskDays > 0 ? p.riskDays : ""}" placeholder="${rmDays(Math.round(RM.riskDays({ ...D }, { ...p, riskDays: 0 }) * 100) / 100)}"></td>
         <td><select data-rmdep="${p.id}|0|on">${opts(d0.on)}</select></td><td>${d0.on ? at(d0, 0) : ""}</td>
         <td><select data-rmdep="${p.id}|1|on">${opts(d1.on)}</select></td><td>${d1.on ? at(d1, 1) : ""}</td>
+        <td class="r rmwait" title="Waits up to ${rmDays(RM.waitFor(D, p))} working days for an artist already on the project, then a new one is brought in">${rmDays(RM.waitFor(D, p))} d</td>
         <td class="acts"><button class="ico" data-rmpmove="${p.id}|-1" title="Up">↑</button><button class="ico" data-rmpmove="${p.id}|1" title="Down">↓</button><button class="ico del" data-rmpdel="${p.id}" title="Remove the part">✕</button></td></tr>`; }).join("")}
-    <tr class="add-row"><td colspan="9"><button class="link-btn" data-act="rm-padd">＋ Production part</button> <span class="hint">“at 33 %” — the part starts once a third of the one it waits for is done (6 animations: VFX for the first two can start) and cannot end before it; 100 % — when it is finished.</span></td></tr></tbody></table></section>`;
+    <tr class="add-row"><td colspan="10"><button class="link-btn" data-act="rm-padd">＋ Production part</button> <span class="hint">“at 33 %” — the part starts once a third of the one it waits for is done (6 animations: VFX for the first two can start) and cannot end before it; 100 % — when it is finished.</span></td></tr></tbody></table></section>`;
   const need = RM.months(D, Sx, months);
   const mname = m => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCDate(1); dt.setUTCMonth(dt.getUTCMonth() + m); return RM_MON[dt.getUTCMonth()]; };
   const keys = Array.from({ length: months }, (_, m) => RM.mkey(D.start, m)); const by = RMV.teamBy || "part"; const pop = RMV.pop;
@@ -1346,6 +1353,13 @@ function rmContext(e){ const b = e.target.closest("[data-rmbar]"); const plan = 
   const [aid, pid] = b.dataset.rmbar.split("|"); const a = plan.data.assets.find(x => x.id === aid), p = plan.data.parts.find(x => x.id === pid);
   const items = [{ head: `${a.name} · ${p.name}` }];
   if (a.pin?.[pid] != null) items.push({ label:"Back to automatic", hint:"✎ → auto", run: () => rmEdit(d => { const x = d.assets.find(y => y.id === aid); delete x.pin[pid]; if (x.pinWho) delete x.pinWho[pid]; }, `${a.name} · ${p.name} back to automatic`) });
+  { const S1 = rmCalc(plan.data).S, it = S1.items[aid]?.[pid], P = S1.people[pid] || [], cur = a.who?.[pid];
+    const setWho = (k, msg) => rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.who = x.who || {}; if (k == null) delete x.who[pid]; else x.who[pid] = k; if (x.pinWho) delete x.pinWho[pid]; }, msg);
+    items.push("-", { head: "Change realizer" });
+    for (const x of P) items.push({ label: `${p.name} #${x.k + 1}${x.r < 1 ? " · " + rmPpl(x.r * 8) + " h/day" : ""}`, hint: it?.slot === x.k ? (cur === x.k ? "👤 set by you" : "now") : `${x.items.length} asset${x.items.length > 1 ? "s" : ""}`, disabled: it?.slot === x.k && cur === x.k, run: () => setWho(x.k, `${a.name} · ${p.name}: ${p.name} #${x.k + 1}`) });
+    items.push({ label: "A new person", hint: `${p.name} #${P.length + 1}`, run: () => setWho(P.length, `${a.name} · ${p.name}: a new person`) });
+    if (cur != null) items.push({ label: "Any realizer", hint: "the planner picks", run: () => setWho(null, `${a.name} · ${p.name}: the planner picks the realizer`) });
+    items.push("-"); }
   items.push({ label:"Days for this asset…", hint: `${a.days?.[pid] ?? p.days} d`, run: () => askName("Days of work for " + a.name + " · " + p.name, v => { const n = +String(v).replace(",", "."); if (!(n >= 0)) return toast("Days must be a number", true); rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.days = x.days || {}; x.days[pid] = n; }, `${a.name} · ${p.name}: ${n} d`); }, "", String(a.days?.[pid] ?? p.days), "Set") });
   if (a.days?.[pid] != null) items.push({ label:"Days as in Plan data", hint: `${p.days} d`, run: () => rmEdit(d => { delete d.assets.find(x => x.id === aid).days[pid]; }, `${a.name} · ${p.name}: days as in Plan data`) });
   openMenu(e.clientX, e.clientY, items); return true; }
