@@ -845,7 +845,9 @@ RM.load = (D, S, weeks) => { const out = {};
 /* month m as working-day range [lo, hi) */
 RM.monthRange = (start, m) => { let lo = null, hi = null; for (let d = 0; d < RM.H; d++) { const x = RM.mo(start, d); if (x === m && lo == null) lo = d; if (x > m) { hi = d; break; } } return lo == null ? null : [lo, hi ?? RM.H]; };
 /* people on the payroll per month (average over the month's working days) */
-RM.months = (D, S, months) => { const out = {}; for (const p of S.parts) out[p.id] = Array.from({ length: months }, (_, m) => { const r = RM.monthRange(D.start, m); return r ? RM.paidIn(S, r[0], r[1], p.id) / (r[1] - r[0]) : 0; }); return out; };
+/* people on the project in a month: everyone who is on it at any day of the month (a half-time person counts 0.5) */
+RM.months = (D, S, months) => { const out = {}; for (const p of S.parts) out[p.id] = Array.from({ length: months }, (_, m) => { const r = RM.monthRange(D.start, m); if (!r) return 0;
+  return S.people[p.id].reduce((t, x) => t + (Math.min(r[1], x.last) - Math.max(r[0], x.first) > 1e-6 ? x.r : 0), 0); }); return out; };
 /* Fit team: the fewest people per part (pipeline order) so the plan ends by the deadline, inside the limits */
 RM.fit = D => { const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null; const parts = RM.order(D.parts || []);
   /* the target: the deadline; if even the limits allow no more than a later end (or there is no deadline), the earliest end possible */
@@ -1024,10 +1026,10 @@ function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; con
     ${parts.map((p, i) => { const arr = D.team?.[p.id] || []; const mx = D.max?.[p.id]; const nd = need[p.id] || []; const u = C.useful[p.id] < (D.assets || []).length ? C.useful[p.id] : 0;
       const cells = Array.from({ length: months }, (_, m) => { const v = RM.raw(arr, m), prev = m ? RM.raw(arr, m - 1) : null; const starts = v !== prev && (v != null || m > 0);
         const sel = pop && pop.pid === p.id && pop.ms.includes(m);
-        const tip = `${p.name} · M${m + 1} ${mname(m)}\nNeeded: ${rmPpl(Math.round((nd[m] || 0) * 10) / 10)} people (as planned)\nLimit: ${v == null ? "none" : v + " people"}\nClick to set a limit · Shift+click to take several months`;
+        const tip = `${p.name} · M${m + 1} ${mname(m)}\nNeeded: ${rmPpl(Math.round((nd[m] || 0) * 10) / 10)} people on the project this month (as planned)\nLimit: ${v == null ? "none" : v + " people"}\nClick to set a limit · Shift+click to take several months`;
         return `<td class="rmcell ${v != null ? "lim" : ""} ${sel ? "sel" : ""}" data-rmcell="${p.id}|${m}" title="${esc(tip)}">${starts ? `<b class="rmlim">${v == null ? "∞" : "≤" + rmPpl(v)}</b>` : ""}<span>${nd[m] >= 0.05 ? rmPpl(Math.round(nd[m] * 10) / 10) : ""}</span></td>`; }).join("");
       return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i> ${esc(p.name)}${u ? ` <small class="rmuse" title="More people than this do not move the end: the parts before cannot feed them faster">useful max ${u}</small>` : ""}</td><td><input class="in num" type="number" min="0" step="0.5" data-rmmax="${p.id}" value="${mx ?? ""}" placeholder="∞" title="The most people on this part over the whole plan · empty = no limit"></td>${cells}</tr>`; }).join("")}</tbody></table></div>
-    <div class="hint" style="padding:6px 14px 10px">Numbers — people on the project as planned (they join when the first asset reaches them and stay until their last one). Click a month to limit it: <b class="rmlim inl">≤6</b> marks where a limit starts, the tint shows where it holds. Max — the limit for the whole plan. 1.5 = one full-time + one half-time person.</div>
+    <div class="hint" style="padding:6px 14px 10px">Numbers — people on the project in that month as planned (they join when the first asset reaches them and stay until their last one; a half-time person counts 0.5). Click a month to limit it: <b class="rmlim inl">≤6</b> marks where a limit starts, the tint shows where it holds. Max — the limit for the whole plan. 1.5 = one full-time + one half-time person.</div>
     ${pop ? rmPopHtml(D, pop, parts, mname) : ""}</section>`; }
 
 /* the month-limit popover */
@@ -1036,7 +1038,7 @@ function rmPopHtml(D, pop, parts, mname){ const p = parts.find(x => x.id === pop
   return `<div class="rmpop" style="left:${pop.x}px;top:${pop.y}px" data-rmpopbox>
     <div class="rmpop-h">${esc(p.name)} · ${label}</div>
     <label class="rmpop-f">Limit, people<input type="number" min="0" step="0.5" value="${cur ?? ""}" placeholder="∞ no limit" data-rmpopv onkeydown="rmPopKey(event)"></label>
-    <div class="rmpop-r"><label><input type="radio" name="rmpopw" value="only" ${pop.only || many ? "checked" : ""}> ${many ? "These months only" : "This month only"}</label><label><input type="radio" name="rmpopw" value="on" ${pop.only || many ? "" : "checked"}> From ${many ? "the first" : "this month"} on</label></div>
+    <div class="rmpop-r"><label><input type="radio" name="rmpopw" value="only" ${pop.on ? "" : "checked"}> ${many ? "These months only" : "This month only"}</label><label><input type="radio" name="rmpopw" value="on" ${pop.on ? "checked" : ""}> From ${many ? "the first" : "this month"} on</label></div>
     <div class="rmpop-b">${cur != null ? `<button class="btn" data-rmpop="clear">Remove limit</button>` : ""}<span class="sp"></span><button class="btn" data-rmpop="close">Cancel</button><button class="btn primary" data-rmpop="set">Set limit</button></div></div>`; }
 /* months → limit: only these months, or from the first one on; empty = no limit */
 function rmSetLimit(pid, ms, v, on){ rmEdit(d => { d.team = d.team || {}; const arr = (d.team[pid] || []).slice(); const last = Math.max(...ms) + 2; while (arr.length < last) arr.push(RM.raw(arr, arr.length));
