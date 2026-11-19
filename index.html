@@ -1274,7 +1274,7 @@ async function rmExportXlsx(plan){ toast("Building the Excel file…"); let X; t
 /* the table on screen (Parts & dependencies / Team by part / Team by person), as it is shown */
 function rmTableName(){ return RMV.tab === "pipeline" ? "Parts & dependencies" : (RMV.teamBy || "part") === "person" ? "Team by person" : "Team by part"; }
 function rmTableRows(){ const tb = document.querySelector(".rmdata table.editor"); if (!tb) return [];
-  const val = c => { const i = c.querySelector("input:not([type=radio]):not([type=checkbox])"), sl = c.querySelector("select"); if (sl) return sl.options[sl.selectedIndex]?.text || ""; if (i) return i.value !== "" ? i.value : (i.placeholder === "∞" ? "∞" : i.placeholder || ""); const cl = c.cloneNode(true); cl.querySelectorAll("button").forEach(b => b.remove()); return cl.textContent.replace(/\s+/g, " ").trim(); };
+  const val = c => { const i = c.querySelector("input:not([type=radio]):not([type=checkbox])"), sl = c.querySelector("select"); if (sl) return sl.options[sl.selectedIndex]?.text || ""; if (i) return i.value !== "" ? i.value : (i.placeholder === "∞" ? "∞" : i.placeholder || ""); const cl = c.cloneNode(true); cl.querySelectorAll("button,.rmuse,.rmfx,.rmlim,td.rmwdc i,.rmwdc > i").forEach(b => b.remove()); if (c.classList.contains("rmwdc")) cl.querySelectorAll("i").forEach(b => b.remove()); cl.querySelectorAll("small").forEach(sm => sm.insertAdjacentText("beforebegin", " ")); return cl.textContent.replace(/\s+/g, " ").trim(); };
   return [...tb.querySelectorAll("tr")].filter(r => !r.classList.contains("add-row")).map(r => [...r.children].map(val)).filter(r => r.some(x => x !== "")); }
 async function rmExportTable(kind){ const plan = rmCur(); if (!plan) return; const rows = rmTableRows(); const nm = rmTableName(); const file = rmSafe(plan.name + " - " + nm);
   const num = v => /^-?\d+([.,]\d+)?$/.test(v) ? +String(v).replace(",", ".") : v;
@@ -1296,6 +1296,54 @@ function rmPrintTablePrep(){ const keep = { data: RMV.data, pop: RMV.pop, hpop: 
 function rmPrintTableDone(keep){ document.body.classList.remove("rmprinttab"); const tb = document.querySelector(".rmdata table.editor"); if (tb) tb.style.zoom = ""; if (keep) Object.assign(RMV, keep); render(); }
 function rmPrintTable(){ const keep = rmPrintTablePrep(); const done = () => { removeEventListener("afterprint", done); rmPrintTableDone(keep); }; addEventListener("afterprint", done); setTimeout(() => window.print(), 60); }
 function rmPrint(){ const keep = rmPrintPrep(); if (!keep) return; const done = () => { removeEventListener("afterprint", done); rmPrintDone(keep); }; addEventListener("afterprint", done); setTimeout(() => window.print(), 60); }
+
+/* ----- PDF: drawn straight from what is on screen (no print dialog, no headers or summaries — just the plan) ----- */
+let RM_PDF = null;
+function rmLoadPdf(){ if (window.jspdf?.jsPDF?.API?.autoTable) return Promise.resolve(window.jspdf.jsPDF); if (RM_PDF) return RM_PDF;
+  const add = src => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("PDF library did not load — check the connection")); document.head.appendChild(s); });
+  RM_PDF = (window.jspdf ? Promise.resolve() : add("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js")).then(() => window.jspdf.jsPDF.API.autoTable ? null : add("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js")).then(() => window.jspdf.jsPDF).catch(e => { RM_PDF = null; throw e; }); return RM_PDF; }
+const rmRgb = c => { const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(c || ""); if (!m) return null; const a = m[4] == null ? 1 : +m[4]; if (a < 0.05) return null; return [+m[1], +m[2], +m[3]].map(v => Math.round(255 - (255 - v) * a)); };
+const rmTxt = el => { if (!el) return ""; const c = el.cloneNode(true); c.querySelectorAll("button,.rmlock,.rmpin,.rmrz").forEach(x => x.remove()); return c.textContent.replace(/\s+/g, " ").trim(); };
+async function rmPdfGantt(){ const plan = rmCur(); if (!plan) return; toast("Building the PDF…"); let J; try { J = await rmLoadPdf(); } catch (e) { toast(e.message, true); return; }
+  const keep = { gantt: RMV.gantt, noLoad: RMV.noLoad }; if (!RMV.gantt) { RMV.gantt = true; render(); }
+  const gt = document.querySelector(".rmgt"); if (!gt) { Object.assign(RMV, keep); render(); return; }
+  const rows = [...gt.querySelectorAll(":scope > .rmrow")].filter(r => !r.classList.contains("lhd") && !r.classList.contains("load"));
+  const tlw = parseFloat(gt.querySelector(".rmtl")?.style.width) || 1000;
+  const doc = new J({ orientation: "landscape", unit: "mm", format: "a3" }); const W = 420, H = 297, M = 8;
+  const cols = [62, 14, 17, 17, 14]; const LW = cols.reduce((a, b) => a + b, 0); const k = (W - 2 * M - LW) / tlw; const RH = Math.max(3.6, Math.min(6, (H - 2 * M - 12) / Math.max(1, rows.length)));
+  const head = gt.querySelector(".rmhead"); const hl = [...head.querySelectorAll(".rml > div")].map(rmTxt); hl[0] = RMV.by === "person" ? "Part / person" : "Asset / part";
+  const mons = [...head.querySelectorAll(".hrow.mon > div")], wks = [...head.querySelectorAll(".hrow.wk > div")];
+  const drawHead = () => { doc.setFillColor(36, 72, 110); doc.rect(M, M, W - 2 * M, 12, "F"); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(7);
+    let x = M; hl.forEach((t, i) => { if (i < cols.length) { doc.text(t.toUpperCase(), x + 1.5, M + 7.5); x += cols[i]; } });
+    let mx = M + LW; for (const m of mons) { const w = parseFloat(m.style.width) * k; doc.setFontSize(6.5); doc.text(rmTxt(m), mx + 1, M + 4.2); doc.setDrawColor(93, 127, 166); doc.line(mx, M, mx, M + 12); mx += w; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); const cw = tlw / Math.max(1, wks.length) * k; wks.forEach((wk, i) => { const t = rmTxt(wk); if (t && cw > 5) doc.text(t, M + LW + i * cw + cw / 2, M + 10.2, { align: "center" }); }); };
+  drawHead(); let y = M + 12;
+  const dl = gt.querySelector(".rmdl"), dlx = dl ? parseFloat(dl.style.left) : null;
+  for (const r of rows) { if (y + RH > H - M) { doc.addPage(); drawHead(); y = M + 12; }
+    const grp = r.classList.contains("grp"); const lab = [...r.querySelectorAll(".rml > div")];
+    if (grp) { doc.setFillColor(216, 230, 244); doc.rect(M, y, W - 2 * M, RH, "F"); }
+    doc.setDrawColor(226, 232, 240); doc.line(M, y + RH, W - M, y + RH);
+    doc.setTextColor(23, 50, 77); doc.setFont("helvetica", grp ? "bold" : "normal"); doc.setFontSize(Math.min(7.5, RH * 1.6));
+    let x = M; lab.forEach((c, i) => { if (i >= cols.length) return; let t = rmTxt(c); if (i === 0) { t = rmTxt(c.querySelector(".nm")) || t; const max = cols[0] - (grp ? 3 : 6); while (t && doc.getTextWidth(t) > max) t = t.slice(0, -2) + "…"; doc.text(t, x + (grp ? 1.5 : 4.5), y + RH * 0.68); } else doc.text(t, x + cols[i] - 1.5, y + RH * 0.68, { align: "right" }); x += cols[i]; });
+    const tl = r.querySelector(".rmtl"); if (tl) { const X = px => M + LW + px * k;
+      for (const b of tl.querySelectorAll(".rmbench")) { doc.setFillColor(232, 237, 244); doc.rect(X(parseFloat(b.style.left)), y + RH * 0.2, parseFloat(b.style.width) * k, RH * 0.6, "F"); }
+      for (const sg of tl.querySelectorAll(".rmseg")) { const l = parseFloat(sg.style.left), w = parseFloat(sg.style.width); const bands = [...sg.querySelectorAll(":scope > i")]; const top = y + RH * 0.3, h = RH * 0.4;
+        if (bands.length) bands.forEach((bd, i) => { const c = rmRgb(getComputedStyle(bd).backgroundColor); if (c) { doc.setFillColor(...c); doc.rect(X(l), top + h * i / bands.length, w * k, h / bands.length, "F"); } });
+        else { const c = rmRgb(getComputedStyle(sg).backgroundColor); if (c) { doc.setFillColor(...c); doc.rect(X(l), top, w * k, h, "F"); } } }
+      for (const b of tl.querySelectorAll(".rmbar")) { const l = parseFloat(b.style.left), w = parseFloat(b.style.width); const c = rmRgb(getComputedStyle(b).backgroundColor) || [61, 134, 198];
+        const bx = X(l), bw = Math.max(0.4, w * k), by = y + RH * 0.15, bh = RH * 0.7; doc.setFillColor(...c); doc.rect(bx, by, bw, bh, "F");
+        if (r.classList.contains("person")) { doc.setFillColor(12, 26, 41); doc.rect(bx, by, Math.min(0.35, bw), bh, "F"); }
+        const t = rmTxt(b.querySelector(":scope > span")); doc.setFont("helvetica", "bold"); doc.setFontSize(Math.min(6, RH * 1.3)); if (t && doc.getTextWidth(t) < bw - 1) { doc.setTextColor(255, 255, 255); doc.text(t, bx + 0.8, by + bh * 0.72); } }
+      if (dlx != null) { doc.setDrawColor(168, 58, 38); doc.setLineWidth(0.4); doc.line(X(dlx), y, X(dlx), y + RH); doc.setLineWidth(0.2); } }
+    y += RH; }
+  doc.save(rmSafe(plan.name + " - Gantt") + ".pdf"); window.__rmPdf = doc.output("arraybuffer"); Object.assign(RMV, keep); render(); toast("PDF ready: the Gantt"); }
+async function rmPdfTable(){ const plan = rmCur(); if (!plan) return; const rows = rmTableRows(); if (!rows.length) return; toast("Building the PDF…"); let J; try { J = await rmLoadPdf(); } catch (e) { toast(e.message, true); return; }
+  const doc = new J({ orientation: "landscape", unit: "mm", format: "a3" }); const n = rows[0].length;
+  const fix = v => String(v).replace(/∞/g, "-").replace(/−/g, "-").replace(/≤/g, "<=").replace(/[✓↺🔒🔓]/g, "").trim(); rows.forEach((r, i) => rows[i] = r.map(fix));
+  doc.autoTable({ head: [rows[0]], body: rows.slice(1), margin: 8, theme: "grid", styles: { font: "helvetica", fontSize: n > 16 ? 6.5 : 8, cellPadding: 1.2, textColor: [23, 50, 77], lineColor: [216, 222, 230], lineWidth: 0.1, halign: "right" },
+    headStyles: { fillColor: [36, 72, 110], textColor: 255, fontStyle: "bold", halign: "center" }, columnStyles: { 0: { halign: "left", fontStyle: "bold", cellWidth: 42 } },
+    didParseCell: d => { if (d.section === "body" && d.row.raw.slice(1).every(v => v === "")) { d.cell.styles.fillColor = [216, 230, 244]; d.cell.styles.fontStyle = "bold"; } } });
+  doc.save(rmSafe(plan.name + " - " + rmTableName()) + ".pdf"); window.__rmPdf = doc.output("arraybuffer"); toast(`PDF ready: ${rmTableName()}`); }
 
 /* ----- events ----- */
 function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
@@ -1326,8 +1374,8 @@ function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   const ly = t.closest("[data-rmlay]"); if (ly) { const v = ly.dataset.rmlay; if ((plan.data.layout || "auto") === v) return true;
     rmEdit(d => { d.layout = v; if (v === "manual") { const S1 = rmCalc(plan.data).S; d.frozen = {}; for (const [aid, o] of Object.entries(S1.items)) { d.frozen[aid] = {}; for (const [pid, it] of Object.entries(o)) if (it.work > 0) d.frozen[aid][pid] = Math.round(it.start * 100) / 100; } } },
       v === "manual" ? "Manual layout: the bars stay where they are" : "Auto layout: the plan follows every change"); return true; }
-  if (a === "rm-texport") { const r = t.closest("[data-act]").getBoundingClientRect(); const nm = rmTableName(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + nm }, { label: "Excel (.xlsx)", run: () => rmExportTable("xlsx") }, { label: "PDF", hint: "A3, the whole table", run: () => rmPrintTable() }, { label: "CSV", run: () => rmExportTable("csv") }]); return true; }
-  if (a === "rm-export") { const r = t.closest("[data-act]").getBoundingClientRect(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + plan.name }, { label: "Excel (.xlsx)", hint: "plan, Gantt, team, parts", run: () => rmExportXlsx(plan) }, { label: "PDF", hint: "the whole plan, A3", run: () => rmPrint() }, { label: "CSV", hint: "one row per asset · part", run: () => rmExportCsv(plan) }]); return true; }
+  if (a === "rm-texport") { const r = t.closest("[data-act]").getBoundingClientRect(); const nm = rmTableName(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + nm }, { label: "Excel (.xlsx)", run: () => rmExportTable("xlsx") }, { label: "PDF", hint: "A3, the whole table", run: () => rmPdfTable() }, { label: "CSV", run: () => rmExportTable("csv") }]); return true; }
+  if (a === "rm-export") { const r = t.closest("[data-act]").getBoundingClientRect(); openMenu(r.left, r.bottom + 4, [{ head: "Export " + plan.name }, { label: "Excel (.xlsx)", hint: "plan, Gantt, team, parts", run: () => rmExportXlsx(plan) }, { label: "PDF", hint: "the Gantt as on screen, A3", run: () => rmPdfGantt() }, { label: "CSV", hint: "one row per asset · part", run: () => rmExportCsv(plan) }]); return true; }
   const tby = t.closest("[data-rmtby]"); if (tby) { RMV.teamBy = tby.dataset.rmtby; RMV.pop = null; render(); return true; }
   const lk = t.closest("[data-rmlock]"); if (lk) { const pairs = lk.dataset.rmlock.split(",").map(x => x.split(":")); const S1 = rmCalc(plan.data).S; const on = lk.classList.contains("on");
     rmEdit(d => { for (const [aid, pid] of pairs) { const x = d.assets.find(y => y.id === aid); if (!x) continue; x.pin = x.pin || {}; x.pinWho = x.pinWho || {}; if (on) { delete x.pin[pid]; delete x.pinWho[pid]; } else { const it = S1.items[aid]?.[pid]; if (it && it.work > 0) { x.pin[pid] = Math.round(it.start * 1000) / 1000; if (it.slot >= 0) x.pinWho[pid] = it.slot; } } } }, on ? `Unlocked: ${pairs.length} bar${pairs.length > 1 ? "s" : ""} back to auto-planning` : `Locked: ${pairs.length} bar${pairs.length > 1 ? "s" : ""} stay where they are`); return true; }
