@@ -423,6 +423,19 @@ table.rmpe,table.rmteam{border-collapse:collapse;width:100%}
 .rmempty{margin:60px auto;max-width:520px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--frame);padding:22px 24px}
 .rmempty b{font:600 20px var(--fh);letter-spacing:.04em;text-transform:uppercase;color:var(--title)} .rmempty span{color:var(--muted)}
 body.rmmoving,body.rmmoving *{cursor:grabbing!important;user-select:none} body.rmsizing,body.rmsizing *{cursor:ew-resize!important;user-select:none}
+.rmv .seg.rmseg2{margin-left:0} .rmv .seg.rmseg2 button{padding:5px 11px;transition:background .15s,color .15s}
+.rmbench{position:absolute;top:5px;height:20px;z-index:1;background:repeating-linear-gradient(135deg,#e3e9f1 0 3px,#fff 3px 7px);border:1px dashed #b8c3d4;animation:rmfade .25s ease}
+@keyframes rmfade{from{opacity:0}to{opacity:1}}
+.rmrow.person>.rml>div.c0{padding-left:34px} .rmrow.person .nm{font:12.5px var(--fb);color:var(--ink)}
+.rmrow.person.lost>.rml>div.c0 .nm{color:var(--alarm-fg);font-weight:600}
+.rmrow>.rml>div.r.bn{color:var(--muted);background:repeating-linear-gradient(135deg,#eef2f7 0 3px,transparent 3px 7px)}
+.rmppl{margin-left:auto;font:500 11px var(--fm);color:var(--muted);letter-spacing:0;text-transform:none}
+.rmrow.grp>.rml>div.c0{gap:6px}
+table.rmteam tr.rmneed td{height:24px;background:#f5f8fc;color:var(--muted);font:11.5px var(--fm);text-align:right;padding:0 8px;border-bottom:1px solid var(--hair2)}
+table.rmteam tr.rmneed td:first-child{font:500 10px var(--fm);letter-spacing:.08em;text-transform:uppercase;text-align:left;background:#f5f8fc;padding-left:24px}
+table.rmteam tr.rmneed td:first-child small{margin-left:8px;letter-spacing:0;text-transform:none;color:#8a96a8}
+.rmv .in.num::placeholder{color:#a3aebd}
+.rmv .settings .rmdelbtn{height:30px;align-self:flex-end}
 </style>
 </head>
 <body>
@@ -706,7 +719,13 @@ function render(){ requestAnimationFrame(markOverflow); if (PREF.lockMode && S.s
 /* ================= Roadmap: high-level plan by production parts =================
    One plan = one document (roadmap.data). Every change goes to the draft as one {t:"rmap"} op per plan (latest wins).
    Week columns, 1-day step. Positions are computed live from parts, dependencies and the team; bars moved by hand are pinned (✎). */
-/* ---------- Roadmap engine: working days from the plan start (Mon–Fri), fractional days allowed ---------- */
+/* ---------- Roadmap engine: working days from the plan start (Mon–Fri), fractional days allowed ----------
+   v2 · people, not slots. Rules:
+   - one person works on one asset at a time; one asset in a part is done by one person from start to end;
+   - a fraction is a separate person on part of a day (0.5 = 4 h a day: a 10-day asset takes 20 days);
+   - parts are planned one after another in pipeline order; an asset goes to the first free person once its input is ready;
+   - a person joins when there is work for them and stays until their last asset in that part (pauses inside = bench, paid);
+   - team table: a number in a month = the limit for that month, an empty (∞) month = no limit; Max = the limit for the whole part. */
 const RM = {};
 RM.parse = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; };
 RM.iso = ms => new Date(ms).toISOString().slice(0, 10);
@@ -716,9 +735,15 @@ RM.dateOf = (start, d) => { let ms = RM.parse(start); const dow = x => new Date(
 RM.dayOf = (start, iso) => { let a = RM.parse(start), b = RM.parse(iso); if (a == null || b == null) return null; const dow = x => new Date(x).getUTCDay(); while (dow(a) === 0 || dow(a) === 6) a += 864e5;
   let n = 0; if (b < a) return 0; const wk = Math.floor((b - a) / (7 * 864e5)); n = wk * 5; a += wk * 7 * 864e5; while (a < b) { if (dow(a) !== 0 && dow(a) !== 6) n++; a += 864e5; } return n; };
 RM.monthOf = (start, d) => { const s = new Date(RM.parse(start)), x = new Date(RM.dateOf(start, d)); return (x.getUTCFullYear() - s.getUTCFullYear()) * 12 + x.getUTCMonth() - s.getUTCMonth(); };
-RM.fte = (arr, m) => { if (!arr || !arr.length) return 0; return +(arr[Math.min(m, arr.length - 1)] || 0); };
+RM._mc = {};
+RM.mo = (start, d) => { const c = RM._mc[start] || (RM._mc[start] = []); const i = Math.max(0, Math.floor(d)); if (c[i] == null) c[i] = RM.monthOf(start, i); return c[i]; };
+/* the month's raw team value: a number, or null = no limit; months past the table repeat the last one */
+RM.raw = (arr, m) => { if (!arr || !arr.length) return null; const v = arr[Math.min(m, arr.length - 1)]; return v == null || v === "" ? null : +v; };
+RM.capAt = (arr, m) => { const v = RM.raw(arr, m); return v == null ? Infinity : v; };
+RM.fte = RM.capAt;
+RM.H = 3000; // working days we look ahead (≈ 12 years)
 RM.defaults = () => ({
-  start: null, deadline: null, contract: null,
+  start: null, deadline: null, contract: null, mode: "timeline",
   parts: [
     { id:"concept", name:"Concept",        days:12,   deps:[] },
     { id:"cvfx",    name:"Concept VFX",    days:4,    deps:[{ on:"concept", type:"ss", lag:50 }] },
@@ -727,60 +752,81 @@ RM.defaults = () => ({
     { id:"anim",    name:"3D animation",   days:8.25, deps:[{ on:"tech", type:"fs", lag:0 }] },
     { id:"vfx",     name:"VFX real-time",  days:9,    deps:[{ on:"anim", type:"ss", lag:33 }, { on:"cvfx", type:"fs", lag:0 }] },
   ],
-  team: { concept:[1.5], cvfx:[0.5], m3d:[0, 3, 4], tech:[0, 0, 0.5], anim:[0, 0, 1], vfx:[0, 0, 0, 1, 2] },
+  team: { concept:[1.5], cvfx:[0.5], m3d:[0, 3, 4], tech:[0, 0, 0.5], anim:[0, 0, 1], vfx:[0, 0, 0, 1, 2] }, max: {},
   assets: Array.from({ length: 26 }, (_, i) => ({ id: "a" + (i + 1), name: "Character " + String(i + 1).padStart(2, "0"), days:{}, pin:{} })),
 });
-/* does any part wait for itself through others? */
-RM.loop = parts => { const by = Object.fromEntries(parts.map(p => [p.id, p])); const st = {}; const go = id => { if (st[id] === 1) return true; if (st[id] === 2) return false; st[id] = 1; for (const d of by[id]?.deps || []) if (by[d.on] && go(d.on)) return true; st[id] = 2; return false; }; return parts.some(p => go(p.id)); };
 /* topological order of parts by their dependencies */
 RM.order = parts => { const out = [], seen = new Set(), by = Object.fromEntries(parts.map(p => [p.id, p]));
   const visit = (p, stack = new Set()) => { if (seen.has(p.id) || stack.has(p.id)) return; stack.add(p.id); for (const d of p.deps || []) if (by[d.on]) visit(by[d.on], stack); seen.add(p.id); out.push(p); };
   parts.forEach(p => visit(p)); return out; };
-/* schedule: every asset goes through the parts; each part has people (slots) whose share of a day comes from the team table month by month */
+/* does any part wait for itself through others? */
+RM.loop = parts => { const by = Object.fromEntries(parts.map(p => [p.id, p])); const st = {}; const go = id => { if (st[id] === 1) return true; if (st[id] === 2) return false; st[id] = 1; for (const d of by[id]?.deps || []) if (by[d.on] && go(d.on)) return true; st[id] = 2; return false; }; return parts.some(p => go(p.id)); };
+RM.work = (a, p) => +(a.days?.[p.id] ?? p.days) || 0;
+/* schedule. opt.n = { part: most people } (Fit team), opt.extra = { part: +k people over every limit }, opt.free = part id whose limits are lifted */
 RM.schedule = (D, opt = {}) => {
-  const start = D.start, parts = RM.order(D.parts || []); const teamOf = id => (opt.team || D.team || {})[id] || [];
-  const slots = {}; for (const p of parts) { const max = Math.ceil(Math.max(0, ...teamOf(p.id).map(Number).filter(x => !isNaN(x)))); slots[p.id] = Array.from({ length: max }, () => 0); }
-  const rate = (p, k, d) => Math.max(0, Math.min(1, RM.fte(teamOf(p.id), RM.monthOf(start, d)) - k));
-  /* when does slot k finish `work` days of work if it starts at s? (its share may change month to month) */
-  const finish = (p, k, s, work) => { let d = s, left = work, guard = 0;
-    while (left > 1e-9 && guard++ < 4000) { const r = rate(p, k, d); const day0 = Math.floor(d); const room = (day0 + 1) - d;
-      if (r <= 0) { d = day0 + 1; continue; } const can = room * r; if (can >= left) { d += left / r; left = 0; } else { left -= can; d = day0 + 1; } }
-    return guard >= 4000 ? Infinity : d; };
-  const firstWork = (p, k, s) => { let d = s, g = 0; while (rate(p, k, d) <= 0 && g++ < 4000) d = Math.floor(d) + 1; return g >= 4000 ? Infinity : d; };
-  const items = {}, wait = {}; for (const p of parts) wait[p.id] = 0;
-  for (const a of D.assets || []) { items[a.id] = {};
-    for (const p of parts) { const work = +(a.days?.[p.id] ?? p.days) || 0;
-      let earliest = 0, minEnd = 0;
+  const start = D.start, parts = RM.order(D.parts || []), team = opt.team || D.team || {}, mx = D.max || {}, lim = opt.n || {}, extra = opt.extra || {};
+  const capFor = id => { if (opt.free === id) return () => Math.min(Infinity, lim[id] ?? Infinity);
+    const arr = team[id] || [], m = mx[id] == null || mx[id] === "" ? Infinity : +mx[id], x = extra[id] || 0, l = lim[id] ?? Infinity;
+    return d => Math.min(RM.capAt(arr, RM.mo(start, d)) + x, m + x, l); };
+  const items = {}, people = {}, wait = {}; for (const a of D.assets || []) items[a.id] = {};
+  for (const p of parts) {
+    const cap = capFor(p.id), rate = (k, d) => Math.max(0, Math.min(1, cap(d) - k));
+    /* the most people this part can ever have (for a quick "no more people" check) */
+    const arr = team[p.id] || []; let most = opt.free === p.id ? Infinity : Math.min(arr.length ? Math.max(...arr.map(v => v == null || v === "" ? Infinity : +v)) : Infinity, mx[p.id] == null || mx[p.id] === "" ? Infinity : +mx[p.id]) + (extra[p.id] || 0);
+    most = Math.min(most, lim[p.id] ?? Infinity);
+    const P = people[p.id] = []; wait[p.id] = 0;
+    const q = (D.assets || []).map((a, i) => { const work = RM.work(a, p); let earliest = 0, minEnd = 0;
       for (const dp of p.deps || []) { const pr = items[a.id][dp.on]; if (!pr) continue;
         if (dp.type === "ss") { earliest = Math.max(earliest, pr.start + (pr.end - pr.start) * (+dp.lag || 0) / 100); minEnd = Math.max(minEnd, pr.end); }
         else earliest = Math.max(earliest, pr.end + (+dp.lag || 0)); }
-      const pin = a.pin?.[p.id];
+      const pin = a.pin?.[p.id]; return { a, i, work, earliest, minEnd, pin, key: pin != null ? pin : earliest }; });
+    q.sort((x, y) => x.key - y.key || x.i - y.i);
+    for (const t of q) { const { a, work, earliest, minEnd, pin } = t;
       if (work <= 0) { items[a.id][p.id] = { start: earliest, end: Math.max(earliest, minEnd), slot: -1, work: 0, earliest }; continue; }
       let best = null;
-      const ks = slots[p.id].length ? slots[p.id].map((_, k) => k) : [];
-      for (const k of ks) { const s0 = pin != null ? pin : firstWork(p, k, Math.max(earliest, slots[p.id][k])); const e = finish(p, k, s0, work);
-        const score = pin != null ? Math.max(0, slots[p.id][k] - pin) * 1000 + e : e; if (!best || score < best.score) best = { k, s: s0, e, score }; }
-      if (!best) { items[a.id][p.id] = { start: pin ?? earliest, end: (pin ?? earliest) + work, slot: -1, work, earliest, nobody: true }; continue; }
-      let s = best.s, e = best.e;
-      if (minEnd > e && pin == null) { /* overlapped part cannot end before the part it overlaps: start later */ const d = minEnd - e; s += d; e = finish(p, best.k, s, work); }
-      slots[p.id][best.k] = Math.max(slots[p.id][best.k], e); wait[p.id] += Math.max(0, s - earliest);
-      items[a.id][p.id] = { start: s, end: e, slot: best.k, work, earliest, pinned: pin != null }; } }
+      const tryK = (k, free) => { let s;
+        if (pin != null) { s = pin; if (free > pin + 1e-6 || rate(k, s) <= 0) return; }
+        else { s = Math.max(earliest, free); let g = 0; while (rate(k, s) <= 0 && g++ < RM.H) s = Math.floor(s) + 1; if (g >= RM.H) return; }
+        const r = rate(k, s); let e = s + work / r;
+        if (pin == null && e < minEnd) { s += minEnd - e; e = minEnd; }
+        if (!best || e < best.e - 1e-9) best = { k, s, e, r }; };
+      for (let k = 0; k < P.length; k++) tryK(k, P[k].free);
+      if (P.length < most && P.length < 500) tryK(P.length, 0); /* a new person, if the limits allow one */
+      if (!best) { items[a.id][p.id] = pin != null ? { start: pin, end: pin + work, slot: -1, work, earliest, pinned: true, clash: true } : { start: earliest, end: earliest + work, slot: -1, work, earliest, nobody: true }; continue; }
+      if (best.k === P.length) P.push({ k: best.k, free: 0, first: best.s, last: 0, busy: 0, r: 0, items: [] });
+      const pp = P[best.k]; pp.free = best.e; pp.first = Math.min(pp.first, best.s); pp.last = Math.max(pp.last, best.e); pp.busy += work; pp.r = Math.max(pp.r, best.r); pp.items.push(a.id);
+      wait[p.id] += Math.max(0, best.s - earliest);
+      items[a.id][p.id] = { start: best.s, end: best.e, slot: best.k, rate: best.r, work, earliest, pinned: pin != null }; } }
   const all = Object.values(items).flatMap(o => Object.values(o)); const end = all.length ? Math.max(...all.map(x => x.end)) : 0;
-  const scope = (D.assets || []).reduce((t, a) => t + parts.reduce((u, p) => u + (+(a.days?.[p.id] ?? p.days) || 0), 0), 0);
-  return { parts, items, end, scope, wait, slots, rate };
+  const scope = (D.assets || []).reduce((t, a) => t + parts.reduce((u, p) => u + RM.work(a, p), 0), 0);
+  let paid = 0; for (const p of parts) for (const x of people[p.id]) paid += (x.last - x.first) * x.r;
+  return { parts, items, people, end, scope, wait, paid, bench: Math.max(0, paid - scope) };
 };
-/* weekly load per part: needed (people busy) vs available (team) */
+/* person-days on the payroll inside [lo, hi) */
+RM.paidIn = (S, lo, hi, pid) => { let t = 0; for (const p of S.parts) { if (pid && p.id !== pid) continue; for (const x of S.people[p.id]) t += Math.max(0, Math.min(hi, x.last) - Math.max(lo, x.first)) * x.r; } return t; };
+/* weekly load per part: busy vs on the payroll (people) */
 RM.load = (D, S, weeks) => { const out = {};
   for (const p of S.parts) { const need = Array(weeks).fill(0), have = Array(weeks).fill(0);
-    for (let w = 0; w < weeks; w++) { let h = 0; for (let d = w * 5; d < w * 5 + 5; d++) h += RM.fte((D.team || {})[p.id], RM.monthOf(D.start, d)); have[w] = h / 5; }
+    for (let w = 0; w < weeks; w++) have[w] = RM.paidIn(S, w * 5, w * 5 + 5, p.id) / 5;
     for (const a of Object.values(S.items)) { const it = a[p.id]; if (!it || it.slot < 0 || !it.work) continue;
-      for (let d = Math.floor(it.start); d < Math.ceil(it.end); d++) { const lo = Math.max(d, it.start), hi = Math.min(d + 1, it.end); if (hi <= lo) continue; const w = Math.floor(d / 5); if (w < weeks) need[w] += (hi - lo) * S.rate(p, it.slot, d) / 5; } }
+      for (let w = Math.floor(it.start / 5); w < Math.ceil(it.end / 5) && w < weeks; w++) need[w] += Math.max(0, Math.min(w * 5 + 5, it.end) - Math.max(w * 5, it.start)) * it.rate / 5; }
     out[p.id] = { need, have }; }
   return out; };
-/* how many person-days the team offers up to day `until` */
-RM.capacity = (D, until) => { let t = 0; for (const p of D.parts || []) for (let d = 0; d < until; d++) t += RM.fte((D.team || {})[p.id], RM.monthOf(D.start, d)); return t; };
-
-
+/* month m as working-day range [lo, hi) */
+RM.monthRange = (start, m) => { let lo = null, hi = null; for (let d = 0; d < RM.H; d++) { const x = RM.mo(start, d); if (x === m && lo == null) lo = d; if (x > m) { hi = d; break; } } return lo == null ? null : [lo, hi ?? RM.H]; };
+/* people on the payroll per month (average over the month's working days) */
+RM.months = (D, S, months) => { const out = {}; for (const p of S.parts) out[p.id] = Array.from({ length: months }, (_, m) => { const r = RM.monthRange(D.start, m); return r ? RM.paidIn(S, r[0], r[1], p.id) / (r[1] - r[0]) : 0; }); return out; };
+/* Fit team: the fewest people per part (pipeline order) so the plan ends by the deadline, inside the limits */
+RM.fit = D => { const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null; const parts = RM.order(D.parts || []);
+  /* the target: the deadline; if even the limits allow no more than a later end (or there is no deadline), the earliest end possible */
+  const S0 = RM.schedule(D); const ok = until == null ? null : S0.end <= until + 0.5; const target = ok ? until : S0.end;
+  const n = {};
+  for (const p of parts) { const used = RM.schedule(D, { n }).people[p.id].length; if (!used) continue;
+    let lo = 1, hi = used; while (lo < hi) { const mid = (lo + hi) >> 1; if (RM.schedule(D, { n: { ...n, [p.id]: mid } }).end <= target + 0.5) hi = mid; else lo = mid + 1; }
+    n[p.id] = lo; }
+  return { S: RM.schedule(D, { n }), n, ok, until, target, fastest: S0.end }; };
+/* the most people that still help: lift this part's limits and count who gets work */
+RM.useful = (D, opt, pid) => RM.schedule(D, { ...opt, free: pid }).people[pid]?.length || 0;
 const RMPAL = [
   { solid:"#3d86c6", light:"#e7f1fb", bd:"#8fbde4", fg:"#1d4467" },   // concept
   { solid:"#8a78bd", light:"#f1ecfa", bd:"#c3b6e0", fg:"#3f2f6b" },   // concept VFX
@@ -812,15 +858,24 @@ function rmEdit(fn, msg){ const p = rmCur(); if (!p) return; const d = JSON.pars
 function rmNew(copyOf){ const id = uid(); const base = copyOf ? JSON.parse(JSON.stringify(copyOf.data)) : Object.assign(RM.defaults(), { start: rmNextMonday() });
   const name = copyOf ? copyOf.name + " · copy" : "Plan A"; draftPush(); S.draft.ops.push({ t:"rmap", add:true, id, name, data: base }); S.rmCur = id; saveDraft(); rebuild(); render(); toast(`${name} created — in the draft`); }
 
-const RMV = { zoom: 60, open: {}, data: true, tab: "pipeline" };
-function rmCalc(D){ const S1 = RM.schedule(D); const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null;
-  const cap = until != null ? RM.capacity(D, until) : null;
-  /* paid but idle up to the plan end: team days − work days */
-  const capEnd = RM.capacity(D, Math.ceil(S1.end)); const idle = Math.max(0, capEnd - S1.scope);
-  /* which part, given one more person from the start, brings the end closest */
-  let best = null; for (const p of S1.parts) { const team = JSON.parse(JSON.stringify(D.team || {})); team[p.id] = (team[p.id] && team[p.id].length ? team[p.id] : [0]).map(v => +v + 1);
-    const e = RM.schedule(D, { team }).end; const gain = S1.end - e; if (gain > 2.5 && (!best || gain > best.gain)) best = { p, gain, end: e }; }
-  return { S: S1, until, cap, idle, best }; }
+const RMV = { zoom: 60, open: {}, data: true, tab: "pipeline", by: "asset", pshut: {} };
+const RMC = { key: null, v: null };
+/* everything the page shows, computed once per plan state */
+function rmCalc(D){ const key = JSON.stringify(D); if (RMC.key === key) return RMC.v;
+  const until = D.deadline ? RM.dayOf(D.start, D.deadline) : null, team = D.mode === "team";
+  const F = team ? RM.fit(D) : null, S1 = team ? F.S : RM.schedule(D), n = F?.n || {};
+  const cap = until != null ? RM.paidIn(S1, 0, until) : null;
+  /* what holds the end back: Fit timeline → one more person over the limit; Fit team → the limit itself */
+  let best = null; const ref = team ? F.fastest : S1.end;
+  for (const p of S1.parts) { if (!(D.assets || []).some(a => RM.work(a, p) > 0)) continue;
+    const e = team ? RM.schedule(D, { free: p.id }).end : RM.schedule(D, { extra: { [p.id]: 1 } }).end; const gain = ref - e;
+    if (gain > 2.5 && (!best || gain > best.gain)) best = { p, gain, end: e }; }
+  /* the most people that still help, per part */
+  const useful = {}; for (const p of S1.parts) { const m = { ...n }; delete m[p.id]; useful[p.id] = RM.useful(D, { n: m }, p.id); }
+  const people = {}; for (const p of S1.parts) people[p.id] = S1.people[p.id].reduce((t, x) => t + x.r, 0);
+  RMC.key = key; return RMC.v = { S: S1, F, until, cap, idle: S1.bench, best, useful, people, team }; }
+const rmPpl = v => { const r = Math.round(v * 100) / 100; return String(r); };
+const rmTeamLine = (C, parts) => parts.filter(p => C.people[p.id] > 0).map(p => `${esc(p.name)} <b>${rmPpl(C.people[p.id])}</b>`).join(" · ");
 
 function sheetRoadmap(){
   if (S.rmErr === "need014") return `<div class="main rmv"><div class="rmempty"><b>Roadmap needs the database update 014.</b><span>It adds the table for plans. Ask Claude to apply it — then reload.</span></div></div>`;
@@ -828,66 +883,88 @@ function sheetRoadmap(){
   if (!plan) return `<div class="main rmv"><div class="rmempty"><b>High-level plan</b><span>Production parts per asset — Concept, 3D, Tech animation, Animation, VFX — on a week grid, with dependencies, the team month by month and a check against the contract.</span><button class="btn primary" data-act="rm-new">＋ Create a plan</button></div></div>`;
   S.rmCur = plan.id; const D = plan.data; const C = rmCalc(D), Sx = C.S;
   const cw = RMV.zoom, dw = cw / 5; const weeks = Math.max(Math.ceil(Math.max(Sx.end, C.until || 0) / 5) + 4, 26);
-  const startMs = RM.dateOf(D.start, 0);
   /* header: months and weeks */
   let mon = "", wk = ""; let curM = -1, span = 0, label = "";
   for (let w = 0; w < weeks; w++) { const ms = RM.dateOf(D.start, w * 5), dt = new Date(ms); const m = dt.getUTCFullYear() * 12 + dt.getUTCMonth();
-    if (m !== curM) { if (span) mon += `<div style="width:${span * cw}px">${label}</div>`; curM = m; span = 0; label = RM_MON[dt.getUTCMonth()] + " " + String(dt.getUTCFullYear()).slice(2) + ` <i>M${RM.monthOf(D.start, w * 5) + 1}</i>`; }
-    span++; wk += `<div class="${RM.monthOf(D.start, w * 5) !== RM.monthOf(D.start, w * 5 - 5) ? "ms" : ""}">${String(dt.getUTCDate()).padStart(2, "0")}.${String(dt.getUTCMonth() + 1).padStart(2, "0")}</div>`; }
+    if (m !== curM) { if (span) mon += `<div style="width:${span * cw}px">${label}</div>`; curM = m; span = 0; label = RM_MON[dt.getUTCMonth()] + " " + String(dt.getUTCFullYear()).slice(2) + ` <i>M${RM.mo(D.start, w * 5) + 1}</i>`; }
+    span++; wk += `<div class="${RM.mo(D.start, w * 5) !== RM.mo(D.start, w * 5 - 5) ? "ms" : ""}">${String(dt.getUTCDate()).padStart(2, "0")}.${String(dt.getUTCMonth() + 1).padStart(2, "0")}</div>`; }
   mon += `<div style="width:${span * cw}px">${label}</div>`;
   const todayD = RM.dayOf(D.start, new Date().toISOString().slice(0, 10)); const dl = C.until;
   const marks = `${todayD > 0 && todayD < weeks * 5 ? `<b class="rmtoday" style="left:${todayD * dw}px"></b>` : ""}${dl != null ? `<b class="rmdl" style="left:${dl * dw}px"><span>Deadline ${rmFmt(RM.parse(D.deadline))}</span></b>` : ""}`;
   const pidx = Object.fromEntries((D.parts || []).map((p, i) => [p.id, i]));
-  const bar = (a, p, it, row) => { const c = rmPal(pidx[p.id]); const w = Math.max(2, (it.end - it.start) * dw);
-    const ov = a.days?.[p.id] != null; return `<div class="rmbar ${it.pinned ? "pin" : ""} ${it.nobody ? "nobody" : ""}" data-rmbar="${a.id}|${p.id}" style="left:${it.start * dw}px;width:${w}px;background:${row ? c.solid : c.solid};border-color:${c.solid};color:#fff" title="${esc(a.name)} · ${esc(p.name)}\n${rmFmt(RM.dateOf(D.start, it.start))} → ${rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01)))}\n${rmDays(it.work)} d of work${it.slot >= 0 ? " · " + esc(p.name) + " #" + (it.slot + 1) : ""}${it.nobody ? "\nNobody in the team for this part" : ""}${it.pinned ? "\n✎ placed by hand — right-click › Back to automatic" : ""}${ov ? "\nDays changed for this asset" : ""}">
-      ${row && w > 34 ? `<span>${rmDays(it.work)}d${it.slot >= 0 ? " · #" + (it.slot + 1) : ""}</span>` : ""}${it.pinned ? `<i class="rmpin">✎</i>` : ""}${row ? `<i class="rmrz" data-rmrz="${a.id}|${p.id}"></i>` : ""}</div>`; };
+  const who = (p, k) => { const x = Sx.people[p.id][k]; return `${p.name} #${k + 1}${x && x.r < 1 ? ` · ${rmPpl(x.r * 8)} h/day` : ""}`; };
+  const bar = (a, p, it, text) => { const c = rmPal(pidx[p.id]); const w = Math.max(2, (it.end - it.start) * dw);
+    const ov = a.days?.[p.id] != null; return `<div class="rmbar ${it.pinned ? "pin" : ""} ${it.nobody || it.clash ? "nobody" : ""}" data-rmbar="${a.id}|${p.id}" style="left:${it.start * dw}px;width:${w}px;background:${c.solid};border-color:${c.solid};color:#fff" title="${esc(a.name)} · ${esc(p.name)}\n${rmFmt(RM.dateOf(D.start, it.start))} → ${rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01)))}\n${rmDays(it.work)} d of work${it.slot >= 0 ? " · " + esc(who(p, it.slot)) : ""}${it.nobody ? "\nNobody in the team for this part — see the limits in Team by month" : ""}${it.clash ? "\nNobody is free on this day — every person is busy" : ""}${it.pinned ? "\n✎ placed by hand — right-click › Back to automatic" : ""}${ov ? "\nDays changed for this asset" : ""}">
+      ${w > 34 ? `<span>${esc(text)}</span>` : ""}${it.pinned ? `<i class="rmpin">✎</i>` : ""}<i class="rmrz" data-rmrz="${a.id}|${p.id}"></i></div>`; };
   const tl = inner => `<div class="rmtl" style="width:${weeks * cw}px">${inner}</div>`;
+  const dd = d => rmFmt(RM.dateOf(D.start, d)), de = (s, e) => rmFmt(RM.dateOf(D.start, Math.max(s, e - 0.01)));
   let rows = "";
-  for (const a of D.assets || []) { const its = Sx.items[a.id] || {}; const vals = Object.values(its).filter(x => x.end > x.start); const s = vals.length ? Math.min(...vals.map(x => x.start)) : 0, e = vals.length ? Math.max(...vals.map(x => x.end)) : 0;
-    const open = !!RMV.open[a.id]; const tot = Sx.parts.reduce((t, p) => t + (+(a.days?.[p.id] ?? p.days) || 0), 0);
-    rows += `<div class="rmrow grp ${e > (dl ?? Infinity) ? "late" : ""}" data-rma="${a.id}"><div class="rml"><div class="c0"><button class="tg ${open ? "open" : ""}" data-rmtg="${a.id}">${open ? "−" : "+"}</button><span class="nm" data-rmname="${a.id}" title="Double-click to rename">${esc(a.name)}</span></div><div class="r">${rmDays(tot)}</div><div class="l">${vals.length ? rmFmt(RM.dateOf(D.start, s)) : ""}</div><div class="l">${vals.length ? rmFmt(RM.dateOf(D.start, Math.max(s, e - 0.01))) : ""}</div><div class="r">${vals.length ? Math.round((e - s) / 5 * 10) / 10 + " w" : ""}</div></div>
+  if (RMV.by === "person") {
+    /* one row per person: their assets one after another, the pauses between them hatched (bench, paid) */
+    for (const p of Sx.parts) { const P = Sx.people[p.id]; const c = rmPal(pidx[p.id]); const lost = (D.assets || []).filter(a => Sx.items[a.id]?.[p.id]?.slot < 0 && Sx.items[a.id][p.id].work > 0);
+      if (!P.length && !lost.length) continue; const shut = !!RMV.pshut[p.id];
+      const s = P.length ? Math.min(...P.map(x => x.first)) : 0, e = P.length ? Math.max(...P.map(x => x.last)) : 0, bench = P.reduce((t, x) => t + (x.last - x.first) * x.r - x.busy, 0);
+      rows += `<div class="rmrow grp" data-rmp="${p.id}"><div class="rml"><div class="c0"><button class="tg ${shut ? "" : "open"}" data-rmptg="${p.id}">${shut ? "+" : "−"}</button><i class="rmdot" style="background:${c.solid}"></i><span class="nm">${esc(p.name)}</span><small class="rmppl">${rmPpl(C.people[p.id])} ppl</small></div><div class="r">${rmDays(Math.round(P.reduce((t, x) => t + x.busy, 0)))}</div><div class="l">${P.length ? dd(s) : ""}</div><div class="l">${P.length ? de(s, e) : ""}</div><div class="r ${bench > 5 ? "bn" : ""}" title="Paid days without work">${bench > 0.5 ? rmDays(Math.round(bench)) + " d" : "—"}</div></div>
+        ${tl(marks + P.map(x => `<div class="rmseg" style="left:${x.first * dw}px;width:${Math.max(1, (x.last - x.first) * dw)}px;background:${c.solid};opacity:${0.35 + 0.6 / Math.max(1, P.length)}"></div>`).join(""))}</div>`;
+      if (shut) continue;
+      for (const x of P) { const its = x.items.map(id => [D.assets.find(a => a.id === id), Sx.items[id][p.id]]); const bench1 = (x.last - x.first) * x.r - x.busy;
+        rows += `<div class="rmrow sub person"><div class="rml"><div class="c0"><span class="nm">${esc(who(p, x.k))}</span></div><div class="r">${rmDays(x.busy)}</div><div class="l">${dd(x.first)}</div><div class="l">${de(x.first, x.last)}</div><div class="r ${bench1 > 5 ? "bn" : ""}" title="Paid days without work">${bench1 > 0.5 ? rmDays(Math.round(bench1)) + " d" : "—"}</div></div>
+          ${tl(marks + `<div class="rmbench" style="left:${x.first * dw}px;width:${Math.max(1, (x.last - x.first) * dw)}px" title="${esc(who(p, x.k))} on the project ${dd(x.first)} → ${de(x.first, x.last)}"></div>` + its.map(([a, it]) => bar(a, p, it, a.name.replace(/^.*?(\d+)$/, "#$1"))).join(""))}</div>`; }
+      if (lost.length) rows += `<div class="rmrow sub person lost"><div class="rml"><div class="c0"><span class="nm">Nobody free</span></div><div class="r">${rmDays(lost.reduce((t, a) => t + Sx.items[a.id][p.id].work, 0))}</div><div class="l"></div><div class="l"></div><div class="r"></div></div>${tl(marks + lost.map(a => bar(a, p, Sx.items[a.id][p.id], a.name)).join(""))}</div>`; }
+  } else for (const a of D.assets || []) { const its = Sx.items[a.id] || {}; const vals = Object.values(its).filter(x => x.end > x.start); const s = vals.length ? Math.min(...vals.map(x => x.start)) : 0, e = vals.length ? Math.max(...vals.map(x => x.end)) : 0;
+    const open = !!RMV.open[a.id]; const tot = Sx.parts.reduce((t, p) => t + RM.work(a, p), 0);
+    rows += `<div class="rmrow grp ${e > (dl ?? Infinity) ? "late" : ""}" data-rma="${a.id}"><div class="rml"><div class="c0"><button class="tg ${open ? "open" : ""}" data-rmtg="${a.id}">${open ? "−" : "+"}</button><span class="nm" data-rmname="${a.id}" title="Double-click to rename">${esc(a.name)}</span></div><div class="r">${rmDays(tot)}</div><div class="l">${vals.length ? dd(s) : ""}</div><div class="l">${vals.length ? de(s, e) : ""}</div><div class="r">${vals.length ? Math.round((e - s) / 5 * 10) / 10 + " w" : ""}</div></div>
       ${tl(marks + Sx.parts.map(p => its[p.id] && its[p.id].end > its[p.id].start ? `<div class="rmseg" style="left:${its[p.id].start * dw}px;width:${Math.max(1, (its[p.id].end - its[p.id].start) * dw)}px;background:${rmPal(pidx[p.id]).solid}" title="${esc(p.name)}"></div>` : "").join(""))}</div>`;
     if (open) for (const p of Sx.parts) { const it = its[p.id]; if (!it) continue;
-      rows += `<div class="rmrow sub"><div class="rml"><div class="c0"><i class="rmdot" style="background:${rmPal(pidx[p.id]).solid}"></i><span class="nm">${esc(p.name)}</span></div><div class="r ${a.days?.[p.id] != null ? "ov" : ""}">${rmDays(it.work)}</div><div class="l">${it.work ? rmFmt(RM.dateOf(D.start, it.start)) : ""}</div><div class="l">${it.work ? rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01))) : ""}</div><div class="r">${it.slot >= 0 ? "#" + (it.slot + 1) : it.work ? "—" : ""}</div></div>${tl(marks + (it.work ? bar(a, p, it, true) : ""))}</div>`; } }
-  /* team load per part, per week: busy / available */
+      rows += `<div class="rmrow sub"><div class="rml"><div class="c0"><i class="rmdot" style="background:${rmPal(pidx[p.id]).solid}"></i><span class="nm">${esc(p.name)}</span></div><div class="r ${a.days?.[p.id] != null ? "ov" : ""}">${rmDays(it.work)}</div><div class="l">${it.work ? dd(it.start) : ""}</div><div class="l">${it.work ? de(it.start, it.end) : ""}</div><div class="r">${it.slot >= 0 ? "#" + (it.slot + 1) : it.work ? "—" : ""}</div></div>${tl(marks + (it.work ? bar(a, p, it, rmDays(it.work) + "d" + (it.slot >= 0 ? " · #" + (it.slot + 1) : "")) : ""))}</div>`; } }
+  /* team load per part, per week: busy / on the project */
   const L = RM.load(D, Sx, weeks);
-  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0">Team load · people per week, busy / in the team</div></div>${tl(marks)}</div>`;
+  let load = `<div class="rmrow lhd"><div class="rml"><div class="c0">Team load · people per week, busy / on the project</div></div>${tl(marks)}</div>`;
   for (const p of Sx.parts) { const l = L[p.id]; const c = rmPal(pidx[p.id]);
     load += `<div class="rmrow load"><div class="rml"><div class="c0"><i class="rmdot" style="background:${c.solid}"></i>${esc(p.name)}</div></div>${tl(l.need.map((n, w) => { const h = l.have[w]; if (h < 0.01 && n < 0.01) return "";
-      const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; return `<div class="rmld ${cls}" style="left:${w * cw + 1}px;width:${cw - 2}px" title="Week of ${rmFmt(RM.dateOf(D.start, w * 5))}: ${rmDays(n)} busy of ${rmDays(h)} in the team${cls === "idle" ? " — paid, no work" : cls === "over" ? " — more work than people" : ""}">${rmDays(Math.round(n * 10) / 10)}/${rmDays(Math.round(h * 10) / 10)}</div>`; }).join(""))}</div>`; }
+      const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; return `<div class="rmld ${cls}" style="left:${w * cw + 1}px;width:${cw - 2}px" title="Week of ${rmFmt(RM.dateOf(D.start, w * 5))}: ${rmDays(n)} busy of ${rmDays(h)} on the project${cls === "idle" ? " — paid, waiting for work" : ""}">${rmDays(Math.round(n * 10) / 10)}/${rmDays(Math.round(h * 10) / 10)}</div>`; }).join(""))}</div>`; }
   /* the verdict */
-  const endMs = RM.dateOf(D.start, Sx.end); const late = dl != null ? Sx.end - dl : null; const contract = +D.contract || null;
+  const endMs = RM.dateOf(D.start, Sx.end); const late = dl != null ? Sx.end - dl : null; const contract = +D.contract || null; const wks = d => Math.round(d / 5 * 10) / 10;
   const verdict = [];
-  if (dl != null) verdict.push(late > 0.5 ? `<b class="bad">Late by ${Math.round(late / 5 * 10) / 10} weeks</b> — the plan ends ${rmFmt(endMs)}, the deadline is ${rmFmt(RM.parse(D.deadline))}.` : `<b class="good">In time</b>, ${Math.round(-late / 5 * 10) / 10} weeks to spare before the deadline.`);
+  if (C.team) { const F = C.F;
+    if (F.ok === true) verdict.push(`<b class="good">Team to finish by ${rmFmt(RM.parse(D.deadline))}</b>: ${rmTeamLine(C, Sx.parts)} — the fewest people that make it; the plan ends ${rmFmt(endMs)}.`);
+    else if (F.ok === false) verdict.push(`<b class="bad">Not possible by ${rmFmt(RM.parse(D.deadline))} within your limits</b> — the earliest end is ${rmFmt(endMs)}, ${wks(late)} weeks late. The team for that end: ${rmTeamLine(C, Sx.parts)}.`);
+    else verdict.push(`No deadline yet — the team for the earliest end (${rmFmt(endMs)}): ${rmTeamLine(C, Sx.parts)}. Set a deadline in Plan data to fit the team to it.`);
+    if (C.best) verdict.push(`Held back by the limit on <b>${esc(C.best.p.name)}</b> — without it the plan could end ${wks(C.best.gain)} weeks earlier (${rmFmt(RM.dateOf(D.start, C.best.end))}).`); }
+  else { if (dl != null) verdict.push(late > 0.5 ? `<b class="bad">Late by ${wks(late)} weeks</b> — the plan ends ${rmFmt(endMs)}, the deadline is ${rmFmt(RM.parse(D.deadline))}.` : `<b class="good">In time</b>, ${wks(-late)} weeks to spare before the deadline.`);
+    if (C.best) verdict.push(`Bottleneck: <b>${esc(C.best.p.name)}</b> — one more person there ends ${wks(C.best.gain)} weeks earlier (${rmFmt(RM.dateOf(D.start, C.best.end))}).`); }
   if (contract) verdict.push(Sx.scope > contract + 0.5 ? `<b class="bad">Scope is ${rmDays(Math.round(Sx.scope - contract))} person-days over the contract</b> (${rmDays(Math.round(Sx.scope))} needed, ${rmDays(contract)} sold).` : `Scope fits the contract: ${rmDays(Math.round(Sx.scope))} of ${rmDays(contract)} person-days.`);
-  if (C.idle > 5) verdict.push(`${rmDays(Math.round(C.idle))} person-days paid but without work before the end — see the grey weeks in Team load.`);
-  if (C.best) verdict.push(`Bottleneck: <b>${esc(C.best.p.name)}</b> — one more person there from the start ends ${Math.round(C.best.gain / 5 * 10) / 10} weeks earlier (${rmFmt(RM.dateOf(D.start, C.best.end))}).`);
+  if (C.idle > 5) verdict.push(`${rmDays(Math.round(C.idle))} person-days paid while people wait for work — the hatched pauses in <b>By person</b>.`);
+  const nob = Object.values(Sx.items).flatMap(o => Object.values(o)).filter(x => x.nobody || x.clash).length;
+  if (nob) verdict.push(`<b class="bad">${nob} bar${nob > 1 ? "s" : ""} without a person</b> — a limit is 0 there, or a bar placed by hand (✎) sits where everybody is busy.`);
   const stat = (k, v, cls = "") => `<div class="stat"><span>${k}</span><b class="${cls}">${v}</b></div>`;
-  const plans = rmList();
+  const plans = rmList(); const peak = Sx.parts.reduce((t, p) => t + C.people[p.id], 0);
   return `<div class="main rmv" style="--rcw:${cw}px">
     <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy as a new plan</button></div>
-      <span class="sp"></span><button class="btn" data-act="rm-data">${RMV.data ? "Plan data ▴" : "Plan data ▾"}</button><button class="btn" data-act="rm-auto" title="Drop every bar placed by hand (✎) and lay the plan out again">Auto layout</button>
-      <button class="btn" data-act="rm-expand">${Object.values(RMV.open).some(Boolean) ? "Collapse all" : "Expand all"}</button><label class="rmz">Zoom<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label>
-      <button class="btn danger" data-act="rm-del" title="Delete this plan (to the draft)">Delete plan</button></div>
-    ${RMV.data ? rmDataPanel(plan, D) : ""}
+      <span class="sp"></span>
+      <div class="seg rmseg2" title="What the plan answers"><button data-rmmode="timeline" aria-pressed="${!C.team}" title="The team is given (Team by month) — when do we finish?">Fit timeline</button><button data-rmmode="team" aria-pressed="${C.team}" title="The deadline is given — the fewest people to make it, inside your limits">Fit team</button></div>
+      <div class="seg rmseg2" title="Rows of the Gantt"><button data-rmby="asset" aria-pressed="${RMV.by !== "person"}">By asset</button><button data-rmby="person" aria-pressed="${RMV.by === "person"}">By person</button></div>
+      <button class="btn" data-act="rm-data">${RMV.data ? "Plan data ▴" : "Plan data ▾"}</button><button class="btn" data-act="rm-auto" title="Drop every bar placed by hand (✎) and lay the plan out again">Auto layout</button>
+      <button class="btn" data-act="rm-expand">${RMV.by === "person" ? (Object.values(RMV.pshut).some(Boolean) ? "Expand all" : "Collapse all") : Object.values(RMV.open).some(Boolean) ? "Collapse all" : "Expand all"}</button><label class="rmz">Zoom<input type="range" min="30" max="140" step="5" value="${cw}" data-rmzoom></label></div>
+    ${RMV.data ? rmDataPanel(plan, D, C) : ""}
     <div class="stats">${stat("Assets", (D.assets || []).length)}${stat("Scope, person-days", rmDays(Math.round(Sx.scope)))}${stat("Contract", contract ? rmDays(contract) : "—", contract && Sx.scope > contract ? "bad" : "")}
-      ${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.monthOf(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—")}${stat("Team to the deadline", C.cap != null ? rmDays(Math.round(C.cap)) + " p-d" : "—", C.cap != null && C.cap < Sx.scope ? "bad" : "")}${stat("Paid, no work", rmDays(Math.round(C.idle)) + " p-d", C.idle > 20 ? "bad" : "")}</div>
+      ${stat("Plan ends", rmFmt(endMs) + ` <small>M${RM.mo(D.start, Sx.end) + 1}</small>`, late > 0.5 ? "bad" : "")}${stat("Deadline", D.deadline ? rmFmt(RM.parse(D.deadline)) : "—")}${stat("People", rmPpl(peak))}${stat("Paid to the deadline", C.cap != null ? rmDays(Math.round(C.cap)) + " p-d" : "—")}${stat("Paid, waiting", rmDays(Math.round(C.idle)) + " p-d", C.idle > 20 ? "bad" : "")}</div>
     ${verdict.length ? `<div class="rmverdict">${verdict.map(v => `<div>${v}</div>`).join("")}</div>` : ""}
     <div class="rmwrap"><div class="rmgt">
-      <div class="rmhead"><div class="rml"><div>Asset / part</div><div>Days</div><div>Start</div><div>End</div><div>Who</div></div><div><div class="hrow mon">${mon}</div><div class="hrow wk">${wk}</div></div></div>
+      <div class="rmhead"><div class="rml"><div>${RMV.by === "person" ? "Part / person" : "Asset / part"}</div><div>Days</div><div>Start</div><div>End</div><div>${RMV.by === "person" ? "Bench" : "Who"}</div></div><div><div class="hrow mon">${mon}</div><div class="hrow wk">${wk}</div></div></div>
       ${rows}${load}
     </div></div>
-    <div class="rmhint">Drag a bar to place it by hand (✎, step 1 day) · drag its right edge to change the days for this asset · right-click a bar for more. Parts, dependencies and the team are in <b>Plan data</b>; positions follow them at once.</div>
+    <div class="rmhint">${C.team ? "Fit team: the planner picks the fewest people per part (in pipeline order) to make the deadline; numbers in Team by month and Max are the limits it keeps to." : "Fit timeline: the team comes from Team by month (a number = the limit for that month, empty = no limit) and Max."} One person does one asset at a time; 0.5 = a separate person, 4 h a day. Drag a bar to place it by hand (✎) · drag its right edge to change the days for this asset · right-click for more.</div>
   </div>`; }
 
-function rmDataPanel(plan, D){ const tab = RMV.tab; const months = Math.max(18, Math.ceil(RM.monthOf(D.start, RM.schedule(D).end)) + 3);
+function rmDataPanel(plan, D, C){ const tab = RMV.tab; const Sx = C.S; const months = Math.max(18, RM.mo(D.start, Sx.end) + 3);
   const parts = D.parts || [];
   const head = `<div class="settings"><div class="field"><label>Plan name</label><input data-rmf="name" value="${esc(plan.name)}"></div>
     <div class="field"><label>Start</label><input type="date" data-rmf="start" value="${esc(D.start || "")}"></div>
     <div class="field"><label>Deadline</label><input type="date" data-rmf="deadline" value="${esc(D.deadline || "")}"></div>
     <div class="field"><label>Contract, person-days</label><input type="number" min="0" step="1" data-rmf="contract" value="${D.contract ?? ""}" placeholder="—"></div>
     <div class="field"><label>Assets</label><span class="rmcnt"><input type="number" min="0" max="500" step="1" data-rmf="count" value="${(D.assets || []).length}"><input data-rmf="prefix" value="${esc(D.prefix || "Character")}" title="Name for new assets"></span></div>
-    <div class="seg rmtabsw"><button data-rmtab="pipeline" aria-pressed="${tab === "pipeline"}">Parts & dependencies</button><button data-rmtab="team" aria-pressed="${tab === "team"}">Team by month</button></div></div>`;
+    <button class="btn danger rmdelbtn" data-act="rm-del" title="Delete this plan (to the draft, Ctrl+Z brings it back)">Delete plan</button><div class="seg rmtabsw"><button data-rmtab="pipeline" aria-pressed="${tab === "pipeline"}">Parts & dependencies</button><button data-rmtab="team" aria-pressed="${tab === "team"}">Team by month</button></div></div>`;
   if (tab === "pipeline") return `<section class="rmdata">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th>Starts after</th><th>How</th><th>Lag</th><th>Also after</th><th>How</th><th>Lag</th><th></th></tr></thead><tbody>
     ${parts.map((p, i) => { const d0 = p.deps?.[0] || {}, d1 = p.deps?.[1] || {}; const opts = cur => `<option value="">—</option>${parts.filter(x => x.id !== p.id).map(x => `<option value="${x.id}" ${x.id === cur ? "selected" : ""}>${esc(x.name)}</option>`).join("")}`;
       const how = (d, k) => `<select data-rmdep="${p.id}|${k}|type"><option value="fs" ${d.type !== "ss" ? "selected" : ""}>when it ends</option><option value="ss" ${d.type === "ss" ? "selected" : ""}>when it is done to</option></select>`;
@@ -897,10 +974,16 @@ function rmDataPanel(plan, D){ const tab = RMV.tab; const months = Math.max(18, 
         <td><select data-rmdep="${p.id}|1|on">${opts(d1.on)}</select></td><td>${d1.on ? how(d1, 1) : ""}</td><td>${d1.on ? lag(d1, 1) : ""}</td>
         <td class="acts"><button class="ico" data-rmpmove="${p.id}|-1" title="Up">↑</button><button class="ico" data-rmpmove="${p.id}|1" title="Down">↓</button><button class="ico del" data-rmpdel="${p.id}" title="Remove the part">✕</button></td></tr>`; }).join("")}
     <tr class="add-row"><td colspan="10"><button class="link-btn" data-act="rm-padd">＋ Production part</button> <span class="hint">“When it is done to 33 %” — starts once a third of the previous part is done (6 animations: VFX for the first two can start), and cannot end before it. “When it ends” + lag in days: a buffer, e.g. client review.</span></td></tr></tbody></table></section>`;
-  return `<section class="rmdata">${head}<div class="rmteamwrap"><table class="editor rmteam"><thead><tr><th>People in the team</th>${Array.from({ length: months }, (_, m) => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCMonth(dt.getUTCMonth() + m); return `<th>M${m + 1}<small>${RM_MON[dt.getUTCMonth()]}</small></th>`; }).join("")}</tr></thead><tbody>
-    ${parts.map((p, i) => { const arr = D.team?.[p.id] || []; return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i> ${esc(p.name)}</td>${Array.from({ length: months }, (_, m) => { const own = m < arr.length; const v = RM.fte(arr, m);
-      return `<td><input class="in num ${own ? "" : "carry"}" type="number" min="0" step="0.5" data-rmteam="${p.id}|${m}" value="${own ? arr[m] : ""}" placeholder="${rmDays(v)}" title="${own ? "" : "Same as the month before — type to change"}"></td>`; }).join("")}</tr>`; }).join("")}</tbody></table></div>
-    <div class="hint" style="padding:6px 14px 10px">Fractions are shares of a day: 1.5 = one person full-time + one half-time. An empty month keeps the number of the month before. People who are not hired yet are just numbers here — the plan says from which month you need them.</div></section>`; }
+  const need = RM.months(D, Sx, months);
+  const mhead = Array.from({ length: months }, (_, m) => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCMonth(dt.getUTCMonth() + m); return `<th>M${m + 1}<small>${RM_MON[dt.getUTCMonth()]}</small></th>`; }).join("");
+  return `<section class="rmdata">${head}<div class="rmteamwrap"><table class="editor rmteam"><thead><tr><th>People</th><th title="The most people on this part over the whole plan">Max<small>whole plan</small></th>${mhead}</tr></thead><tbody>
+    ${parts.map((p, i) => { const arr = D.team?.[p.id] || []; const mx = D.max?.[p.id]; const nd = need[p.id] || [];
+      const lim = Array.from({ length: months }, (_, m) => { const own = m < arr.length; const v = RM.raw(arr, m);
+        return `<td><input class="in num ${own ? "" : "carry"}" type="number" min="0" step="0.5" data-rmteam="${p.id}|${m}" value="${own && v != null ? v : ""}" placeholder="${v == null ? "∞" : rmDays(v)}" title="${v == null ? "No limit — the planner takes as many people as the work needs" : own ? "The limit for this month" : "Same as the month before"} · empty = no limit"></td>`; }).join("");
+      const u = C.useful[p.id] < (D.assets || []).length ? C.useful[p.id] : 0;
+      return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i> ${esc(p.name)}</td><td><input class="in num" type="number" min="0" step="0.5" data-rmmax="${p.id}" value="${mx ?? ""}" placeholder="∞" title="The most people on this part over the whole plan · empty = no limit"></td>${lim}</tr>
+        <tr class="rmneed"><td title="People on the project in this month, as planned (average over the month)">needed${u ? ` <small title="More people than this do not move the end: the parts before cannot feed them faster">useful max ${u}</small>` : ""}</td><td>${C.people[p.id] ? rmPpl(C.people[p.id]) : ""}</td>${nd.map(v => `<td>${v >= 0.05 ? rmPpl(Math.round(v * 10) / 10) : ""}</td>`).join("")}</tr>`; }).join("")}</tbody></table></div>
+    <div class="hint" style="padding:6px 14px 10px">A number = the limit of people for that month (1.5 = one full-time + one half-time person); empty (∞) = no limit — the planner takes as many as the work needs; a month left blank repeats the one before. <b>needed</b> — people on the project as planned: they join when the first asset reaches them and stay until their last one.</div></section>`; }
 
 /* ----- events ----- */
 function rmClick(t){ const a = t.closest("[data-act]")?.dataset.act;
@@ -908,12 +991,16 @@ function rmClick(t){ const a = t.closest("[data-act]")?.dataset.act;
   const plan = rmCur(); if (!plan && !a) return false;
   if (a === "rm-copy") return rmNew(plan), true;
   if (a === "rm-data") { RMV.data = !RMV.data; render(); return true; }
-  if (a === "rm-expand") { const any = Object.values(RMV.open).some(Boolean); RMV.open = {}; if (!any) for (const x of plan.data.assets || []) RMV.open[x.id] = true; render(); return true; }
+  if (a === "rm-expand") { if (RMV.by === "person") { const any = Object.values(RMV.pshut).some(Boolean); RMV.pshut = {}; if (!any) for (const x of plan.data.parts || []) RMV.pshut[x.id] = true; render(); return true; }
+    const any = Object.values(RMV.open).some(Boolean); RMV.open = {}; if (!any) for (const x of plan.data.assets || []) RMV.open[x.id] = true; render(); return true; }
+  const md = t.closest("[data-rmmode]"); if (md) { const v = md.dataset.rmmode; if ((plan.data.mode || "timeline") !== v) rmEdit(d => { d.mode = v; }, v === "team" ? "Fit team: the fewest people for the deadline" : "Fit timeline: the end for the team you set"); return true; }
+  const by = t.closest("[data-rmby]"); if (by) { RMV.by = by.dataset.rmby; render(); return true; }
+  const ptg = t.closest("[data-rmptg]"); if (ptg) { RMV.pshut[ptg.dataset.rmptg] = !RMV.pshut[ptg.dataset.rmptg]; render(); return true; }
   if (a === "rm-auto") { const n = (plan.data.assets || []).reduce((t, x) => t + Object.keys(x.pin || {}).length, 0); if (!n) { toast("Nothing is placed by hand"); return true; } rmEdit(d => d.assets.forEach(x => x.pin = {}), `Auto layout: ${n} bar${n > 1 ? "s" : ""} back to automatic`); return true; }
   if (a === "rm-del") { if (rmList().length < 1) return true; draftPush(); const add = S.draft.ops.find(o => o.t === "rmap" && o.add && o.id === plan.id);
     if (add) S.draft.ops = S.draft.ops.filter(o => !(o.t === "rmap" && o.id === plan.id)); else { S.draft.ops = S.draft.ops.filter(o => !(o.t === "rmap" && o.id === plan.id)); S.draft.ops.push({ t:"rmap", id: plan.id, remove:true }); }
     S.rmCur = null; saveDraft(); rebuild(); render(); toast(`${plan.name} deleted — in the draft, Ctrl+Z brings it back`); return true; }
-  if (a === "rm-padd") { rmEdit(d => { const id = "p" + uid().slice(0, 6); d.parts.push({ id, name:"New part", days:5, deps: d.parts.length ? [{ on: d.parts[d.parts.length - 1].id, type:"fs", lag:0 }] : [] }); d.team[id] = [1]; }, "Production part added"); return true; }
+  if (a === "rm-padd") { rmEdit(d => { const id = "p" + uid().slice(0, 6); d.parts.push({ id, name:"New part", days:5, deps: d.parts.length ? [{ on: d.parts[d.parts.length - 1].id, type:"fs", lag:0 }] : [] }); d.team = d.team || {}; }, "Production part added"); return true; }
   const tb = t.closest("[data-rmtab]"); if (tb) { RMV.tab = tb.dataset.rmtab; render(); return true; }
   const pk = t.closest("[data-rmpick]"); if (pk) { S.rmCur = pk.dataset.rmpick; render(); return true; }
   const tg = t.closest("[data-rmtg]"); if (tg) { RMV.open[tg.dataset.rmtg] = !RMV.open[tg.dataset.rmtg]; render(); return true; }
@@ -935,12 +1022,15 @@ function rmChange(el){ const plan = rmCur(); if (!plan) return false;
       p.deps = p.deps.filter(x => x && x.on);
       /* no loops: a part cannot wait for itself through others */
       if (RM.loop(d.parts)) throw new Error("loop"); }, "Dependency changed"); return true; }
-  if (el.dataset.rmteam) { const [id, m] = el.dataset.rmteam.split("|"); rmEdit(d => { const arr = d.team[id] = (d.team[id] || []).slice(); const mm = +m; const keep = RM.fte(arr, mm);
-      while (arr.length <= mm) arr.push(RM.fte(arr, arr.length)); arr[mm] = el.value === "" ? keep : Math.max(0, +el.value); while (arr.length > 1 && arr[arr.length - 1] === arr[arr.length - 2]) arr.pop(); }, "Team changed"); return true; }
+  if (el.dataset.rmteam) { const [id, m] = el.dataset.rmteam.split("|"); const raw = String(el.value).trim().replace(",", ".");
+    rmEdit(d => { d.team = d.team || {}; const arr = (d.team[id] || []).slice(); const mm = +m; while (arr.length <= mm) arr.push(RM.raw(arr, arr.length));
+      arr[mm] = raw === "" ? null : Math.max(0, +raw || 0); while (arr.length > 1 && arr[arr.length - 1] === arr[arr.length - 2]) arr.pop(); if (arr.length === 1 && arr[0] == null) arr.length = 0; d.team[id] = arr; },
+      raw === "" ? "No limit from this month" : "Team limit changed"); return true; }
+  if (el.dataset.rmmax) { const id = el.dataset.rmmax; const raw = String(el.value).trim().replace(",", "."); rmEdit(d => { d.max = d.max || {}; if (raw === "") delete d.max[id]; else d.max[id] = Math.max(0, +raw || 0); }, raw === "" ? "Max: no limit" : "Max people set"); return true; }
   return false; }
 /* drag a bar: place by hand (pin, 1-day step); drag its right edge: days for this asset */
 function rmDown(e){ const rz = e.target.closest("[data-rmrz]"), b = e.target.closest("[data-rmbar]"); if (!b || e.button !== 0) return false; const plan = rmCur(); if (!plan) return false;
-  const [aid, pid] = (rz?.dataset.rmrz || b.dataset.rmbar).split("|"); const D = plan.data; const it = RM.schedule(D).items[aid]?.[pid]; if (!it) return false;
+  const [aid, pid] = (rz?.dataset.rmrz || b.dataset.rmbar).split("|"); const D = plan.data; const it = rmCalc(D).S.items[aid]?.[pid]; if (!it) return false;
   const dw = RMV.zoom / 5, x0 = e.clientX, l0 = parseFloat(b.style.left), w0 = parseFloat(b.style.width); let moved = false, val = null; e.preventDefault();
   document.body.classList.add(rz ? "rmsizing" : "rmmoving");
   const mm = ev => { const dx = (ev.clientX - x0) / zf(); if (Math.abs(dx) > 3) moved = true; if (!moved) return;
@@ -962,6 +1052,7 @@ function rmDbl(e){ const n = e.target.closest("[data-rmname]"), pk = e.target.cl
   if (n) { const a = plan.data.assets.find(x => x.id === n.dataset.rmname); askName("Rename the asset", v => v.trim() && rmEdit(d => { d.assets.find(x => x.id === a.id).name = v.trim(); }, "Asset renamed"), "", a.name, "Rename"); return true; }
   if (pk) { askName("Rename the plan", v => v.trim() && rmPush(plan, { name: v.trim() }, "Plan renamed"), "", plan.name, "Rename"); return true; }
   return false; }
+
 
 /* ---------------- tracker ---------------- */
 const fltOn = () => Object.values(S.flt).some(v => v.size);
