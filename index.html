@@ -510,6 +510,7 @@ table.rmteam td.rmtot.low{color:var(--alarm-fg);background:var(--alarm)!importan
 .rmrow.lhd{position:sticky;top:41px;z-index:15}
 .rmrow.lhd .tg{margin-right:8px;border-color:#5d7fa6;background:transparent;color:#dfeaf7} .rmrow.lhd .tg.open{background:var(--accent);border-color:var(--accent)} .rmrow.lhd>.rml>div.c0{display:flex;align-items:center}
 .rmv .stats.rmsum{border-top:1px solid var(--frame);border-bottom:1px solid var(--hair)} .rmv .stats.rmsum+.rmverdict{border-top:0}
+table.rmteam td.rmtot,table.rmteam td.rmest{z-index:2}
 </style>
 </head>
 <body>
@@ -1159,7 +1160,7 @@ function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; con
   } else {
     /* one row per person: their working days per month; typing a number makes it their availability that month (empty = not on the project) */
     for (const p of Sx.parts) { const P = Sx.people[p.id] || []; if (!P.length) continue; const c = rmPal(pidx[p.id]).solid;
-      body += `<tr class="rmpgrp"><td colspan="${lead + months + 2}"><i class="rmdot" style="background:${c}"></i> ${esc(p.name)} <small>${P.length} ${P.length > 1 ? "people" : "person"} · ${md(sum(pm[p.id].flatMap(a => a)))} man-days on the project · estimated ${md(est[p.id])}</small></td></tr>`;
+      body += `<tr class="rmpgrp"><td colspan="${lead + months}"><i class="rmdot" style="background:${c}"></i> ${esc(p.name)} <small>${P.length} ${P.length > 1 ? "people" : "person"} · ${md(sum(pm[p.id].flatMap(a => a)))} man-days on the project · estimated ${md(est[p.id])}</small></td><td class="rmtot" title="Man-days of ${esc(p.name)} on the project">${md(sum(pm[p.id].flatMap(a => a)))}</td><td class="rmest" title="${(D.assets || []).length} assets × ${rmDays(p.days)} d">${md(est[p.id])}</td></tr>`;
       P.forEach((x, n) => { const av = D.avail?.[p.id]?.[x.k] || {}; const edited = Object.keys(av).length > 0; const row = pm[p.id][n];
         body += `<tr><td class="rmpn">${esc(p.name)} #${x.k + 1}${edited ? ` <button class="ico rmback" data-rmavreset="${p.id}|${x.k}" title="Back to plan: drop the days you typed for this person">↺</button>` : ""}</td><td class="r">${rmPpl(x.r * 8)} h</td><td class="l">${rmFmt(RM.dateOf(D.start, x.first))}</td><td class="l">${rmFmt(RM.dateOf(D.start, Math.max(x.first, x.last - 0.01)))}</td>${keys.map((k, m) => { const own = av[k] != null; const v = own ? av[k] : Math.round(row[m] / (x.r || 1));
           return `<td><input class="in num ${own ? "own" : "carry"}" type="number" min="0" max="31" step="1" data-rmav="${p.id}|${x.k}|${k}" value="${own ? av[k] : ""}" placeholder="${v >= 1 ? v : ""}" title="${esc(`${p.name} #${x.k + 1} · ${k}\n${own ? "Typed by you: " + av[k] + " days — the plan follows" : "As planned: " + (v || 0) + " working days"}\nType the days this person works this month · 0 = not on the project`)}"></td>`; }).join("")}<td class="rmtot">${md(sum(row))}</td><td class="rmest"></td></tr>`; }); }
