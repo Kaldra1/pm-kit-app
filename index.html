@@ -407,7 +407,7 @@ table.rmpe,table.rmteam{border-collapse:collapse;width:100%}
 .rmrow.lhd{background:var(--head)} .rmrow.lhd>.rml>div.c0{color:var(--head-fg);font:600 11.5px var(--fh);letter-spacing:.08em;text-transform:uppercase;grid-column:1/-1}
 .rmrow.load{background:#f3f7fc} .rmrow.load>.rml>div.c0{grid-column:1/-1;font:600 11px var(--fm);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)} .rmrow.load .rmtl{height:26px} .rmrow.load>.rml>div{height:26px}
 .rmv .tg{width:18px;height:18px;border:1px solid var(--hair2);background:#fff;font:700 12px/14px var(--fm);color:var(--accent-d);padding:0;flex:none;border-radius:0;cursor:pointer} .rmv .tg.open{background:var(--accent);border-color:var(--accent);color:#fff}
-.rmtl{position:relative;flex:none;height:30px;background-image:repeating-linear-gradient(to right,var(--hair) 0 1px,transparent 1px var(--rcw))}
+.rmtl{position:relative;flex:none;height:30px;background-image:var(--rgrid);background-size:100% 100%;background-repeat:no-repeat}
 .rmseg{position:absolute;top:8px;height:14px;z-index:2;opacity:.95;display:flex;flex-direction:column} .rmseg>i{flex:1;display:block}
 .rmbar{position:absolute;top:4px;height:22px;z-index:3;border:1px solid;cursor:grab;touch-action:none;overflow:hidden}
 .rmbar>span{position:absolute;left:5px;top:1px;font:600 10.5px/18px var(--fm);white-space:nowrap;pointer-events:none}
@@ -938,11 +938,15 @@ RM.schedule = (D, opt = {}) => { RM.useCal(D);
 RM.personIn = (S, pid, x, lo, hi) => { let t = 0, d = Math.max(lo, Math.floor(x.first + 1e-6)); const e = Math.min(hi, Math.ceil(x.last - 1e-6)); let g = 0; while (d < e - 1e-9 && g++ < 400) { const m = RM.mo(S.start, d), rg = RM.monthRange(S.start, m), nx = Math.min(e, rg ? rg[1] : e); t += (nx - d) * x.r * S.eff(pid, x.k, m); d = nx; } return t; };
 RM.paidIn = (S, lo, hi, pid) => { let t = 0; for (const p of S.parts) { if (pid && p.id !== pid) continue; for (const x of S.people[p.id]) t += RM.personIn(S, p.id, x, lo, hi); } return t; };
 /* weekly load per part: busy vs on the payroll (people) */
-RM.load = (D, S, weeks) => { const out = {};
-  for (const p of S.parts) { const need = Array(weeks).fill(0), have = Array(weeks).fill(0);
-    for (let w = 0; w < weeks; w++) have[w] = RM.paidIn(S, w * 5, w * 5 + 5, p.id) / 5;
+/* calendar weeks, Monday to Sunday, on the working-day axis: s = its first working day, e = the next week's, ms = its Monday (a holiday Monday too) */
+RM.weeks = (start, upTo) => { const s0 = RM.parse(start); if (s0 == null) return []; let mon = s0 - ((new Date(s0).getUTCDay() + 6) % 7) * 864e5; const out = []; let s = 0;
+  while ((s < upTo || !out.length) && out.length < 800) { const next = mon + 7 * 864e5; const e = RM.dayOf(start, RM.iso(next)); if (e > s) out.push({ s, e, ms: mon }); s = Math.max(s, e); mon = next; } return out; };
+RM.weekAt = (W, d) => { let lo = 0, hi = W.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (W[m].s <= d) lo = m; else hi = m - 1; } return lo; };
+RM.load = (D, S, W) => { const out = {};
+  for (const p of S.parts) { const need = Array(W.length).fill(0), have = Array(W.length).fill(0);
+    W.forEach((w, i) => { have[i] = RM.paidIn(S, w.s, w.e, p.id) / (w.e - w.s); });
     for (const a of Object.values(S.items)) { const it = a[p.id]; if (!it || it.slot < 0 || !it.work) continue;
-      for (let w = Math.floor(it.start / 5); w < Math.ceil(it.end / 5) && w < weeks; w++) need[w] += Math.max(0, Math.min(w * 5 + 5, it.end) - Math.max(w * 5, it.start)) * it.rate * S.eff(p.id, it.slot, RM.mo(D.start, w * 5 + 2)) / 5; }
+      for (let i = RM.weekAt(W, it.start); i < W.length && W[i].s < it.end; i++) { const w = W[i]; need[i] += Math.max(0, Math.min(w.e, it.end) - Math.max(w.s, it.start)) * it.rate * S.eff(p.id, it.slot, RM.mo(D.start, Math.floor((w.s + w.e) / 2))) / (w.e - w.s); } }
     out[p.id] = { need, have }; }
   return out; };
 /* people on the payroll per month (average over the month's working days) */
@@ -1037,21 +1041,22 @@ function sheetRoadmap(){
   const plan = rmCur();
   if (!plan) return `<div class="main rmv"><div class="rmempty"><b>High-level plan</b><span>Production parts per asset — Concept, 3D, Tech animation, Animation, VFX — on a week grid, with dependencies, the team month by month and a check against the contract.</span><button class="btn primary" data-act="rm-new">＋ Create a plan</button></div></div>`;
   S.rmCur = plan.id; const D = plan.data; const C = rmCalc(D), Sx = C.S;
-  const cw = RMV.zoom, dw = cw / 5; const weeks = Math.max(Math.ceil(Math.max(Sx.end, C.until || 0) / 5) + 4, 26);
+  const cw = RMV.zoom, dw = cw / 5; const W = RM.weeks(D.start, Math.max(Sx.end + 20, (C.until || 0) + 20, 130)); const weeks = W.length, tlW = (W.length ? W[W.length - 1].e : 0) * dw;
+  const wkGrid = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${tlW}" height="10" viewBox="0 0 ${tlW} 10" preserveAspectRatio="none">${W.map(w => `<rect x="${w.s * dw}" width="1" height="10" fill="#e2e9f2"/>`).join("")}</svg>`)}")`;
   /* header: months and weeks */
   let mon = "", wk = ""; let curM = -1, span = 0, label = "";
-  for (let w = 0; w < weeks; w++) { const ms = RM.dateOf(D.start, w * 5), dt = new Date(ms); const m = dt.getUTCFullYear() * 12 + dt.getUTCMonth();
-    if (m !== curM) { if (span) mon += `<div style="width:${span * cw}px">${label}</div>`; curM = m; span = 0; label = RM_MON[dt.getUTCMonth()] + " " + String(dt.getUTCFullYear()).slice(2) + ` <i>M${RM.mo(D.start, w * 5) + 1}</i>`; }
-    span++; wk += `<div class="${RM.mo(D.start, w * 5) !== RM.mo(D.start, w * 5 - 5) ? "ms" : ""}">${cw >= 30 ? String(dt.getUTCDate()).padStart(2, "0") + "." + String(dt.getUTCMonth() + 1).padStart(2, "0") : cw >= 18 ? String(dt.getUTCDate()).padStart(2, "0") : ""}</div>`; }
-  mon += `<div style="width:${span * cw}px">${label}</div>`;
+  W.forEach((x, w) => { const dt = new Date(x.ms), d1 = new Date(RM.dateOf(D.start, x.s)); const m = RM.mo(D.start, x.s); const wpx = (x.e - x.s) * dw;
+    if (m !== curM) { if (span) mon += `<div style="width:${span}px">${label}</div>`; curM = m; span = 0; label = RM_MON[d1.getUTCMonth()] + " " + String(d1.getUTCFullYear()).slice(2) + ` <i>M${m + 1}</i>`; }
+    span += wpx; wk += `<div class="${w && m !== RM.mo(D.start, W[w - 1].s) ? "ms" : ""}" style="width:${wpx}px" title="Week of Monday ${rmFmt(x.ms)} · ${x.e - x.s} working days">${wpx >= 37 ? String(dt.getUTCDate()).padStart(2, "0") + "." + String(dt.getUTCMonth() + 1).padStart(2, "0") : wpx >= 18 ? String(dt.getUTCDate()).padStart(2, "0") : ""}</div>`; });
+  mon += `<div style="width:${span}px">${label}</div>`;
   const todayD = RM.dayOf(D.start, new Date().toISOString().slice(0, 10)); const dl = C.until;
-  const marks = `${todayD > 0 && todayD < weeks * 5 ? `<b class="rmtoday" style="left:${todayD * dw}px"></b>` : ""}${dl != null ? `<b class="rmdl" style="left:${dl * dw}px"><span>Deadline ${rmFmt(RM.parse(D.deadline))}</span></b>` : ""}`;
+  const marks = `${todayD > 0 && todayD * dw < tlW ? `<b class="rmtoday" style="left:${todayD * dw}px"></b>` : ""}${dl != null ? `<b class="rmdl" style="left:${dl * dw}px"><span>Deadline ${rmFmt(RM.parse(D.deadline))}</span></b>` : ""}`;
   const pidx = Object.fromEntries((D.parts || []).map((p, i) => [p.id, i]));
   const who = (p, k) => { const x = Sx.people[p.id][k]; return `${p.name} #${k + 1}${x && x.r < 1 ? ` · ${rmPpl(x.r * 8)} h/day` : ""}`; };
   const bar = (a, p, it, text) => { const c = rmPal(pidx[p.id]); const w = Math.max(2, (it.end - it.start) * dw);
     const ov = a.days?.[p.id] != null && Math.abs(+a.days[p.id] - (+p.days || 0)) > 1e-6; return `<div class="rmbar ${it.pinned ? "pin" : ""} ${a.days?.[p.id] != null && +a.days[p.id] < (+p.days || 0) - 1e-6 ? "short" : ""} ${it.early ? "early" : ""} ${it.nobody || it.clash ? "nobody" : ""}" data-rmbar="${a.id}|${p.id}" style="left:${it.start * dw}px;width:${w}px;background:${c.solid};border-color:${c.solid};color:#fff" title="${esc(a.name)} · ${esc(p.name)}\n${rmFmt(RM.dateOf(D.start, it.start))} → ${rmFmt(RM.dateOf(D.start, Math.max(it.start, it.end - 0.01)))}\n${rmDays(it.work)} d of work${it.rate && it.rate < 1 ? ` at ${rmPpl(it.rate * 8)} h a day → ${rmDays(Math.round((it.end - it.start) * 100) / 100)} working days on the calendar` : ""}${it.slot >= 0 ? " · " + esc(who(p, it.slot)) : ""}${it.nobody ? "\nNobody in the team for this part — see the limits in Team by month" : ""}${it.clash ? "\nNobody is free on this day — every person is busy" : ""}${it.pinned ? "\n✎ placed by hand — the planner keeps it here; right-click › Back to automatic" : ""}${it.early ? "\nStarts before its input is ready (by the dependencies: " + rmFmt(RM.dateOf(D.start, it.earliest)) + ") — your call" : ""}${ov ? (+a.days[p.id] < (+p.days || 0) - 1e-6 ? `\n⚠ Fewer days than estimated: ${rmDays(+a.days[p.id])} of ${rmDays(p.days)}` : "\nDays changed for this asset") : ""}">
       ${w > 34 ? `<span>${esc(text)}</span>` : ""}${it.pinned ? `<i class="rmpin">✎</i>` : a.who?.[p.id] != null ? `<i class="rmpin">👤</i>` : ""}<i class="rmrz" data-rmrz="${a.id}|${p.id}"></i></div>`; };
-  const tl = inner => `<div class="rmtl" style="width:${weeks * cw}px">${inner}</div>`;
+  const tl = inner => `<div class="rmtl" style="width:${tlW}px">${inner}</div>`;
   const dd = d => rmFmt(RM.dateOf(D.start, d)), de = (s, e) => rmFmt(RM.dateOf(D.start, Math.max(s, e - 0.01)));
   /* a Start cell you can type into (double-click): the bars it stands for move together so that the first one starts on that date */
   const stc = (pairs, s0, key) => { if (!pairs.length) return `<div class="l"></div>`; const ed = RMV.sedit === key;
@@ -1080,13 +1085,13 @@ function sheetRoadmap(){
         if (RMV.sedit === key) return `<div class="r ed rmst"><input type="number" min="0" step="0.25" class="rmstin" value="${a.days?.[p.id] ?? p.days}" data-rmdin="${a.id}:${p.id}" onkeydown="rmDKey(event)" onblur="rmDApply(this)" placeholder="${p.days}"></div>`;
         return `<div class="r rmdc ${own ? (sh ? "ov short" : "ov") : ""}" data-rmst="${key}" title="${own ? `Days set for this asset: ${rmDays(+a.days[p.id])} (plan: ${rmDays(p.days)})${sh ? " — fewer than estimated" : ""}. Double-click to change · ↺ back to the plan` : `Days per asset from Plan data: ${rmDays(p.days)}. Double-click to set other days for this asset`}">${own ? `<button class="rmdreset" data-rmdreset="${a.id}:${p.id}" title="Back to ${rmDays(p.days)} d from Plan data">↺</button>` : ""}${rmDays(it.work)}</div>`; })()}<div class="r">${it.work ? Math.ceil(it.end - it.start - 1e-6) + " d" : ""}</div>${it.work ? stc([a.id + ":" + p.id], it.start, "i:" + a.id + ":" + p.id) : `<div class="l"></div>`}<div class="l">${it.work ? de(it.start, it.end) : ""}</div></div>${tl(marks + (it.work ? bar(a, p, it, rmDays(it.work) + "d" + (it.rate && it.rate < 1 ? ` at ${rmPpl(it.rate * 8)}h/day = ${rmDays(Math.round((it.end - it.start) * 10) / 10)}d` : "") + (it.slot >= 0 ? " · #" + (it.slot + 1) : "")) : ""))}</div>`; } }
   /* team load per part, per week: busy / on the project */
-  const L = RM.load(D, Sx, weeks);
+  const L = RM.load(D, Sx, W);
   /* week dates over the load rows, as in the header — easier to read when there are many rows */
-  const wkl = Array.from({ length: weeks }, (_, w) => { const dt = new Date(RM.dateOf(D.start, w * 5)); const ms = RM.mo(D.start, w * 5) !== RM.mo(D.start, w * 5 - 5); return `<div class="rmlw ${ms ? "ms" : ""}" style="left:${w * cw}px;width:${cw}px">${cw >= 30 ? String(dt.getUTCDate()).padStart(2, "0") + "." + String(dt.getUTCMonth() + 1).padStart(2, "0") : cw >= 18 ? String(dt.getUTCDate()).padStart(2, "0") : ""}</div>`; }).join("");
+  const wkl = W.map((x, w) => { const dt = new Date(x.ms); const ms = w && RM.mo(D.start, x.s) !== RM.mo(D.start, W[w - 1].s); const wpx = (x.e - x.s) * dw; return `<div class="rmlw ${ms ? "ms" : ""}" style="left:${x.s * dw}px;width:${wpx}px">${wpx >= 37 ? String(dt.getUTCDate()).padStart(2, "0") + "." + String(dt.getUTCMonth() + 1).padStart(2, "0") : wpx >= 18 ? String(dt.getUTCDate()).padStart(2, "0") : ""}</div>`; }).join("");
   let load = `<div class="rmrow lhd"><div class="rml"><div class="c0"><button class="tg ${RMV.noLoad ? "" : "open"}" data-act="rm-load" title="${RMV.noLoad ? "Show" : "Hide"} the team load (it is never printed to PDF)">${RMV.noLoad ? "+" : "−"}</button>Team load · people per week, busy / on the project</div></div>${tl(wkl + marks)}</div>`;
   if (!RMV.noLoad) for (const p of Sx.parts) { const l = L[p.id]; const c = rmPal(pidx[p.id]);
     load += `<div class="rmrow load"><div class="rml"><div class="c0"><i class="rmdot" style="background:${c.solid}"></i>${esc(p.name)}</div></div>${tl(l.need.map((n, w) => { const h = l.have[w]; if (h < 0.01 && n < 0.01) return "";
-      const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; return `<div class="rmld ${cls}" style="left:${w * cw + 1}px;width:${cw - 2}px" title="Week of ${rmFmt(RM.dateOf(D.start, w * 5))}: ${rmDays(n)} busy of ${rmDays(h)} on the project${cls === "idle" ? " — paid, waiting for work" : ""}">${cw >= 44 ? rmDays(Math.round(n * 10) / 10) + "/" + rmDays(Math.round(h * 10) / 10) : cw >= 22 ? rmDays(Math.round(n)) : ""}</div>`; }).join(""))}</div>`; }
+      const cls = n > h + 0.01 ? "over" : h - n >= 0.5 ? "idle" : "ok"; const x = W[w], wpx = (x.e - x.s) * dw; return `<div class="rmld ${cls}" style="left:${x.s * dw + 1}px;width:${wpx - 2}px" title="Week of ${rmFmt(x.ms)} (${x.e - x.s} working days): ${rmDays(n)} busy of ${rmDays(h)} on the project${cls === "idle" ? " — paid, waiting for work" : ""}">${wpx >= 44 ? rmDays(Math.round(n * 10) / 10) + "/" + rmDays(Math.round(h * 10) / 10) : wpx >= 22 ? rmDays(Math.round(n)) : ""}</div>`; }).join(""))}</div>`; }
   /* the verdict */
   const endMs = RM.dateOf(D.start, Sx.end); const late = dl != null ? Sx.end - dl : null; const contract = +D.contract || null; const wks = d => Math.round(d / 5 * 10) / 10;
   const verdict = [];
@@ -1112,7 +1117,7 @@ function sheetRoadmap(){
   if (nob) verdict.push(`<b class="bad">${nob} bar${nob > 1 ? "s" : ""} without a person</b> — a limit is 0 there, or a bar placed by hand (✎) sits where everybody is busy.`);
   const stat = (k, v, cls = "", tip = "") => `<div class="stat" ${tip ? `title="${esc(tip)}"` : ""}><span>${k}</span><b class="${cls}">${v}</b></div>`;
   const plans = rmList(); const peak = Sx.parts.reduce((t, p) => t + C.people[p.id], 0);
-  return `<div class="main rmv ${RMV.by === "person" ? "byperson" : "byasset"}" style="--rcw:${cw}px"><div class="rmprinthead" data-t="${document.body?.classList.contains("rmprinttab") ? esc(rmTableName()) : ""}"><b>${esc(plan.name)}</b> · ${esc(S.project?.name || "")} · ${D.mode === "team" ? "Fit team" : "Fit timeline"}${D.withRisk ? " · risks included" : ""} · PM-Kit, ${rmFmt(Date.now())}</div>
+  return `<div class="main rmv ${RMV.by === "person" ? "byperson" : "byasset"}" style="--rcw:${cw}px;--rgrid:${wkGrid.replace(/"/g, "&quot;")}"><div class="rmprinthead" data-t="${document.body?.classList.contains("rmprinttab") ? esc(rmTableName()) : ""}"><b>${esc(plan.name)}</b> · ${esc(S.project?.name || "")} · ${D.mode === "team" ? "Fit team" : "Fit timeline"}${D.withRisk ? " · risks included" : ""} · PM-Kit, ${rmFmt(Date.now())}</div>
     <div class="rmtop"><div class="rmdraft">${draftBar()}</div><span class="rmsep"></span><div class="rmtabs">${plans.map(x => `<button class="rmsc ${x.id === plan.id ? "on" : ""}" data-rmpick="${x.id}" title="Double-click to rename">${esc(x.name)}${x._new ? " •" : ""}</button>`).join("")}<button class="rmsc add" data-act="rm-copy" title="A new plan from this one — to compare variants">＋ Copy plan</button></div>
       <span class="sp"></span>
       <div class="seg rmseg2" title="What the plan answers"><button data-rmmode="timeline" aria-pressed="${!C.team}" title="The team is given (Team by month) — when do we finish?">Fit timeline</button><button data-rmmode="team" aria-pressed="${C.team}" title="The deadline is given — the fewest people to make it, inside your limits">Fit team</button></div>
@@ -1257,18 +1262,18 @@ async function rmExportXlsx(plan){ toast("Building the Excel file…"); let X; t
   for (const v of [...document.querySelectorAll(".rmverdict > div")].map(x => x.innerText)) sm.addRow(["", v]);
   sm.getColumn(1).font = { bold: true };
   /* Gantt: asset and part rows, a column per week */
-  const weeks = Math.max(Math.ceil(Math.max(Sx.end, until || 0) / 5) + 1, 4);
+  const W = RM.weeks(D.start, Math.max(Sx.end, until || 0, 20)), weeks = W.length;
   const g = wb.addWorksheet("Gantt", { views: [{ state: "frozen", xSplit: 6, ySplit: 1 }] });
   g.columns = [{ header: "Asset / part", width: 26 }, { header: "Person", width: 18 }, { header: "Start", width: 11 }, { header: "End", width: 11 }, { header: "Work days", width: 10 }, { header: "Calendar", width: 10 },
-    ...Array.from({ length: weeks }, (_, w) => { const d = new Date(RM.dateOf(D.start, w * 5)); return { header: String(d.getUTCDate()).padStart(2, "0") + "." + String(d.getUTCMonth() + 1).padStart(2, "0"), width: 4.2 }; })];
+    ...W.map(x => { const d = new Date(x.ms); return { header: String(d.getUTCDate()).padStart(2, "0") + "." + String(d.getUTCMonth() + 1).padStart(2, "0"), width: 4.2 }; })];
   head(g, 1); g.getRow(1).height = 30; for (let w = 0; w < weeks; w++) g.getCell(1, 7 + w).alignment = { textRotation: 90, horizontal: "center" };
-  const paint = (row, s, e, color) => { for (let w = Math.floor(s / 5); w < Math.ceil(e / 5) && w < weeks; w++) { const ov = Math.min(e, w * 5 + 5) - Math.max(s, w * 5); if (ov < 0.5) continue; row.getCell(7 + w).fill = { type: "pattern", pattern: "solid", fgColor: { argb: hex(color) } }; } };
+  const paint = (row, s, e, color) => { for (let w = RM.weekAt(W, s); w < weeks && W[w].s < e; w++) { const ov = Math.min(e, W[w].e) - Math.max(s, W[w].s); if (ov < 0.5) continue; row.getCell(7 + w).fill = { type: "pattern", pattern: "solid", fgColor: { argb: hex(color) } }; } };
   for (const a of D.assets || []) { const its = Sx.items[a.id] || {}; const vals = Object.values(its).filter(x => x.work > 0); if (!vals.length) continue; const s = Math.min(...vals.map(x => x.start)), e = Math.max(...vals.map(x => x.end));
     const r = g.addRow([a.name, "", rmIso(D, s), rmIso(D, Math.max(s, e - 0.01)), Math.round(Sx.parts.reduce((t, p) => t + RM.dur(D, a, p), 0) * 100) / 100, Math.round((e - s) * 10) / 10]); r.font = { bold: true }; r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD8E6F4" } };
     for (const p of Sx.parts) { const it = its[p.id]; if (it && it.work > 0) paint(r, it.start, it.end, rmPal(pidx[p.id]).solid); }
     for (const p of Sx.parts) { const it = its[p.id]; if (!it || !it.work) continue; const x = it.slot >= 0 ? Sx.people[p.id][it.slot] : null;
       const rr = g.addRow(["   " + p.name, x ? `#${x.k + 1}${x.r < 1 ? ` · ${rmPpl(x.r * 8)} h/day` : ""}` : "nobody", rmIso(D, it.start), rmIso(D, Math.max(it.start, it.end - 0.01)), Math.round(it.work * 100) / 100, Math.round((it.end - it.start) * 10) / 10]); rr.outlineLevel = 1; paint(rr, it.start, it.end, rmPal(pidx[p.id]).solid); } }
-  if (until != null) { const w = Math.floor(until / 5); if (w < weeks) g.getColumn(7 + w).eachCell(c => { c.border = { right: { style: "medium", color: { argb: "FFA83A26" } } }; }); }
+  if (until != null) { const w = RM.weekAt(W, Math.max(0, until - 0.01)); if (w < weeks) g.getColumn(7 + w).eachCell(c => { c.border = { right: { style: "medium", color: { argb: "FFA83A26" } } }; }); }
   /* Team by month */
   const months = Math.max(6, RM.mo(D.start, Sx.end) + 1); const need = RM.months(D, Sx, months);
   const tm = wb.addWorksheet("Team by month", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
@@ -1340,7 +1345,7 @@ async function rmPdfGantt(){ const plan = rmCur(); if (!plan) return; toast("Bui
   const drawHead = () => { doc.setFillColor(36, 72, 110); doc.rect(M, M, W - 2 * M, 12, "F"); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(7);
     let x = M; hl.forEach((t, i) => { if (i < cols.length) { doc.text(t.toUpperCase(), x + 1.5, M + 7.5); x += cols[i]; } });
     let mx = M + LW; for (const m of mons) { const w = parseFloat(m.style.width) * k; doc.setFontSize(6.5); { let t = rmTxt(m); if (doc.getTextWidth(t) > w - 1.5) t = t.replace(/\s*M\d+$/, ""); if (doc.getTextWidth(t) <= w - 1.5) doc.text(t, mx + 1, M + 4.2); } doc.setDrawColor(93, 127, 166); doc.line(mx, M, mx, M + 12); mx += w; }
-    doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); const cw = tlw / Math.max(1, wks.length) * k; wks.forEach((wk, i) => { const t = rmTxt(wk); if (t && cw > 5) doc.text(t, M + LW + i * cw + cw / 2, M + 10.2, { align: "center" }); }); };
+    doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); let wx = M + LW; wks.forEach(wk => { const cw = parseFloat(wk.style.width) * k; const t = rmTxt(wk); if (t && cw > 5) doc.text(t, wx + cw / 2, M + 10.2, { align: "center" }); wx += cw; }); };
   drawHead(); let y = M + 12;
   const dl = gt.querySelector(".rmdl"), dlx = dl ? parseFloat(dl.style.left) : null;
   for (const r of rows) { if (y + RH > H - M) { doc.addPage(); drawHead(); y = M + 12; }
