@@ -519,6 +519,9 @@ table.rmteam td.rmtot,table.rmteam td.rmest{z-index:2}
 .rmst{cursor:text} .rmst:hover{background:#eef4fb;box-shadow:inset 0 0 0 1px var(--frame)} .rmst.ed{padding:0!important} .rmstin{width:100%;height:100%;border:0;box-shadow:inset 0 0 0 2px var(--accent);font:12px var(--fm);padding:0 4px;background:#fff}
 .rmdc{cursor:text;position:relative} .rmdc:hover{background:#eef4fb;box-shadow:inset 0 0 0 1px var(--frame)}
 .rmdreset{position:absolute;left:3px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--accent-d);font-size:12px;padding:0 2px;cursor:pointer;opacity:.7} .rmdreset:hover{opacity:1}
+.rmdotb{border:0;background:none;padding:3px;cursor:pointer;border-radius:50%;transition:background .15s} .rmdotb:hover{background:var(--strip)} .rmdotb .rmdot{display:block;width:12px;height:12px}
+.rmsw{display:grid;grid-template-columns:repeat(6,1fr);gap:6px} .rmsw button{height:26px;border:2px solid #fff;box-shadow:0 0 0 1px var(--hair2);cursor:pointer;transition:transform .12s} .rmsw button:hover{transform:scale(1.08)} .rmsw button.on{box-shadow:0 0 0 2px var(--title)}
+.rmcpop input[type=color]{height:30px;padding:0 2px;border:1px solid var(--hair2);background:#fff;width:100%}
 </style>
 </head>
 <body>
@@ -972,7 +975,10 @@ const RMPAL = [
   { solid:"#8b9bb4", light:"#f2f5f9", bd:"#b8c3d4", fg:"#3f4a5c" },   // 3D animation
   { solid:"#e2a02b", light:"#fff3d6", bd:"#e7c766", fg:"#5a4200" },   // VFX
 ];
-const rmPal = i => RMPAL[i % RMPAL.length];
+/* a part's colour: the one you picked (Parts & dependencies › the dot), otherwise the palette by its place */
+const rmMix = (hex, w) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => Math.round(v + (255 - v) * w)); return "#" + c.map(v => v.toString(16).padStart(2, "0")).join(""); };
+const rmPal = i => { const c = rmCur()?.data?.parts?.[i]?.color; if (/^#[0-9a-f]{6}$/i.test(c || "")) return { solid: c, light: rmMix(c, 0.88), bd: rmMix(c, 0.5), fg: c }; return RMPAL[i % RMPAL.length]; };
+const RM_SWATCH = ["#3d86c6", "#8a78bd", "#17b3b0", "#24486e", "#8b9bb4", "#e2a02b", "#2e9e5b", "#c0392b", "#e06a9a", "#d4a017", "#5d6b7d", "#0d514e"];
 const rmDays = v => { const r = Math.round(v * 100) / 100; return String(r); };
 const rmFmt = ms => { const d = new Date(ms); return String(d.getUTCDate()).padStart(2, "0") + "." + String(d.getUTCMonth() + 1).padStart(2, "0") + "." + String(d.getUTCFullYear()).slice(2); };
 const RM_MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -1139,14 +1145,14 @@ function rmDataPanel(plan, D, C, full){ const tab = RMV.tab; const Sx = C.S; con
   if (tab === "pipeline") return `<section class="rmdata ${full ? "full" : ""}">${head}<table class="editor rmpe"><thead><tr><th></th><th>Production part</th><th>Days per asset</th><th title="${esc(RM_RISK_TIP)}">Risk, days<small>per asset · empty = project risk</small></th><th>Starts after</th><th title="When the part it waits for is done to this share: 100 % = finished, 50 % = half done, 0 % = together">at, %</th><th>Also after</th><th>at, %</th><th title="How long an asset may wait for an artist already on the project before a new one is brought in: half of the days of the part it waits for, at least 5">Waits for<small>a free artist</small></th><th title="The whole part starts not before this date (also: drag the part in By person)">Starts<small>not before</small></th><th></th></tr></thead><tbody>
     ${parts.map((p, i) => { const d0 = p.deps?.[0] || {}, d1 = p.deps?.[1] || {}; const opts = cur => `<option value="">—</option>${parts.filter(x => x.id !== p.id).map(x => `<option value="${x.id}" ${x.id === cur ? "selected" : ""}>${esc(x.name)}</option>`).join("")}`;
       const at = (d, k) => `<span class="rmlag"><input type="number" min="0" max="100" step="5" data-rmdep="${p.id}|${k}|at" value="${RM.at(d)}" title="100 % = when it is finished · 50 % = when half is done (and it cannot end before it) · 0 % = together">%</span>`;
-      return `<tr><td><i class="rmdot" style="background:${rmPal(i).solid}"></i></td><td><input class="in name" data-rmpart="${p.id}|name" value="${esc(p.name)}"></td><td><input class="in num" type="number" min="0" step="0.25" data-rmpart="${p.id}|days" value="${p.days}"></td>
+      return `<tr><td><button class="rmdotb" data-rmcolor="${p.id}" title="Click to pick the colour of ${esc(p.name)}"><i class="rmdot" style="background:${rmPal(i).solid}"></i></button></td><td><input class="in name" data-rmpart="${p.id}|name" value="${esc(p.name)}"></td><td><input class="in num" type="number" min="0" step="0.25" data-rmpart="${p.id}|days" value="${p.days}"></td>
         <td title="${esc(RM_RISK_TIP)}"><input class="in num ${+p.riskDays > 0 ? "" : "carry"}" type="number" min="0" step="0.25" data-rmpart="${p.id}|risk" value="${+p.riskDays > 0 ? p.riskDays : ""}" placeholder="${rmDays(Math.round(RM.riskDays({ ...D }, { ...p, riskDays: 0 }) * 100) / 100)}"></td>
         <td><select data-rmdep="${p.id}|0|on">${opts(d0.on)}</select></td><td>${d0.on ? at(d0, 0) : ""}</td>
         <td><select data-rmdep="${p.id}|1|on">${opts(d1.on)}</select></td><td>${d1.on ? at(d1, 1) : ""}</td>
         <td class="r rmwait" title="Waits up to ${rmDays(RM.waitFor(D, p))} working days for an artist already on the project, then a new one is brought in">${rmDays(RM.waitFor(D, p))} d</td>
         <td><input type="date" class="rmnbin" data-rmnb="${p.id}" value="${D.nb?.[p.id] != null ? RM.iso(RM.dateOf(D.start, D.nb[p.id])) : ""}" title="Empty — as early as possible"></td>
         <td class="acts"><button class="ico" data-rmpmove="${p.id}|-1" title="Up">↑</button><button class="ico" data-rmpmove="${p.id}|1" title="Down">↓</button><button class="ico del" data-rmpdel="${p.id}" title="Remove the part">✕</button></td></tr>`; }).join("")}
-    <tr class="add-row"><td colspan="11"><button class="link-btn" data-act="rm-padd">＋ Production part</button> <span class="hint">“at 33 %” — the part starts once a third of the one it waits for is done (6 animations: VFX for the first two can start) and cannot end before it; 100 % — when it is finished.</span></td></tr></tbody></table></section>`;
+    <tr class="add-row"><td colspan="11"><button class="link-btn" data-act="rm-padd">＋ Production part</button> ${RMV.cpop ? rmColorHtml(D, RMV.cpop) : ""}<span class="hint">“at 33 %” — the part starts once a third of the one it waits for is done (6 animations: VFX for the first two can start) and cannot end before it; 100 % — when it is finished.</span></td></tr></tbody></table></section>`;
   const need = RM.months(D, Sx, months);
   const mname = m => { const dt = new Date(RM.dateOf(D.start, 0)); dt.setUTCDate(1); dt.setUTCMonth(dt.getUTCMonth() + m); return RM_MON[dt.getUTCMonth()]; };
   const keys = Array.from({ length: months }, (_, m) => RM.mkey(D.start, m)); const by = RMV.teamBy || "part"; const pop = RMV.pop;
@@ -1197,6 +1203,12 @@ function rmHolHtml(D, hp){ const off = RM.holidays(D).filter(x => x.startsWith(h
     <label class="rmpop-f">Add a day off<input type="date" min="${hp.key}-01" max="${hp.key}-31" value="" data-rmholadd onkeydown="rmPopKey(event)"></label>
     <div class="rmpop-b"><span class="hint">${Array.isArray(D.holidays) ? "Your calendar" : "Ukraine 2027 calendar"}</span><span class="sp"></span><button class="btn" data-rmpop="close">Close</button></div></div>`; }
 
+/* colour picker for a part */
+function rmColorHtml(D, cp){ const i = (D.parts || []).findIndex(x => x.id === cp.pid); const p = D.parts[i]; if (!p) return ""; const cur = rmPal(i).solid.toLowerCase();
+  return `<div class="rmpop rmcpop" style="left:${cp.x}px;top:${cp.y}px" data-rmpopbox><div class="rmpop-h">${esc(p.name)} · colour</div>
+    <div class="rmsw">${RM_SWATCH.map(c => `<button class="${c.toLowerCase() === cur ? "on" : ""}" data-rmsw="${c}" style="background:${c}" title="${c}"></button>`).join("")}</div>
+    <label class="rmpop-f">Own colour<input type="color" value="${cur}" data-rmswc></label>
+    <div class="rmpop-b">${p.color ? `<button class="btn" data-rmsw="">Default</button>` : ""}<span class="sp"></span><button class="btn" data-rmpop="close">Close</button></div></div>`; }
 /* the month-limit popover */
 function rmPopHtml(D, pop, parts, mname){ const p = parts.find(x => x.id === pop.pid); if (!p) return ""; const arr = D.team?.[p.id] || []; const ms = [...pop.ms].sort((a, b) => a - b);
   const cur = RM.raw(arr, ms[0]); const label = ms.length > 1 ? `M${ms[0] + 1}–M${ms[ms.length - 1] + 1}` : `M${ms[0] + 1} ${mname(ms[0])}`; const many = ms.length > 1;
@@ -1360,9 +1372,12 @@ async function rmPdfTable(){ const plan = rmCur(); if (!plan) return; const rows
 /* ----- events ----- */
 function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   /* month-limit popover */
-  const pb = t.closest("[data-rmpop]"); if (pb) { if (pb.dataset.rmpop === "close") { RMV.pop = null; RMV.hpop = null; render(); } else rmPopApply(pb.dataset.rmpop); return true; }
+  const pb = t.closest("[data-rmpop]"); if (pb) { if (pb.dataset.rmpop === "close") { RMV.pop = null; RMV.hpop = null; RMV.cpop = null; render(); } else rmPopApply(pb.dataset.rmpop); return true; }
   const hd = t.closest("[data-rmholdel]"); if (hd) { const x = hd.dataset.rmholdel; rmEdit(d => { d.holidays = RM.holidays(d).filter(y => y !== x); }, `${rmFmt(RM.parse(x))} is a working day`); return true; }
+  const cb = t.closest("[data-rmcolor]"); if (cb) { const r = cb.getBoundingClientRect(); RMV.cpop = { pid: cb.dataset.rmcolor, x: Math.max(8, Math.min(innerWidth - 300, r.left)), y: Math.min(innerHeight - 230, r.bottom + 4) }; render(); return true; }
+  const sw = t.closest("[data-rmsw]"); if (sw) { const pid = RMV.cpop?.pid; const c = sw.dataset.rmsw; RMV.cpop = null; if (pid) rmEdit(d => { const p = d.parts.find(x => x.id === pid); if (c) p.color = c; else delete p.color; }, c ? "Colour changed" : "Default colour"); return true; }
   if (t.closest("[data-rmpopbox]")) return true;
+  if (RMV.cpop && !t.closest("[data-rmcolor]")) { RMV.cpop = null; render(); }
   const wdc = t.closest("[data-rmwdc]"); if (wdc) { const r = wdc.getBoundingClientRect(); RMV.pop = null; RMV.hpop = { key: wdc.dataset.rmwdc, x: Math.max(8, Math.min(innerWidth - 300, r.left)), y: Math.min(innerHeight - 260, r.bottom + 4) }; render(); return true; }
   const cell = t.closest("[data-rmcell]"); if (cell) { const [pid, m] = cell.dataset.rmcell.split("|"); const r = cell.getBoundingClientRect();
     if (ev?.shiftKey && RMV.pop && RMV.pop.pid === pid) { const a0 = RMV.pop.ms[0], b0 = +m; RMV.pop.ms = Array.from({ length: Math.abs(b0 - a0) + 1 }, (_, k) => Math.min(a0, b0) + k); RMV.pop.only = true; }
@@ -1406,7 +1421,8 @@ function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
   const mv = t.closest("[data-rmpmove]"); if (mv) { const [id, dir] = mv.dataset.rmpmove.split("|"); rmEdit(d => { const i = d.parts.findIndex(p => p.id === id), j = i + +dir; if (j < 0 || j >= d.parts.length) return; [d.parts[i], d.parts[j]] = [d.parts[j], d.parts[i]]; }); return true; }
   const pd = t.closest("[data-rmpdel]"); if (pd) { const id = pd.dataset.rmpdel; rmEdit(d => { d.parts = d.parts.filter(p => p.id !== id); d.parts.forEach(p => p.deps = (p.deps || []).filter(x => x.on !== id)); delete d.team[id]; d.assets.forEach(x => { delete x.days[id]; delete x.pin[id]; }); }, "Production part removed"); return true; }
   return false; }
-function rmChange(el){ if (el.dataset?.rmstin != null || el.dataset?.rmdin != null) return true; const plan = rmCur(); if (!plan) return false;
+function rmChange(el){ if (el.dataset?.rmstin != null || el.dataset?.rmdin != null) return true;
+  if (el.dataset?.rmswc != null) { const pid = RMV.cpop?.pid; const c = el.value; RMV.cpop = null; if (pid) rmEdit(d => { d.parts.find(x => x.id === pid).color = c; }, "Colour changed"); return true; } const plan = rmCur(); if (!plan) return false;
   if (el.dataset.rmzoom != null) { RMV.zoom = +el.value; render(); return true; }
   const f = el.dataset.rmf;
   if (f === "name") { if (!el.value.trim()) return render(), true; rmPush(plan, { name: el.value.trim() }, "Plan renamed"); return true; }
