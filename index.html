@@ -522,6 +522,10 @@ table.rmteam td.rmtot,table.rmteam td.rmest{z-index:2}
 .rmdotb{border:0;background:none;padding:3px;cursor:pointer;border-radius:50%;transition:background .15s} .rmdotb:hover{background:var(--strip)} .rmdotb .rmdot{display:block;width:12px;height:12px}
 .rmsw{display:grid;grid-template-columns:repeat(6,1fr);gap:6px} .rmsw button{height:26px;border:2px solid #fff;box-shadow:0 0 0 1px var(--hair2);cursor:pointer;transition:transform .12s} .rmsw button:hover{transform:scale(1.08)} .rmsw button.on{box-shadow:0 0 0 2px var(--title)}
 .rmcpop input[type=color]{height:30px;padding:0 2px;border:1px solid var(--hair2);background:#fff;width:100%}
+
+/* By person: drag a bar to another person */
+.rmbar.lift{z-index:20;box-shadow:0 6px 16px rgba(12,26,41,.28);opacity:.92;transition:box-shadow .15s} .rmrow.rmdrop>.rmtl{background-color:#e6f0fa;box-shadow:inset 0 0 0 2px #3d86c6;transition:background-color .12s} .rmrow.rmnodrop>.rmtl{cursor:not-allowed;background-color:#fbefed}
+.rmrep{flex:none;width:20px;height:20px;margin-right:4px;border:1px solid transparent;border-radius:4px;background:none;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;transition:background .12s,color .12s,border-color .12s} .rmrep:hover{background:#e6f0fa;color:#24486e;border-color:#b9cde3}
 </style>
 </head>
 <body>
@@ -1069,11 +1073,11 @@ function sheetRoadmap(){
     for (const p of Sx.parts) { const P = Sx.people[p.id]; const c = rmPal(pidx[p.id]); const lost = (D.assets || []).filter(a => Sx.items[a.id]?.[p.id]?.slot < 0 && Sx.items[a.id][p.id].work > 0);
       if (!P.length && !lost.length) continue; const shut = !!RMV.pshut[p.id];
       const s = P.length ? Math.min(...P.map(x => x.first)) : 0, e = P.length ? Math.max(...P.map(x => x.last)) : 0, bench = P.reduce((t, x) => t + (x.last - x.first) * x.r - x.busy, 0);
-      rows += `<div class="rmrow grp" data-rmp="${p.id}"><div class="rml"><div class="c0"><button class="tg ${shut ? "" : "open"}" data-rmptg="${p.id}">${shut ? "+" : "−"}</button>${rmLockBtn(D, (D.assets || []).map(a => [a, p]), "all of " + p.name)}<i class="rmdot" style="background:${c.solid}"></i><span class="nm">${esc(p.name)}</span><small class="rmppl">${rmPpl(C.people[p.id])} ppl</small></div><div class="r">${rmDays(Math.round(P.reduce((t, x) => t + x.busy, 0)))}</div>${P.length ? stc(pairsOf((D.assets || []).map(a => [a, p])), s, "p:" + p.id) : `<div class="l"></div>`}<div class="l">${P.length ? de(s, e) : ""}</div><div class="r ${bench > 5 ? "bn" : ""}" title="Paid days without work">${bench > 0.5 ? rmDays(Math.round(bench)) + " d" : "—"}</div></div>
+      rows += `<div class="rmrow grp" data-rmp="${p.id}"><div class="rml"><div class="c0"><button class="tg ${shut ? "" : "open"}" data-rmptg="${p.id}">${shut ? "+" : "−"}</button>${rmLockBtn(D, (D.assets || []).map(a => [a, p]), "all of " + p.name)}<button class="rmrep" data-rmreplan="${p.id}" title="Re-plan only ${esc(p.name)}: the planner lays out this part again; every other part stays exactly as it is (dates and people). Ctrl+Z takes it back">↻</button><i class="rmdot" style="background:${c.solid}"></i><span class="nm">${esc(p.name)}</span><small class="rmppl">${rmPpl(C.people[p.id])} ppl</small></div><div class="r">${rmDays(Math.round(P.reduce((t, x) => t + x.busy, 0)))}</div>${P.length ? stc(pairsOf((D.assets || []).map(a => [a, p])), s, "p:" + p.id) : `<div class="l"></div>`}<div class="l">${P.length ? de(s, e) : ""}</div><div class="r ${bench > 5 ? "bn" : ""}" title="Paid days without work">${bench > 0.5 ? rmDays(Math.round(bench)) + " d" : "—"}</div></div>
         ${tl(marks + P.map(x => `<div class="rmseg" style="left:${x.first * dw}px;width:${Math.max(1, (x.last - x.first) * dw)}px;background:${c.solid};opacity:${0.35 + 0.6 / Math.max(1, P.length)}"></div>`).join("") + (P.length ? `<div class="rmgbar" data-rmgrp="${p.id}" style="left:${s * dw}px;width:${Math.max(4, (e - s) * dw)}px" title="${esc(p.name)}: drag to move the whole block as it is — every bar keeps its person and its place; the parts after it follow. Right-click — a start date with the bars laid out again"></div>` : "") + (D.nb?.[p.id] != null ? `<b class="rmnb" style="left:${D.nb[p.id] * dw}px" title="${esc(p.name)} starts not before ${rmFmt(RM.dateOf(D.start, D.nb[p.id]))} — right-click the block to clear">${rmFmt(RM.dateOf(D.start, D.nb[p.id]))}</b>` : ""))}</div>`;
       if (shut) continue;
       for (const x of P) { const its = x.items.map(id => [D.assets.find(a => a.id === id), Sx.items[id][p.id]]); const bench1 = (x.last - x.first) * x.r - x.busy;
-        rows += `<div class="rmrow sub person"><div class="rml"><div class="c0">${rmLockBtn(D, its.map(([a]) => [a, p]), who(p, x.k))}<span class="nm">${esc(who(p, x.k))}</span></div><div class="r">${rmDays(x.busy)}</div>${stc(pairsOf(its.map(([a]) => [a, p])), x.first, "x:" + p.id + ":" + x.k)}<div class="l">${de(x.first, x.last)}</div><div class="r ${bench1 > 5 ? "bn" : ""}" title="Paid days without work">${bench1 > 0.5 ? rmDays(Math.round(bench1)) + " d" : "—"}</div></div>
+        rows += `<div class="rmrow sub person" data-rmpp="${p.id}:${x.k}"><div class="rml"><div class="c0">${rmLockBtn(D, its.map(([a]) => [a, p]), who(p, x.k))}<span class="nm">${esc(who(p, x.k))}</span></div><div class="r">${rmDays(x.busy)}</div>${stc(pairsOf(its.map(([a]) => [a, p])), x.first, "x:" + p.id + ":" + x.k)}<div class="l">${de(x.first, x.last)}</div><div class="r ${bench1 > 5 ? "bn" : ""}" title="Paid days without work">${bench1 > 0.5 ? rmDays(Math.round(bench1)) + " d" : "—"}</div></div>
           ${tl(marks + `<div class="rmbench" style="left:${x.first * dw}px;width:${Math.max(1, (x.last - x.first) * dw)}px" title="${esc(who(p, x.k))} on the project ${dd(x.first)} → ${de(x.first, x.last)}"></div>` + its.map(([a, it]) => bar(a, p, it, a.name.replace(/^.*?(\d+)$/, "#$1"))).join(""))}</div>`; }
       if (lost.length) rows += `<div class="rmrow sub person lost"><div class="rml"><div class="c0"><span class="nm">Nobody free</span></div><div class="r">${rmDays(lost.reduce((t, a) => t + Sx.items[a.id][p.id].work, 0))}</div><div class="l"></div><div class="l"></div><div class="r"></div></div>${tl(marks + lost.map(a => bar(a, p, Sx.items[a.id][p.id], a.name)).join(""))}</div>`; }
   } else for (const a of D.assets || []) { const its = Sx.items[a.id] || {}; const vals = Object.values(its).filter(x => x.end > x.start); const s = vals.length ? Math.min(...vals.map(x => x.start)) : 0, e = vals.length ? Math.max(...vals.map(x => x.end)) : 0;
@@ -1376,6 +1380,7 @@ async function rmPdfTable(){ const plan = rmCur(); if (!plan) return; const rows
 
 /* ----- events ----- */
 function rmClick(t, ev){ const a = t.closest("[data-act]")?.dataset.act;
+  const rp = t.closest("[data-rmreplan]"); if (rp) { rmReplan(rp.dataset.rmreplan); return true; }
   /* month-limit popover */
   const pb = t.closest("[data-rmpop]"); if (pb) { if (pb.dataset.rmpop === "close") { RMV.pop = null; RMV.hpop = null; RMV.cpop = null; render(); } else rmPopApply(pb.dataset.rmpop); return true; }
   const hd = t.closest("[data-rmholdel]"); if (hd) { const x = hd.dataset.rmholdel; rmEdit(d => { d.holidays = RM.holidays(d).filter(y => y !== x); }, `${rmFmt(RM.parse(x))} is a working day`); return true; }
@@ -1458,16 +1463,27 @@ function rmChange(el){ if (el.dataset?.rmstin != null || el.dataset?.rmdin != nu
 function rmDown(e){ const g = e.target.closest("[data-rmgrp]"); if (g && e.button === 0) return rmGroupDrag(e, g);
   const rz = e.target.closest("[data-rmrz]"), b = e.target.closest("[data-rmbar]"); if (!b || e.button !== 0) return false; const plan = rmCur(); if (!plan) return false;
   const [aid, pid] = (rz?.dataset.rmrz || b.dataset.rmbar).split("|"); const D = plan.data; const it = rmCalc(D).S.items[aid]?.[pid]; if (!it) return false;
-  const dw = RMV.zoom / 5, x0 = e.clientX, l0 = parseFloat(b.style.left), w0 = parseFloat(b.style.width); let moved = false, val = null; e.preventDefault();
+  const dw = RMV.zoom / 5, x0 = e.clientX, y0 = e.clientY, l0 = parseFloat(b.style.left), w0 = parseFloat(b.style.width); let moved = false, val = null, to = null, far = false, hl = null, lastDx = 0; e.preventDefault();
+  /* By person: drag a bar up or down onto another person of the same part — it goes to them */
+  const byP = RMV.by === "person" && !rz; const rowH = b.closest(".rmrow")?.offsetHeight || 30;
+  const target = ev => { b.style.pointerEvents = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); b.style.pointerEvents = ""; const r = el?.closest(".rmrow"); if (hl && hl !== r) hl.classList.remove("rmdrop", "rmnodrop"); hl = r;
+    const pp = r?.dataset.rmpp?.split(":"); const ok = pp && pp[0] === pid ? +pp[1] : null; if (r && r !== b.closest(".rmrow")) r.classList.add(ok != null ? "rmdrop" : "rmnodrop"); return ok; };
   /* bars snap to where another bar of this part ends (so one can follow another with no half-day gap) and to the moment its input is ready */
   const SC = rmCalc(D).S; const snaps = [it.earliest, ...Object.values(SC.items).map(o => o[pid]).filter(x => x && x !== it && x.work > 0).map(x => x.end)];
   document.body.classList.add(rz ? "rmsizing" : "rmmoving");
-  const mm = ev => { const dx = (ev.clientX - x0) / zf(); if (Math.abs(dx) > 3) moved = true; if (!moved) return;
+  const mm = ev => { const dx = (ev.clientX - x0) / zf(), dy = (ev.clientY - y0) / zf(); if (Math.abs(dx) > 3 || (byP && Math.abs(dy) > 3)) moved = true; if (!moved) return;
+    if (byP) { lastDx = dx; far = Math.abs(dy) > rowH / 2; b.style.transform = far ? `translateY(${dy}px)` : ""; b.classList.toggle("lift", far); to = far ? target(ev) : null; if (!far && hl) { hl.classList.remove("rmdrop", "rmnodrop"); hl = null; } if (val == null) val = it.start; }
     if (rz) { const days = Math.max(0.25, Math.round((w0 + dx) / dw * 4) / 4); b.style.width = days * dw + "px"; val = days; b.title = days + " d"; }
     else { let s = Math.max(0, (l0 + dx) / dw); const near = snaps.reduce((bst, c) => Math.abs(c - s) < Math.abs(bst - s) ? c : bst, Infinity);
       s = Math.abs(near - s) <= 0.6 ? near : Math.round(s); b.style.left = s * dw + "px"; val = Math.round(s * 1000) / 1000; b.classList.toggle("snap", Math.abs(near - s) < 1e-9); } };
   const up = () => { document.removeEventListener("mousemove", mm); document.removeEventListener("mouseup", up); document.body.classList.remove("rmsizing", "rmmoving");
+    if (hl) hl.classList.remove("rmdrop", "rmnodrop"); b.style.transform = ""; b.classList.remove("lift");
     if (!moved || val == null) return; const a = D.assets.find(x => x.id === aid), p = D.parts.find(x => x.id === pid);
+    if (byP && far) { if (to == null || to === it.slot) { render(); if (to == null) toast(`Drop it on a ${p.name} person`); return; }
+      const shifted = Math.abs(lastDx) >= dw * 0.75; const nm = `${p.name} #${to + 1}`;
+      rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.who = x.who || {}; x.who[pid] = to;
+        if (shifted || x.pin?.[pid] != null) { x.pin = x.pin || {}; if (shifted) x.pin[pid] = val; x.pinWho = x.pinWho || {}; x.pinWho[pid] = to; } },
+        `${a.name} · ${p.name} → ${nm}${shifted ? `, from ${rmFmt(RM.dateOf(D.start, val))}` : ""} (👤)`); return; }
     if (rz) rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.days = x.days || {}; x.days[pid] = val; }, `${a.name} · ${p.name}: ${val} d of work`);
     else { const delta = val - it.start; let moved2 = 0;
       rmEdit(d => { const x = d.assets.find(y => y.id === aid); x.pin = x.pin || {}; x.pin[pid] = val; x.pinWho = x.pinWho || {}; if (it.slot >= 0) x.pinWho[pid] = it.slot;
@@ -1476,6 +1492,16 @@ function rmDown(e){ const g = e.target.closest("[data-rmgrp]"); if (g && e.butto
         `${a.name} · ${p.name} placed by hand (✎)${moved2 ? ` — ${moved2} hand-placed part${moved2 > 1 ? "s" : ""} after it moved too` : ""}`); } };
   document.addEventListener("mousemove", mm); document.addEventListener("mouseup", up); return true; }
 /* drag a whole part: it starts not before the drop day; hand-placed bars of the part move by the same days */
+/* re-plan one part: every other bar keeps its start and its person; the planner lays this part out again around them */
+function rmReplan(pid){ const plan = rmCur(); if (!plan) return; const D = plan.data, p = D.parts.find(x => x.id === pid); if (!p) return; const S1 = rmCalc(D).S;
+  const T = JSON.parse(JSON.stringify(D)); T.layout = "auto"; delete T.frozen;
+  for (const a of T.assets || []) { a.pin = a.pin || {}; a.pinWho = a.pinWho || {}; delete a.pin[pid]; delete a.pinWho[pid];
+    for (const q of T.parts) { if (q.id === pid) continue; const it = S1.items[a.id]?.[q.id]; if (!it || !(it.work > 0)) continue; a.pin[q.id] = it.start; if (it.slot >= 0) a.pinWho[q.id] = it.slot; } }
+  const S2 = RM.schedule(T, D.mode === "team" ? { n: RM.fit(D).n || {} } : {}); let ch = 0;
+  for (const a of D.assets || []) { const o = S1.items[a.id]?.[pid], it = S2.items[a.id]?.[pid]; if (o && it && it.work > 0 && (Math.abs(it.start - o.start) > 0.01 || it.slot !== o.slot)) ch++; }
+  rmEdit(d => { for (const a of d.assets || []) { if (a.pin) delete a.pin[pid]; if (a.pinWho) delete a.pinWho[pid]; const it = S2.items[a.id]?.[pid];
+      if (d.layout === "manual" && it && it.work > 0) { d.frozen = d.frozen || {}; d.frozen[a.id] = d.frozen[a.id] || {}; d.frozen[a.id][pid] = Math.round(it.start * 100) / 100; } } },
+    `↻ ${p.name} re-planned — ${ch} bar${ch === 1 ? "" : "s"} changed; the other parts stayed as they are`); }
 function rmGroupDrag(e, g){ const plan = rmCur(); if (!plan) return false; const pid = g.dataset.rmgrp; const D = plan.data; const S1 = rmCalc(D).S; const P = S1.people[pid] || []; if (!P.length) return false;
   const s0 = Math.min(...P.map(x => x.first)); const dw = RMV.zoom / 5, x0 = e.clientX, l0 = parseFloat(g.style.left); let moved = false, val = null; e.preventDefault(); document.body.classList.add("rmmoving");
   const tip = document.createElement("div"); tip.className = "rmgtip"; document.body.appendChild(tip);
@@ -1490,6 +1516,7 @@ function rmGroupDrag(e, g){ const plan = rmCur(); if (!plan) return false; const
 function rmContext(e){ const gg = e.target.closest("[data-rmgrp]"); const plan0 = rmCur(); if (gg && plan0) { e.preventDefault(); const pid = gg.dataset.rmgrp; const p = plan0.data.parts.find(x => x.id === pid); const nb = plan0.data.nb?.[pid];
     const items = [{ head: p.name + " — the whole block" }, { label: "Start not before…", hint: nb != null ? rmFmt(RM.dateOf(plan0.data.start, nb)) : "a date", run: () => askName("Start " + p.name + " not before (dd.mm.yy or yyyy-mm-dd)", v => { const t = String(v).trim(); let iso = /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null; const m = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/.exec(t); if (m) iso = `${m[3].length === 2 ? "20" + m[3] : m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`; if (!iso || RM.parse(iso) == null) return toast("Type a date like 15.03.27", true); const d0 = RM.dayOf(plan0.data.start, iso); rmEdit(d => { d.nb = d.nb || {}; d.nb[pid] = d0; }, `${p.name}: starts not before ${rmFmt(RM.parse(iso))}`); }, "", nb != null ? rmFmt(RM.dateOf(plan0.data.start, nb)) : "", "Set") }];
     if (nb != null) items.push({ label: "Clear the start date", hint: "as early as possible", run: () => rmEdit(d => { delete d.nb[pid]; }, `${p.name}: as early as possible`) });
+    items.push("-", { label: "Re-plan only " + p.name, hint: "↻ the rest stays", run: () => rmReplan(pid) });
     openMenu(e.clientX, e.clientY, items); return true; }
   return rmContext0(e); }
 function rmContext0(e){ const b = e.target.closest("[data-rmbar]"); const plan = rmCur(); if (!b || !plan) return false; e.preventDefault();
