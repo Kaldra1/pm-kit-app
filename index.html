@@ -611,7 +611,7 @@ function renderLogin(msg){
 /* ---------------- data ---------------- */
 async function loadProjects(){
   S.projects = await q(sb.from("project").select("id,org_id,name,code,settings").is("archived_at", null).order("created_at"));
-  if (!S.project || !S.projects.find(p => p.id === S.project.id)) S.project = S.projects[0] || null;
+  if (!S.project || !S.projects.find(p => p.id === S.project.id)) S.project = S.projects.find(p => p.id === RM_UI.project) || S.projects[0] || null;
   if (S.project) await loadProject();
 }
 async function loadProject(){
@@ -1502,6 +1502,14 @@ function rmDbl(e){ const st = e.target.closest("[data-rmst]"); if (st) { RMV.sed
 /* keep the Gantt and the tables where they were scrolled when the page draws again (after a drag, an edit, Apply…) */
 { const draw0 = render; render = function(...args){ const keep = [".rmwrap", ".rmteamwrap", ".rmdata"].map(q => { const e = document.querySelector(q); return e ? [q, e.scrollLeft, e.scrollTop] : null; }).filter(Boolean);
     const out = draw0.apply(this, args); for (const [q, l, t] of keep) { const e = document.querySelector(q); if (e) { e.scrollLeft = l; e.scrollTop = t; } } return out; }; }
+/* pick up where you left off after a reload: project, sheet, plan, and how the Roadmap was shown */
+const RM_UI = (() => { try { return JSON.parse(localStorage.getItem("pmkit.ui") || "{}"); } catch (_) { return {}; } })();
+if (RM_UI.rmv) { const { pop, hpop, sedit, ...v } = RM_UI.rmv; Object.assign(RMV, v); }
+if (["tracker", "gantt", "roadmap", "workload", "pipelines", "history"].includes(RM_UI.sheet)) S.sheet = RM_UI.sheet;
+if (RM_UI.rmCur) S.rmCur = RM_UI.rmCur;
+function rmUiSave(){ try { const { by, open, data, gantt, tab, teamBy, zoom, pshut, noLoad } = RMV; localStorage.setItem("pmkit.ui", JSON.stringify({ project: S.project?.id || RM_UI.project, sheet: S.sheet, rmCur: S.rmCur, rmv: { by, open, data, gantt, tab, teamBy, zoom, pshut, noLoad } })); } catch (_) {} }
+{ const draw1 = render; render = function(...args){ const out = draw1.apply(this, args); rmUiSave(); return out; }; }
+addEventListener("beforeunload", rmUiSave);
 
 
 /* ---------------- tracker ---------------- */
